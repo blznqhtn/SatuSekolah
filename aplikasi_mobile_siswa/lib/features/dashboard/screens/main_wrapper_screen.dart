@@ -4,23 +4,17 @@ import 'package:get/get.dart';
 import 'package:aplikasi_mobile_siswa/features/dashboard/controllers/main_wrapper_controller.dart';
 import 'package:aplikasi_mobile_siswa/features/dashboard/screens/home_screen.dart';
 import 'package:aplikasi_mobile_siswa/features/profile/screens/profile_screen.dart';
-
-// Layar Dummy untuk Jadwal
-class JadwalScreen extends StatelessWidget {
-  const JadwalScreen({Key? key}) : super(key: key);
-  @override
-  Widget build(BuildContext context) => const Scaffold(body: Center(child: Text('Halaman Jadwal & Tugas')));
-}
+import 'package:aplikasi_mobile_siswa/features/dashboard/screens/akademik_screen.dart';
 
 class MainWrapperScreen extends StatelessWidget {
   MainWrapperScreen({Key? key}) : super(key: key);
 
   final MainWrapperController controller = Get.put(MainWrapperController());
 
-  // Hanya menyisakan 3 halaman utama
+  // Layar Dummy untuk Akademik
   final List<Widget> _pages = [
     const HomeScreen(),
-    const JadwalScreen(),
+    const AkademikScreen(),
     const ProfileScreen(),
   ];
 
@@ -65,7 +59,7 @@ class MainWrapperScreen extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween, // Jarak antar 3 menu dibuat merata
                   children: [
                     _buildNavItem(Icons.space_dashboard_outlined, Icons.space_dashboard_rounded, 0, 'Beranda'),
-                    _buildNavItem(Icons.event_note_outlined, Icons.event_note_rounded, 1, 'Jadwal'),
+                    _buildNavItem(Icons.school_outlined, Icons.school_rounded, 1, 'Akademik'),
                     _buildNavItem(Icons.person_outline_rounded, Icons.person_rounded, 2, 'Profil'),
                   ],
                 ),

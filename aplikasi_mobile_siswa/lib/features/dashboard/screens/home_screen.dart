@@ -1,5 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:get/get.dart';
+import 'package:carousel_slider/carousel_slider.dart';
+import 'package:aplikasi_mobile_siswa/features/evaluation/screens/evaluation_list_screen.dart';
+import 'package:aplikasi_mobile_siswa/features/library/screens/library_screen.dart';
+import 'package:aplikasi_mobile_siswa/features/violation/screens/violation_screen.dart';
+import 'package:aplikasi_mobile_siswa/features/schedule/screens/schedule_screen.dart';
+import 'package:aplikasi_mobile_siswa/features/report_card/screens/report_card_screen.dart';
+import 'package:aplikasi_mobile_siswa/features/career/screens/career_screen.dart';
+
+import 'package:aplikasi_mobile_siswa/features/dashboard/screens/notification_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -32,7 +42,9 @@ class HomeScreen extends StatelessWidget {
             children: [
               IconButton(
                 icon: const Icon(Icons.notifications_outlined, color: Color(0xFF334155), size: 26),
-                onPressed: () {},
+                onPressed: () {
+                  Get.to(() => const NotificationScreen());
+                },
               ),
               Positioned(
                 right: 12,
@@ -135,6 +147,36 @@ class HomeScreen extends StatelessWidget {
                 ],
               ),
             ),
+            const SizedBox(height: 24),
+            
+            // Carousel Banner
+            CarouselSlider(
+              options: CarouselOptions(
+                height: 140.0,
+                autoPlay: true,
+                enlargeCenterPage: true,
+                viewportFraction: 1.0,
+                autoPlayInterval: const Duration(seconds: 4),
+              ),
+              items: [
+                _buildBannerItem(
+                  'https://images.unsplash.com/photo-1523050854058-8df90110c9f1?q=80&w=600&auto=format&fit=crop',
+                  'Beasiswa 2026 Dibuka',
+                  'Daftarkan diri Anda untuk program beasiswa prestasi.',
+                ),
+                _buildBannerItem(
+                  'https://images.unsplash.com/photo-1509062522246-3755977927d7?q=80&w=600&auto=format&fit=crop',
+                  'Ujian Tengah Semester',
+                  'Persiapkan diri untuk UTS mulai tanggal 15 Oktober.',
+                ),
+                _buildBannerItem(
+                  'https://images.unsplash.com/photo-1427504494785-3a9ca7044f45?q=80&w=600&auto=format&fit=crop',
+                  'Kunjungan Industri',
+                  'Kelas XII RPL & TKJ akan melaksanakan kunjungan.',
+                ),
+              ],
+            ),
+            
             const SizedBox(height: 32),
             
             const Text(
@@ -195,7 +237,22 @@ class HomeScreen extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           splashColor: primaryColor.withOpacity(0.1),
           highlightColor: primaryColor.withOpacity(0.05),
-          onTap: () {},
+          onTap: () {
+            // Aksi navigasi ke halaman spesifik
+            if (label.contains('Kinerja')) {
+              Get.to(() => const EvaluationListScreen());
+            } else if (label.contains('E-Perpus')) {
+              Get.to(() => const LibraryScreen());
+            } else if (label.contains('Poin')) {
+              Get.to(() => const ViolationScreen());
+            } else if (label.contains('Jadwal')) {
+              Get.to(() => const ScheduleScreen());
+            } else if (label.contains('Rapor')) {
+              Get.to(() => const ReportCardScreen());
+            } else if (label.contains('Karir')) {
+              Get.to(() => const CareerScreen());
+            }
+          },
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -228,6 +285,54 @@ class HomeScreen extends StatelessWidget {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBannerItem(String imageUrl, String title, String subtitle) {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        image: DecorationImage(
+          image: NetworkImage(imageUrl),
+          fit: BoxFit.cover,
+        ),
+      ),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          gradient: LinearGradient(
+            colors: [Colors.black.withOpacity(0.7), Colors.transparent],
+            begin: Alignment.bottomCenter,
+            end: Alignment.topCenter,
+          ),
+        ),
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.end,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 18,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              subtitle,
+              style: const TextStyle(
+                color: Colors.white70,
+                fontSize: 12,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
         ),
       ),
     );

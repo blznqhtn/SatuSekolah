@@ -1,0 +1,216 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+}
+
+/* Mobile typography adjustments */
+@media (max-width: 640px) {
+    .mobile-text-adjust {
+        letter-spacing: -0.01em;
+        line-height: 1.4;
+    }
+
+    .mobile-heading {
+        font-size: 1.25rem !important;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+    }
+
+    .mobile-subheading {
+        font-size: 1rem !important;
+        font-weight: 600;
+    }
+
+    .mobile-card-title {
+        font-size: 0.7rem !important;
+        letter-spacing: 0.02em;
+    }
+
+    .mobile-card-value {
+        font-size: 1.5rem !important;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+    }
+
+    .mobile-table-header {
+        font-size: 0.65rem !important;
+        font-weight: 600;
+        letter-spacing: 0.03em;
+    }
+
+    .mobile-table-data {
+        font-size: 0.8rem !important;
+    }
+
+    .mobile-badge {
+        font-size: 0.65rem !important;
+        padding: 0.15rem 0.4rem;
+    }
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+.dark .custom-scrollbar::-webkit-scrollbar-track {
+    background: #1f2937;
+}
+
+.dark .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #4b5563;
+}
+
+.dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #6b7280;
+}
+
+.tab-active {
+    border-bottom: 2px solid #0ea5e9;
+    color: #0ea5e9;
+}
+
+.dark .tab-active {
+    border-bottom: 2px solid #38bdf8;
+    color: #38bdf8;
+}
+
+.today-tab {
+    background-color: rgba(14, 165, 233, 0.1);
+    font-weight: 600;
+}
+
+.dark .today-tab {
+    background-color: rgba(56, 189, 248, 0.1);
+}
+
+.modal {
+    transition: opacity 0.25s ease;
+}
+
+.modal-active {
+    overflow-x: hidden;
+    overflow-y: visible !important;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateY(20px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+@keyframes pulse {
+    0%,
+    100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.05);
+    }
+}
+
+@keyframes shake {
+    0%,
+    100% {
+        transform: translateX(0);
+    }
+    25% {
+        transform: translateX(-5px);
+    }
+    50% {
+        transform: translateX(5px);
+    }
+    75% {
+        transform: translateX(-5px);
+    }
+}
+
+@keyframes bounce {
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(-5px);
+    }
+}
+
+@keyframes glow {
+    0%,
+    100% {
+        box-shadow: 0 0 5px rgba(14, 165, 233, 0.5);
+    }
+    50% {
+        box-shadow: 0 0 20px rgba(14, 165, 233, 0.8);
+    }
+}
+
+.date-input-container:hover .date-input {
+    border-color: rgba(14, 165, 233, 0.5);
+}
+
+.date-input:focus + .date-indicator {
+    opacity: 1;
+}
+
+.date-input-filled .date-indicator {
+    opacity: 1;
+    background-color: #10b981;
+}
+
+.modal-active {
+    overflow: hidden !important;
+}
+
+.dark .bg-gray-750 {
+    background-color: #1e293b;
+}
+
+.dark .bg-gray-650 {
+    background-color: #334155;
+}
+
+.backdrop-blur-sm {
+    backdrop-filter: blur(4px);
+}
+
+.quick-date-btn.active {
+    background-color: rgba(14, 165, 233, 0.2);
+    color: #0ea5e9;
+    font-weight: 500;
+}
+
+.dark .quick-date-btn.active {
+    background-color: rgba(56, 189, 248, 0.2);
+    color: #38bdf8;
+}

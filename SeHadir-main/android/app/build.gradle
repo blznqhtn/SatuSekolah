@@ -1,0 +1,50 @@
+plugins {
+    alias(libs.plugins.android.application)
+}
+
+android {
+    namespace 'kadaviradityaa.id.e_presence'
+    compileSdk = 36
+
+    defaultConfig {
+        applicationId "kadaviradityaa.id.e_presence"
+        minSdk 26
+        //noinspection OldTargetApi
+        targetSdk 36
+        vectorDrawables.useSupportLibrary = true
+        versionCode 7
+        versionName "1.0.7"
+
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_11
+        targetCompatibility JavaVersion.VERSION_11
+    }
+}
+
+dependencies {
+    implementation libs.appcompat
+    implementation libs.material
+    implementation libs.constraintlayout
+    implementation libs.common
+    testImplementation libs.junit
+    androidTestImplementation libs.ext.junit
+    androidTestImplementation libs.espresso.core
+    implementation libs.mpandroidchart
+    implementation libs.circleimageview
+    implementation libs.volley
+    implementation libs.glide
+    annotationProcessor libs.compiler
+    implementation libs.activity
+    implementation libs.documentfile
+}
