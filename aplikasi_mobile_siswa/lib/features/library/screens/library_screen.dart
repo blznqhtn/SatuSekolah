@@ -1,3 +1,17 @@
+// =============================================================================
+// library_screen.dart — E-Perpustakaan Digital
+// =============================================================================
+// Fitur utama:
+//   • Search real-time berdasarkan judul & penulis
+//   • Filter kategori via chip (Fiksi, Sains, Sejarah, Teknologi, dll)
+//   • Bookmark buku: ikon di pojok kanan bawah cover setiap kartu
+//   • SavedBooksScreen: halaman buku tersimpan (AppBar bookmark icon)
+//   • BookDetailScreen: detail buku + bookmark + baca + ulasan
+//
+// State: StatefulWidget
+// Kelas di file ini: LibraryScreen, SavedBooksScreen, BookDetailScreen
+// =============================================================================
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';

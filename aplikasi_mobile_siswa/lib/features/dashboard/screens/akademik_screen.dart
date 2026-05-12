@@ -1,3 +1,16 @@
+// =============================================================================
+// akademik_screen.dart — Layar Tab Akademik
+// =============================================================================
+// Fitur utama:
+//   • Kelas Selanjutnya: menampilkan kelas aktif/berikutnya secara real-time
+//     menggunakan Timer yang refresh setiap 30 detik.
+//   • Grid Layanan: 4 menu (Kalender, Ekskul, Konseling BK, Perizinan)
+//   • Pengumuman Akademik: list pengumuman, bisa diklik untuk detail
+//
+// State: StatefulWidget (karena ada Timer dan update real-time)
+// Dependencies: dart:async, intl, GetX
+// =============================================================================
+
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';

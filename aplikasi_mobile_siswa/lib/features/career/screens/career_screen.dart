@@ -1,7 +1,20 @@
+// =============================================================================
+// career_screen.dart — Karir & PKL
+// =============================================================================
+// Fitur utama:
+//   • Tab "Informasi PKL": banner info, search & filter, daftar tempat PKL
+//     - Tombol "Cek Persyaratan" → PklRequirementScreen (detail syarat Hubin)
+//   • Tab "Lowongan Alumni": daftar loker kerja dengan search & filter
+//   • Fitur Wishlist/Bookmark: simpan PKL/loker → SavedJobsScreen
+//   • Filter BottomSheet: filter berdasarkan Lokasi & Tipe pekerjaan
+//
+// State: StatefulWidget (karena ada search, filter, wishlist)
+// Kelas di file ini: CareerScreen + PklRequirementScreen (import terpisah)
+// =============================================================================
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
-
 import 'package:aplikasi_mobile_siswa/features/career/screens/pkl_requirement_screen.dart';
 import 'package:aplikasi_mobile_siswa/features/career/screens/saved_jobs_screen.dart';
 

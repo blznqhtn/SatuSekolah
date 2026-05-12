@@ -1,3 +1,28 @@
+// =============================================================================
+// notification_service.dart — Layanan Push Notification Lokal
+// =============================================================================
+// Package: flutter_local_notifications
+//
+// Cara Penggunaan:
+//   // Di mana saja dalam aplikasi:
+//   await NotificationService().showAnnouncementNotification(
+//     'Judul Pengumuman', 'Isi pengumuman...'
+//   );
+//
+// Inisialisasi:
+//   Dipanggil SEKALI di main() sebelum runApp():
+//   await NotificationService().initialize();
+//
+// Channel Android:
+//   ID     : satu_sekolah_channel
+//   Suara  : ✅ (default system sound)
+//   Getar  : ✅
+//   Prioritas: HIGH (muncul sebagai heads-up notification)
+//
+// Izin yang Diperlukan (AndroidManifest.xml):
+//   POST_NOTIFICATIONS, VIBRATE, RECEIVE_BOOT_COMPLETED
+// =============================================================================
+
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 class NotificationService {

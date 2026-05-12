@@ -1,3 +1,20 @@
+// =============================================================================
+// profile_screen.dart — Profil & Pengaturan Siswa
+// =============================================================================
+// Fitur utama:
+//   • Header profil: avatar, nama, NISN & kelas
+//   • Card ringkasan: kehadiran & poin pelanggaran
+//   • Menu Akun: Edit Profil → EditProfileScreen
+//                Ganti Kata Sandi → ChangePasswordScreen
+//   • Menu Informasi: Tata Tertib → SchoolRulesScreen
+//                     Kontak → ContactScreen
+//                     FAQ → FaqScreen (ExpansionTile)
+//   • Tombol Logout → kembali ke LoginScreen
+//
+// Semua sub-screen didefinisikan di file yang sama (single file approach)
+// State: StatelessWidget (ProfileScreen), StatefulWidget (ChangePasswordScreen)
+// =============================================================================
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:aplikasi_mobile_siswa/features/auth/screens/login_screen.dart';
