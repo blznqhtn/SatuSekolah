@@ -28,7 +28,8 @@ class BerandaScreen extends StatelessWidget {
           // 2. Content
           SafeArea(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
+              // PERBAIKAN: Ganti padding horizontal menjadi fromLTRB untuk menambah jarak atas
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 20), 
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [

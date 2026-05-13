@@ -164,21 +164,25 @@ class AkunScreen extends StatelessWidget {
   // HELPER: Judul Halaman
   Widget _buildHeader(String title) {
     return Container(
-      height: 200,
+      height: 240, // 1. Perbesar sedikit tinggi background birunya
       width: double.infinity,
       decoration: const BoxDecoration(
-        gradient:
-            LinearGradient(colors: [Color(0xFF48C6EF), Color(0xFF6F86D6)]),
+        gradient: LinearGradient(colors: [Color(0xFF48C6EF), Color(0xFF6F86D6)]),
         borderRadius: BorderRadius.only(
-            bottomLeft: Radius.circular(30), bottomRight: Radius.circular(30)),
+          bottomLeft: Radius.circular(30),
+          bottomRight: Radius.circular(30),
+        ),
       ),
-      child: Padding(
-        padding: const EdgeInsets.only(top: 50, left: 20),
-        child: Text(title,
-            style: const TextStyle(
-                color: Colors.white,
-                fontSize: 28,
-                fontWeight: FontWeight.bold)),
+      // 2. Bungkus dengan SafeArea agar teks aman dari poni kamera
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.only(top: 20, left: 20), // Jarak lega dari atas
+          child: Text(
+            title, 
+            style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold)
+          ),
+        ),
       ),
     );
   }
