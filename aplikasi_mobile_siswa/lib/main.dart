@@ -9,6 +9,8 @@
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:get_storage/get_storage.dart';
 import 'package:aplikasi_mobile_siswa/features/auth/screens/login_screen.dart';
 import 'package:aplikasi_mobile_siswa/core/services/notification_service.dart';
 
@@ -17,6 +19,10 @@ import 'package:aplikasi_mobile_siswa/core/services/notification_service.dart';
 void main() async {
   // Pastikan binding Flutter siap sebelum memanggil kode native
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Inisialisasi Firebase & GetStorage
+  await Firebase.initializeApp();
+  await GetStorage.init();
 
   // Inisialisasi push notification (channel Android, minta izin, dll)
   await NotificationService().initialize();
