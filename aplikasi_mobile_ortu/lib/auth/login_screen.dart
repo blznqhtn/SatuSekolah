@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'register_screen.dart';
 import '../main_navigation.dart';
 
 class LoginScreen extends StatelessWidget {
@@ -29,13 +28,11 @@ class LoginScreen extends StatelessWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // PERBAIKAN: Ganti Icon menjadi Image.asset
                   Image.asset(
                     'assets/images/LogoSatuSekolah.png',
-                    height:
-                        100, // Ukuran disesuaikan agar terlihat proporsional di header
+                    height: 100, 
                   ),
-                  const SizedBox(height: 15), // Beri sedikit jarak ekstra
+                  const SizedBox(height: 15),
                   const Text(
                     "SATU SEKOLAH",
                     style: TextStyle(
@@ -62,7 +59,7 @@ class LoginScreen extends StatelessWidget {
                     "Selamat Datang",
                     style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                   ),
-                  const Text("Silakan masuk untuk memantau aktivitas anak"),
+                  // PERBAIKAN: Teks subtitle dihapus
                   const SizedBox(height: 30),
 
                   // Form Input
@@ -77,15 +74,8 @@ class LoginScreen extends StatelessWidget {
                     isPassword: true,
                   ),
 
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: TextButton(
-                      onPressed: () {},
-                      child: const Text("Lupa Password?"),
-                    ),
-                  ),
-
-                  const SizedBox(height: 20),
+                  // PERBAIKAN: Tombol Lupa Password dihapus
+                  const SizedBox(height: 30),
 
                   // Tombol Masuk
                   SizedBox(
@@ -115,24 +105,57 @@ class LoginScreen extends StatelessWidget {
                     ),
                   ),
 
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 25),
 
+                  // PERBAIKAN: Pembatas "atau"
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Text("Belum punya akun?"),
-                      TextButton(
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (context) => const RegisterScreen()),
-                          );
-                        },
-                        child: const Text("Daftar Sekarang"),
+                      Expanded(child: Divider(color: Colors.grey[400])),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 15),
+                        child: Text(
+                          "atau",
+                          style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                        ),
                       ),
+                      Expanded(child: Divider(color: Colors.grey[400])),
                     ],
                   ),
+
+                  const SizedBox(height: 25),
+
+                  // PERBAIKAN: Tombol Masuk dengan Google ditambahkan
+                  SizedBox(
+                    width: double.infinity,
+                    height: 55,
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        // TODO: Implementasi fungsi autentikasi Google
+                      },
+                      icon: Image.asset(
+                        'assets/images/Google_Favicon_2025.png', // Pastikan Anda menambahkan logo google di folder assets
+                        height: 24,
+                        // Fallback icon jika gambar google_logo.png belum ada
+                        errorBuilder: (context, error, stackTrace) => 
+                            const Icon(Icons.g_mobiledata, size: 36, color: Colors.red),
+                      ),
+                      label: const Text(
+                        "Masuk dengan Google",
+                        style: TextStyle(
+                          color: Colors.black87,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Colors.black26),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(15),
+                        ),
+                      ),
+                    ),
+                  ),
+                  // PERBAIKAN: Baris Daftar Sekarang dihapus
                 ],
               ),
             ),
