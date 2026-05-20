@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:flutter_svg/flutter_svg.dart'; // Import package flutter_svg
-import 'package:aplikasi_mobile_siswa/features/dashboard/screens/main_wrapper_screen.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import 'package:aplikasi_mobile_siswa/features/auth/controllers/auth_controller.dart';
 
 class LoginScreen extends StatelessWidget {
-  const LoginScreen({Key? key}) : super(key: key);
+  LoginScreen({Key? key}) : super(key: key);
+
+  final AuthController authController = Get.put(AuthController());
 
   @override
   Widget build(BuildContext context) {
@@ -32,17 +34,21 @@ class LoginScreen extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // LOGO SATUSEKOLAH
+                // LOGO SATUSEKOLAH (menggunakan logo dari Ortu)
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF0F172A), 
-                        borderRadius: BorderRadius.circular(8),
+                    Image.asset(
+                      'assets/images/LogoSatuSekolah.png',
+                      height: 48,
+                      errorBuilder: (context, error, stackTrace) => Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF0F172A), 
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(Icons.school, color: Colors.white, size: 28),
                       ),
-                      child: const Icon(Icons.school, color: Colors.white, size: 28),
                     ),
                     const SizedBox(width: 12),
                     const Text(
@@ -56,12 +62,22 @@ class LoginScreen extends StatelessWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: 40),
+                const SizedBox(height: 8),
+                const Text(
+                  'Student & Parent Portal',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Color(0xFF64748B),
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 32),
 
-                // INPUT EMAIL
+                // INPUT EMAIL ATAU USERNAME
                 TextFormField(
+                  controller: authController.identifierController,
                   decoration: InputDecoration(
-                    hintText: 'Email atau NISN',
+                    hintText: 'Email atau Username',
                     hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 14), 
                     contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                     enabledBorder: OutlineInputBorder(
@@ -77,12 +93,24 @@ class LoginScreen extends StatelessWidget {
                 const SizedBox(height: 16),
 
                 // INPUT KATA SANDI
-                TextFormField(
-                  obscureText: true,
+                Obx(() => TextFormField(
+                  controller: authController.passwordController,
+                  obscureText: !authController.isPasswordVisible.value,
                   decoration: InputDecoration(
                     hintText: 'Kata Sandi',
                     hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 14),
                     contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        authController.isPasswordVisible.value 
+                            ? Icons.visibility 
+                            : Icons.visibility_off,
+                        color: const Color(0xFF94A3B8),
+                      ),
+                      onPressed: () {
+                        authController.isPasswordVisible.value = !authController.isPasswordVisible.value;
+                      },
+                    ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
                       borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
@@ -92,14 +120,12 @@ class LoginScreen extends StatelessWidget {
                       borderSide: const BorderSide(color: Color(0xFF0F172A), width: 1.5),
                     ),
                   ),
-                ),
+                )),
                 const SizedBox(height: 24),
 
                 // TOMBOL MASUK
-                ElevatedButton(
-                  onPressed: () {
-                    Get.offAll(() => MainWrapperScreen());
-                  },
+                Obx(() => ElevatedButton(
+                  onPressed: authController.isLoading.value ? null : () => authController.login(),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF0F172A), 
                     foregroundColor: Colors.white,
@@ -109,16 +135,22 @@ class LoginScreen extends StatelessWidget {
                       borderRadius: BorderRadius.circular(8),
                     ),
                   ),
-                  child: const Text(
-                    'Masuk ke Akun',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-                  ),
-                ),
+                  child: authController.isLoading.value 
+                      ? const SizedBox(
+                          height: 20, 
+                          width: 20, 
+                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)
+                        )
+                      : const Text(
+                          'Masuk ke Akun',
+                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                        ),
+                )),
                 const SizedBox(height: 16),
 
-                // TOMBOL MASUK DENGAN GOOGLE (menggunakan SVG agar logo asli tampil)
+                // TOMBOL MASUK DENGAN GOOGLE
                 OutlinedButton(
-                  onPressed: () {},
+                  onPressed: () => authController.loginWithGoogle(),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: const Color(0xFF0F172A),
                     padding: const EdgeInsets.symmetric(vertical: 16),
@@ -130,7 +162,6 @@ class LoginScreen extends StatelessWidget {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      // Memanggil logo SVG Google asli dari URL
                       SvgPicture.network(
                         'https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg',
                         height: 20,

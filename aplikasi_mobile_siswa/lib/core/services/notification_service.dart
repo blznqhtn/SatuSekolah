@@ -47,7 +47,7 @@ class NotificationService {
     );
 
     await _plugin.initialize(
-      initSettings,
+      settings: initSettings,
       onDidReceiveNotificationResponse: (NotificationResponse response) {
         // Handling ketika notifikasi ditekan (dapat diarahkan ke halaman tertentu)
       },
@@ -98,7 +98,13 @@ class NotificationService {
       android: androidDetails,
     );
 
-    await _plugin.show(id, title, body, details, payload: payload);
+    await _plugin.show(
+      id: id,
+      title: title,
+      body: body,
+      notificationDetails: details,
+      payload: payload,
+    );
   }
 
   /// Notifikasi pengumuman baru

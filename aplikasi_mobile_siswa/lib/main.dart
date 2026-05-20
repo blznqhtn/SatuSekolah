@@ -49,7 +49,7 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
       ),
       // Set LoginScreen sebagai halaman pertama saat aplikasi dibuka
-      home: const LoginScreen(),
+      home: LoginScreen(),
     );
   }
 }

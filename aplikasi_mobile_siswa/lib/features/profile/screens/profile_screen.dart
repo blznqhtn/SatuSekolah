@@ -392,7 +392,7 @@ class ProfileScreen extends StatelessWidget {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                onPressed: () => Get.offAll(() => const LoginScreen()),
+                onPressed: () => Get.offAll(() => LoginScreen()),
                 icon: const Icon(Icons.logout, size: 20),
                 label: const Text('Keluar Aplikasi', style: TextStyle(fontWeight: FontWeight.w600)),
                 style: ElevatedButton.styleFrom(
