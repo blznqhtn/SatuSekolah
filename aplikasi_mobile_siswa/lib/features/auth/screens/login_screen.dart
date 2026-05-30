@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:aplikasi_mobile_siswa/features/auth/controllers/auth_controller.dart';
@@ -6,7 +7,7 @@ import 'package:aplikasi_mobile_siswa/features/auth/controllers/auth_controller.
 class LoginScreen extends StatelessWidget {
   LoginScreen({Key? key}) : super(key: key);
 
-  final AuthController authController = Get.put(AuthController());
+  final AuthController authController = Get.find<AuthController>();
 
   @override
   Widget build(BuildContext context) {
@@ -30,8 +31,9 @@ class LoginScreen extends StatelessWidget {
                 ),
               ],
             ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
+            child: AutofillGroup(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 // LOGO SATUSEKOLAH (menggunakan logo dari Ortu)
@@ -76,6 +78,8 @@ class LoginScreen extends StatelessWidget {
                 // INPUT EMAIL ATAU USERNAME
                 TextFormField(
                   controller: authController.identifierController,
+                  autofillHints: const [AutofillHints.email, AutofillHints.username],
+                  keyboardType: TextInputType.emailAddress,
                   decoration: InputDecoration(
                     hintText: 'Email atau Username',
                     hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 14), 
@@ -96,6 +100,8 @@ class LoginScreen extends StatelessWidget {
                 Obx(() => TextFormField(
                   controller: authController.passwordController,
                   obscureText: !authController.isPasswordVisible.value,
+                  autofillHints: const [AutofillHints.password],
+                  onEditingComplete: () => TextInput.finishAutofillContext(),
                   decoration: InputDecoration(
                     hintText: 'Kata Sandi',
                     hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 14),
@@ -183,13 +189,15 @@ class LoginScreen extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     const Text(
-                      'Belum punya akun? ',
+                      'Lupa kata sandi? ',
                       style: TextStyle(color: Color(0xFF64748B), fontSize: 13), 
                     ),
                     GestureDetector(
-                      onTap: () {},
+                      onTap: () {
+                        Get.snackbar("Hubungi Sekolah", "Silakan hubungi Admin Sekolah untuk mereset kata sandi Anda.");
+                      },
                       child: const Text(
-                        'Hubungi Sekolah',
+                        'Hubungi Admin Sekolah',
                         style: TextStyle(
                           color: Color(0xFF0F172A), 
                           fontSize: 13,
@@ -200,6 +208,7 @@ class LoginScreen extends StatelessWidget {
                   ],
                 ),
               ],
+             ),
             ),
           ),
         ),

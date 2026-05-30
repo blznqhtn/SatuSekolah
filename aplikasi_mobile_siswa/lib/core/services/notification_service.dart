@@ -24,6 +24,8 @@
 // =============================================================================
 
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
@@ -68,11 +70,30 @@ class NotificationService {
           ),
         );
 
-    // Minta izin notifikasi (Android 13+)
+  }
+
+  /// Meminta izin notifikasi ke pengguna (Dipanggil setelah login berhasil)
+  Future<void> requestPermission() async {
+    // Minta izin notifikasi melalui package permission_handler (untuk OS level native)
+    await Permission.notification.request();
+
+    // Minta izin untuk Android 13+ (Local Notifications)
     await _plugin
         .resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin>()
         ?.requestNotificationsPermission();
+
+    // Minta izin FCM (berguna untuk iOS dan Android)
+    FirebaseMessaging messaging = FirebaseMessaging.instance;
+    await messaging.requestPermission(
+      alert: true,
+      announcement: false,
+      badge: true,
+      carPlay: false,
+      criticalAlert: false,
+      provisional: false,
+      sound: true,
+    );
   }
 
   /// Tampilkan notifikasi lokal dengan suara

@@ -15,6 +15,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:aplikasi_mobile_siswa/features/schedule/screens/schedule_screen.dart';
 import 'package:aplikasi_mobile_siswa/features/report_card/screens/report_card_screen.dart';
@@ -25,6 +26,7 @@ import 'package:aplikasi_mobile_siswa/features/academic/screens/counseling_scree
 import 'package:aplikasi_mobile_siswa/features/academic/screens/student_permit_screen.dart';
 import 'package:aplikasi_mobile_siswa/features/dashboard/screens/notification_screen.dart';
 import 'package:aplikasi_mobile_siswa/features/academic/screens/academic_announcement_screen.dart';
+import 'package:aplikasi_mobile_siswa/shared/widgets/premium_header.dart';
 
 // Model untuk data kelas
 class ClassItem {
@@ -210,7 +212,7 @@ class _AkademikScreenState extends State<AkademikScreen> {
   Widget build(BuildContext context) {
     SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
-      statusBarIconBrightness: Brightness.dark,
+      statusBarIconBrightness: Brightness.light,
     ));
 
     final nextClassResult = _getNextOrCurrentClass();
@@ -218,151 +220,166 @@ class _AkademikScreenState extends State<AkademikScreen> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        title: const Text(
-          'Akademik',
-          style: TextStyle(
-            color: Color(0xFF0F172A),
-            fontWeight: FontWeight.bold,
-            fontSize: 24,
-            letterSpacing: -0.5,
+      body: CustomScrollView(
+        physics: const BouncingScrollPhysics(),
+        slivers: [
+          PremiumHeader(
+            title: 'Akademik',
+            expandedHeight: 220,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const SizedBox(height: 20),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.school_rounded, size: 48, color: Colors.white),
+                ),
+                const SizedBox(height: 16),
+                Text('Tahun Ajaran 2026/2027', style: GoogleFonts.nunito(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w800)),
+                const SizedBox(height: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.white.withOpacity(0.3)),
+                  ),
+                  child: Text('Semester Ganjil', style: GoogleFonts.nunito(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700)),
+                ),
+              ],
+            ),
           ),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_outlined, color: Color(0xFF334155)),
-            onPressed: () {
-              Get.to(() => const NotificationScreen());
-            },
+
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.only(left: 16, right: 16, top: 20, bottom: 100),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Next Class Card (Real-time)
+                  Text(
+                    'Kelas Selanjutnya',
+                    style: GoogleFonts.nunito(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: const Color(0xFF0F172A),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  _buildNextClassCard(nextClass, nextClassResult.isOngoing),
+
+                  const SizedBox(height: 28),
+
+                  Text(
+                    'Layanan Akademik',
+                    style: GoogleFonts.nunito(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: const Color(0xFF0F172A),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  
+                  // Grid Akademik
+                  GridView.count(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    padding: EdgeInsets.zero,
+                    crossAxisCount: 2,
+                    mainAxisSpacing: 12,
+                    crossAxisSpacing: 12,
+                    childAspectRatio: 1.4,
+                    children: [
+                      _buildAcademicMenuCard(
+                        title: 'Kalender\nAkademik',
+                        icon: Icons.edit_calendar_rounded,
+                        color: const Color(0xFF2563EB),
+                        bgColor: const Color(0xFFEFF6FF),
+                        onTap: () => Get.to(() => const AcademicCalendarScreen()),
+                      ),
+                      _buildAcademicMenuCard(
+                        title: 'Ekstra\nKurikuler',
+                        icon: Icons.sports_basketball_rounded,
+                        color: const Color(0xFF059669),
+                        bgColor: const Color(0xFFECFDF5),
+                        onTap: () => Get.to(() => const ExtracurricularScreen()),
+                      ),
+                      _buildAcademicMenuCard(
+                        title: 'Konseling\nBK',
+                        icon: Icons.support_agent_rounded,
+                        color: const Color(0xFF7C3AED),
+                        bgColor: const Color(0xFFF5F3FF),
+                        onTap: () => Get.to(() => const CounselingScreen()),
+                      ),
+                      _buildAcademicMenuCard(
+                        title: 'Perizinan\nSiswa',
+                        icon: Icons.assignment_rounded,
+                        color: const Color(0xFFD97706),
+                        bgColor: const Color(0xFFFFFBEB),
+                        onTap: () => Get.to(() => const StudentPermitScreen()),
+                      ),
+                    ],
+                  ),
+                  
+                  const SizedBox(height: 28),
+                  
+                  // Pengumuman Akademik
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Pengumuman Akademik',
+                          style: GoogleFonts.nunito(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            color: const Color(0xFF0F172A),
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: () {
+                          Get.to(() => const AcademicAnnouncementScreen());
+                        },
+                        child: Text(
+                          'Lihat Semua',
+                          style: GoogleFonts.nunito(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: const Color(0xFF055D97),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  _buildAnnouncementItem(
+                    title: 'Jadwal Remedial Semester Ganjil',
+                    date: '15 Desember 2025',
+                    type: 'Penting',
+                    desc: 'Pelaksanaan remedial untuk mata pelajaran Matematika dan Bahasa Indonesia akan dilaksanakan minggu depan. Harap mempersiapkan diri.',
+                    icon: Icons.assignment_late_rounded,
+                    color: const Color(0xFFDC2626),
+                  ),
+                  _buildAnnouncementItem(
+                    title: 'Pengumpulan Tugas Akhir PKL',
+                    date: '20 Desember 2025',
+                    type: 'Tugas',
+                    desc: 'Seluruh laporan PKL wajib dikumpulkan dalam bentuk digital dan cetak. Keterlambatan akan mempengaruhi nilai akhir semester.',
+                    icon: Icons.folder_rounded,
+                    color: const Color(0xFFD97706),
+                  ),
+                ],
+              ),
+            ),
           ),
         ],
-      ),
-      body: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
-        padding: const EdgeInsets.only(left: 20, right: 20, top: 20, bottom: 100),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Next Class Card (Real-time)
-            const Text(
-              'Kelas Selanjutnya',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF0F172A),
-              ),
-            ),
-            const SizedBox(height: 12),
-            _buildNextClassCard(nextClass, nextClassResult.isOngoing),
-
-            const SizedBox(height: 24),
-
-            const Text(
-              'Layanan Akademik',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF0F172A),
-              ),
-            ),
-            const SizedBox(height: 16),
-            
-            // Grid Akademik
-            GridView.count(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              padding: EdgeInsets.zero,
-              crossAxisCount: 2,
-              mainAxisSpacing: 16,
-              crossAxisSpacing: 16,
-              childAspectRatio: 1.1,
-              children: [
-                _buildAcademicMenuCard(
-                  title: 'Kalender\nAkademik',
-                  icon: Icons.edit_calendar_rounded,
-                  color: const Color(0xFF2563EB),
-                  bgColor: const Color(0xFFEFF6FF),
-                  onTap: () => Get.to(() => const AcademicCalendarScreen()),
-                ),
-                _buildAcademicMenuCard(
-                  title: 'Ekstra\nKurikuler',
-                  icon: Icons.sports_basketball_rounded,
-                  color: const Color(0xFF059669),
-                  bgColor: const Color(0xFFECFDF5),
-                  onTap: () => Get.to(() => const ExtracurricularScreen()),
-                ),
-                _buildAcademicMenuCard(
-                  title: 'Konseling\nBK',
-                  icon: Icons.support_agent_rounded,
-                  color: const Color(0xFF7C3AED),
-                  bgColor: const Color(0xFFF5F3FF),
-                  onTap: () => Get.to(() => const CounselingScreen()),
-                ),
-                _buildAcademicMenuCard(
-                  title: 'Perizinan\nSiswa',
-                  icon: Icons.assignment_rounded,
-                  color: const Color(0xFFD97706),
-                  bgColor: const Color(0xFFFFFBEB),
-                  onTap: () => Get.to(() => const StudentPermitScreen()),
-                ),
-              ],
-            ),
-            
-            const SizedBox(height: 12),
-            
-            // Pengumuman Akademik
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Expanded(
-                  child: Text(
-                    'Pengumuman Akademik',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF0F172A),
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                GestureDetector(
-                  onTap: () {
-                    Get.to(() => const AcademicAnnouncementScreen());
-                  },
-                  child: const Text(
-                    'Lihat Semua',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF055D97),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            _buildAnnouncementItem(
-              title: 'Jadwal Remedial Semester Ganjil',
-              date: '15 Desember 2025',
-              type: 'Penting',
-              desc: 'Pelaksanaan remedial untuk mata pelajaran Matematika dan Bahasa Indonesia akan dilaksanakan minggu depan. Harap mempersiapkan diri.',
-              icon: Icons.assignment_late_rounded,
-              color: const Color(0xFFDC2626),
-            ),
-            _buildAnnouncementItem(
-              title: 'Pengumpulan Tugas Akhir PKL',
-              date: '20 Desember 2025',
-              type: 'Tugas',
-              desc: 'Seluruh laporan PKL wajib dikumpulkan dalam bentuk digital dan cetak. Keterlambatan akan mempengaruhi nilai akhir semester.',
-              icon: Icons.folder_rounded,
-              color: const Color(0xFFD97706),
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -409,19 +426,15 @@ class _AkademikScreenState extends State<AkademikScreen> {
     final badgeText = isOngoing ? '🔴 LIVE' : '⏰ Berikutnya';
 
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF055D97), Color(0xFF0891B2)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(20),
+        color: const Color(0xFF055D97),
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF055D97).withOpacity(0.3),
-            blurRadius: 15,
-            offset: const Offset(0, 8),
+            color: const Color(0xFF055D97).withOpacity(0.2),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
           )
         ],
       ),
@@ -474,12 +487,12 @@ class _AkademikScreenState extends State<AkademikScreen> {
             ),
           ),
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
-              shape: BoxShape.circle,
+              color: Colors.white.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(12),
             ),
-            child: Icon(cls.icon, color: Colors.white, size: 32),
+            child: Icon(cls.icon, color: Colors.white, size: 28),
           )
         ],
       ),
@@ -496,42 +509,48 @@ class _AkademikScreenState extends State<AkademikScreen> {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFF1F5F9)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.02),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           )
         ],
       ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(16),
           onTap: onTap,
           child: Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: bgColor,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(icon, color: color, size: 24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: bgColor,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(icon, color: color, size: 20),
+                    ),
+                    Icon(Icons.arrow_forward_ios_rounded, color: const Color(0xFFE2E8F0), size: 14),
+                  ]
                 ),
                 Text(
                   title,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF0F172A),
-                    height: 1.3,
+                  style: GoogleFonts.nunito(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    color: const Color(0xFF0F172A),
+                    height: 1.2,
                   ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
