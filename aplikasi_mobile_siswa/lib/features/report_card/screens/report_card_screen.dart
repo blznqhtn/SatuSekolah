@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:aplikasi_mobile_siswa/features/report_card/controllers/report_card_controller.dart';
 
 class ReportCardScreen extends StatefulWidget {
   const ReportCardScreen({Key? key}) : super(key: key);
@@ -12,6 +13,7 @@ class ReportCardScreen extends StatefulWidget {
 class _ReportCardScreenState extends State<ReportCardScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
   String _selectedFilter = 'Kelas';
+  final ReportCardController controller = Get.put(ReportCardController());
 
   @override
   void initState() {
@@ -87,7 +89,37 @@ class _ReportCardScreenState extends State<ReportCardScreen> with SingleTickerPr
   }
 
   Widget _buildRaporTab() {
-    return SingleChildScrollView(
+    return Obx(() {
+      if (controller.isLoading.value) {
+        return const Center(child: CircularProgressIndicator());
+      }
+
+      if (controller.errorMessage.value.isNotEmpty) {
+        return Center(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Text(
+              controller.errorMessage.value,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.red),
+            ),
+          ),
+        );
+      }
+
+      final report = controller.reportCard.value;
+      if (report == null) {
+        return const Center(child: Text("Tidak ada data rapor."));
+      }
+
+      // Hitung Rata-rata
+      double totalScore = 0;
+      for (var grade in report.grades) {
+        totalScore += grade.score;
+      }
+      double average = report.grades.isNotEmpty ? totalScore / report.grades.length : 0;
+
+      return SingleChildScrollView(
       physics: const BouncingScrollPhysics(),
       padding: const EdgeInsets.only(left: 20, right: 20, top: 20, bottom: 40),
       child: Column(
@@ -103,7 +135,7 @@ class _ReportCardScreenState extends State<ReportCardScreen> with SingleTickerPr
             ),
             child: DropdownButtonHideUnderline(
               child: DropdownButton<String>(
-                value: 'Semester Ganjil - 2025/2026',
+                value: '${report.termName} - ${report.academicYear}',
                 isExpanded: true,
                 icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Color(0xFF64748B)),
                 style: const TextStyle(
@@ -112,9 +144,7 @@ class _ReportCardScreenState extends State<ReportCardScreen> with SingleTickerPr
                   fontWeight: FontWeight.w600,
                 ),
                 items: [
-                  'Semester Ganjil - 2025/2026',
-                  'Semester Genap - 2024/2025',
-                  'Semester Ganjil - 2024/2025',
+                  '${report.termName} - ${report.academicYear}',
                 ].map((String value) {
                   return DropdownMenuItem<String>(
                     value: value,
@@ -146,14 +176,14 @@ class _ReportCardScreenState extends State<ReportCardScreen> with SingleTickerPr
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    children: const [
-                      Text(
+                    children: [
+                      const Text(
                         'Rata-rata Nilai',
                         style: TextStyle(color: Colors.white70, fontSize: 13),
                       ),
-                      SizedBox(height: 4),
+                      const SizedBox(height: 4),
                       Text(
-                        '89.5',
+                        average.toStringAsFixed(1),
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 32,
@@ -171,14 +201,14 @@ class _ReportCardScreenState extends State<ReportCardScreen> with SingleTickerPr
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.center,
-                    children: const [
-                      Text(
+                    children: [
+                      const Text(
                         'Peringkat Kelas',
                         style: TextStyle(color: Colors.white70, fontSize: 13),
                       ),
-                      SizedBox(height: 4),
+                      const SizedBox(height: 4),
                       Text(
-                        '1',
+                        report.classRank.toString(),
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 32,
@@ -195,7 +225,7 @@ class _ReportCardScreenState extends State<ReportCardScreen> with SingleTickerPr
           const SizedBox(height: 32),
 
           const Text(
-            'Mata Pelajaran Umum (A)',
+            'Daftar Nilai',
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
@@ -203,14 +233,11 @@ class _ReportCardScreenState extends State<ReportCardScreen> with SingleTickerPr
             ),
           ),
           const SizedBox(height: 12),
-          _buildGradeItem('Pendidikan Agama dan Budi Pekerti', 90, 88, 'A'),
-          _buildGradeItem('Pendidikan Pancasila', 88, 86, 'A'),
-          _buildGradeItem('Bahasa Indonesia', 92, 90, 'A'),
-          _buildGradeItem('Matematika', 89, 88, 'A'),
-
+          ...report.grades.map((g) => _buildGradeItem(g.courseName, g.score, g.predicate)).toList(),
+          
           const SizedBox(height: 20),
           const Text(
-            'Mata Pelajaran Kejuruan (C)',
+            'Catatan Wali Kelas',
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
@@ -218,118 +245,165 @@ class _ReportCardScreenState extends State<ReportCardScreen> with SingleTickerPr
             ),
           ),
           const SizedBox(height: 12),
-          _buildGradeItem('Administrasi Sistem Jaringan', 90, 95, 'A'),
-          _buildGradeItem('Pemrograman Terstruktur', 88, 92, 'A'),
-          _buildGradeItem('Pemrograman Perangkat Bergerak', 85, 88, 'B+'),
-          _buildGradeItem('Basis Data', 94, 95, 'A'),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildLeaderboardTab() {
-    // Dynamic data based on selected filter
-    List<Map<String, dynamic>> top3 = [];
-    List<Map<String, dynamic>> others = [];
-
-    if (_selectedFilter == 'Kelas') {
-      top3 = [
-        {'rank': 2, 'name': 'Andi W.', 'score': '88.2', 'height': 100.0, 'color': const Color(0xFF94A3B8)},
-        {'rank': 1, 'name': 'Anda (Siswa Bintang)', 'score': '89.5', 'height': 130.0, 'color': const Color(0xFFF59E0B)},
-        {'rank': 3, 'name': 'Siti A.', 'score': '87.9', 'height': 90.0, 'color': const Color(0xFFB45309)},
-      ];
-      others = [
-        {'rank': 4, 'name': 'Budi Santoso', 'score': '87.5'},
-        {'rank': 5, 'name': 'Rina Mulyani', 'score': '86.8'},
-        {'rank': 6, 'name': 'Ahmad Dahlan', 'score': '86.0'},
-        {'rank': 30, 'name': 'Faisal Sandy', 'score': '75.5'}, // max 30 siswa
-      ];
-    } else if (_selectedFilter == 'Jurusan') {
-      top3 = [
-        {'rank': 2, 'name': 'Anda (Siswa Bintang)', 'score': '89.5', 'height': 100.0, 'color': const Color(0xFF94A3B8)},
-        {'rank': 1, 'name': 'Kevin S. (XII RPL 1)', 'score': '91.2', 'height': 130.0, 'color': const Color(0xFFF59E0B)},
-        {'rank': 3, 'name': 'Melati P. (XII RPL 3)', 'score': '88.8', 'height': 90.0, 'color': const Color(0xFFB45309)},
-      ];
-      others = [
-        {'rank': 4, 'name': 'Andi W. (XII RPL 2)', 'score': '88.2'},
-        {'rank': 5, 'name': 'Siti A. (XII RPL 2)', 'score': '87.9'},
-        {'rank': 6, 'name': 'Tono R. (XII RPL 1)', 'score': '87.7'},
-        {'rank': 90, 'name': 'Joko A. (XII RPL 3)', 'score': '76.6'}, // 3 kelas x 30 = 90
-      ];
-    } else {
-      top3 = [
-        {'rank': 2, 'name': 'Kevin S. (XII RPL 1)', 'score': '91.2', 'height': 100.0, 'color': const Color(0xFF94A3B8)},
-        {'rank': 1, 'name': 'Agus B. (XII TKJ 2)', 'score': '92.5', 'height': 130.0, 'color': const Color(0xFFF59E0B)},
-        {'rank': 3, 'name': 'Diana K. (XII DKV 1)', 'score': '90.8', 'height': 90.0, 'color': const Color(0xFFB45309)},
-      ];
-      others = [
-        {'rank': 4, 'name': 'Tia F. (XII TT 1)', 'score': '90.1'},
-        {'rank': 5, 'name': 'Sisca W. (XII TKJ 1)', 'score': '89.8'},
-        {'rank': 6, 'name': 'Anda (Siswa Bintang)', 'score': '89.5'},
-        {'rank': 200, 'name': 'Reza O. (XII DKV 2)', 'score': '75.2'},
-      ];
-    }
-
-    String contextText = _selectedFilter == 'Kelas' ? 'Peringkat di Kelas XII RPL 2 (Total 30 Siswa)' :
-                         _selectedFilter == 'Jurusan' ? 'Peringkat Paralel Jurusan RPL (Total 90 Siswa)' :
-                         'Peringkat Paralel Seluruh Kelas XII (Total 360 Siswa)';
-
-    return SingleChildScrollView(
-      physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.only(left: 20, right: 20, top: 20, bottom: 40),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(child: _buildRankFilterChip('Kelas')),
-              const SizedBox(width: 8),
-              Expanded(child: _buildRankFilterChip('Jurusan')),
-              const SizedBox(width: 8),
-              Expanded(child: _buildRankFilterChip('Paralel')),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Center(
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFEF3C7),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFFFDE68A)),
+            ),
             child: Text(
-              contextText,
+              report.homeroomNotes,
               style: const TextStyle(
-                color: Color(0xFF64748B),
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
+                color: Color(0xFF92400E),
+                height: 1.5,
               ),
             ),
           ),
-          const SizedBox(height: 24),
-
-          // Peringkat 1-3
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              _buildTopRank(top3[0]['rank'], top3[0]['name'], top3[0]['score'], top3[0]['height'], top3[0]['color']),
-              const SizedBox(width: 12),
-              _buildTopRank(top3[1]['rank'], top3[1]['name'], top3[1]['score'], top3[1]['height'], top3[1]['color']),
-              const SizedBox(width: 12),
-              _buildTopRank(top3[2]['rank'], top3[2]['name'], top3[2]['score'], top3[2]['height'], top3[2]['color']),
-            ],
-          ),
-          
-          const SizedBox(height: 32),
-          
-          const Text(
-            'Peringkat Lainnya',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF0F172A),
-            ),
-          ),
-          const SizedBox(height: 16),
-          ...others.map((user) => _buildOtherRank(user['rank'], user['name'], user['score'])).toList(),
         ],
       ),
     );
+    });
+  }
+
+  Widget _buildLeaderboardTab() {
+    return Obx(() {
+      if (controller.isLeaderboardLoading.value) {
+        return const Center(child: CircularProgressIndicator());
+      }
+
+      if (controller.leaderboardError.value.isNotEmpty) {
+        return Center(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Text(
+              controller.leaderboardError.value,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.red),
+            ),
+          ),
+        );
+      }
+
+      final data = controller.leaderboardData;
+      if (data.isEmpty) {
+        return const Center(child: Text("Belum ada data leaderboard."));
+      }
+
+      // Sort data by rank just in case
+      data.sort((a, b) => a.rank.compareTo(b.rank));
+
+      // Separate top 3 and others
+      final top3Models = data.take(3).toList();
+      final othersModels = data.skip(3).toList();
+
+      List<Map<String, dynamic>> top3 = [];
+      List<Map<String, dynamic>> others = [];
+
+      for (int i = 0; i < top3Models.length; i++) {
+        var m = top3Models[i];
+        double height = 100.0;
+        Color color = const Color(0xFF94A3B8); // Default rank 2
+        
+        if (m.rank == 1) {
+          height = 130.0;
+          color = const Color(0xFFF59E0B);
+        } else if (m.rank == 3) {
+          height = 90.0;
+          color = const Color(0xFFB45309);
+        }
+        
+        top3.add({
+          'rank': m.rank,
+          'name': m.studentName,
+          'className': m.className,
+          'score': m.averageScore.toStringAsFixed(1),
+          'height': height,
+          'color': color,
+          'is_me': m.isCurrentUser,
+        });
+      }
+
+      for (var m in othersModels) {
+        others.add({
+          'rank': m.rank,
+          'name': m.studentName,
+          'className': m.className,
+          'score': m.averageScore.toStringAsFixed(1),
+          'is_me': m.isCurrentUser,
+        });
+      }
+
+      // Re-order top3 array specifically for UI (rank 2, 1, 3)
+      if (top3.length == 3) {
+        var temp = top3[0];
+        top3[0] = top3[1]; // Rank 2
+        top3[1] = temp;    // Rank 1
+      }
+
+      String contextText = _selectedFilter == 'Kelas' ? 'Peringkat di Kelas (Sesuai Rapor)' :
+                           _selectedFilter == 'Jurusan' ? 'Peringkat Paralel Jurusan' :
+                           'Peringkat Paralel Seluruh Angkatan';
+
+      return SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
+        padding: const EdgeInsets.only(left: 20, right: 20, top: 20, bottom: 40),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(child: _buildRankFilterChip('Kelas')),
+                const SizedBox(width: 8),
+                Expanded(child: _buildRankFilterChip('Jurusan')),
+                const SizedBox(width: 8),
+                Expanded(child: _buildRankFilterChip('Paralel')),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Center(
+              child: Text(
+                contextText,
+                style: const TextStyle(
+                  color: Color(0xFF64748B),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            if (top3.isNotEmpty)
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  if (top3.length > 0) _buildTopRank(top3[0]['rank'], top3[0]['name'], top3[0]['className'], top3[0]['score'], top3[0]['height'], top3[0]['color'], top3[0]['is_me']),
+                  if (top3.length > 0) const SizedBox(width: 12),
+                  if (top3.length > 1) _buildTopRank(top3[1]['rank'], top3[1]['name'], top3[1]['className'], top3[1]['score'], top3[1]['height'], top3[1]['color'], top3[1]['is_me']),
+                  if (top3.length > 1) const SizedBox(width: 12),
+                  if (top3.length > 2) _buildTopRank(top3[2]['rank'], top3[2]['name'], top3[2]['className'], top3[2]['score'], top3[2]['height'], top3[2]['color'], top3[2]['is_me']),
+                ],
+              ),
+            
+            const SizedBox(height: 32),
+            
+            if (others.isNotEmpty) ...[
+              const Text(
+                'Peringkat Lainnya',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF0F172A),
+                ),
+              ),
+              const SizedBox(height: 16),
+              ...others.map((user) => _buildOtherRank(user['rank'], user['name'], user['className'], user['score'], user['is_me'])).toList(),
+            ]
+          ],
+        ),
+      );
+    });
   }
 
   Widget _buildRankFilterChip(String label) {
@@ -338,6 +412,7 @@ class _ReportCardScreenState extends State<ReportCardScreen> with SingleTickerPr
       onTap: () {
         setState(() {
           _selectedFilter = label;
+          controller.fetchLeaderboard(label);
         });
       },
       child: Container(
@@ -360,19 +435,39 @@ class _ReportCardScreenState extends State<ReportCardScreen> with SingleTickerPr
     );
   }
 
-  Widget _buildTopRank(int rank, String name, String score, double height, Color color) {
+  Widget _buildTopRank(int rank, String name, String className, String score, double height, Color color, bool isMe) {
     return Expanded(
       child: Column(
         children: [
+          if (isMe)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              margin: const EdgeInsets.only(bottom: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF055D97),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Text('Anda', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+            ),
           Icon(Icons.emoji_events_rounded, color: color, size: rank == 1 ? 40 : 30),
           const SizedBox(height: 8),
           Text(
             name,
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF0F172A)),
+            style: TextStyle(fontWeight: isMe ? FontWeight.w900 : FontWeight.bold, fontSize: 13, color: isMe ? const Color(0xFF055D97) : const Color(0xFF0F172A)),
             textAlign: TextAlign.center,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),
+          if (_selectedFilter != 'Kelas') ...[
+            const SizedBox(height: 2),
+            Text(
+              className,
+              style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
           const SizedBox(height: 4),
           Text(
             score,
@@ -399,14 +494,14 @@ class _ReportCardScreenState extends State<ReportCardScreen> with SingleTickerPr
     );
   }
 
-  Widget _buildOtherRank(int rank, String name, String score) {
+  Widget _buildOtherRank(int rank, String name, String className, String score, bool isMe) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isMe ? const Color(0xFFEFF6FF) : Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: isMe ? const Color(0xFF3B82F6) : const Color(0xFFE2E8F0), width: isMe ? 2 : 1),
       ),
       child: Row(
         children: [
@@ -414,37 +509,68 @@ class _ReportCardScreenState extends State<ReportCardScreen> with SingleTickerPr
             width: 30,
             child: Text(
               '$rank',
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF64748B)),
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: isMe ? const Color(0xFF2563EB) : const Color(0xFF64748B)),
             ),
           ),
           Container(
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: const Color(0xFFF1F5F9),
+              color: isMe ? const Color(0xFFDBEAFE) : const Color(0xFFF1F5F9),
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.person, color: Color(0xFF94A3B8)),
+            child: Icon(Icons.person, color: isMe ? const Color(0xFF3B82F6) : const Color(0xFF94A3B8)),
           ),
           const SizedBox(width: 16),
           Expanded(
-            child: Text(
-              name,
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFF0F172A)),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        name,
+                        style: TextStyle(fontWeight: isMe ? FontWeight.w900 : FontWeight.bold, fontSize: 15, color: isMe ? const Color(0xFF1E3A8A) : const Color(0xFF0F172A)),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (isMe) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF3B82F6),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: const Text('Anda', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                      ),
+                    ]
+                  ],
+                ),
+                if (_selectedFilter != 'Kelas') ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    className,
+                    style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ],
             ),
           ),
           Text(
             score,
-            style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: Color(0xFF055D97)),
+            style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: isMe ? const Color(0xFF2563EB) : const Color(0xFF055D97)),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildGradeItem(String subject, int pengetahuan, int keterampilan, String predikat) {
+  Widget _buildGradeItem(String subject, int score, String predikat) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
@@ -470,9 +596,7 @@ class _ReportCardScreenState extends State<ReportCardScreen> with SingleTickerPr
                 const SizedBox(height: 8),
                 Row(
                   children: [
-                    _buildSubScore('P:', pengetahuan),
-                    const SizedBox(width: 12),
-                    _buildSubScore('K:', keterampilan),
+                    _buildSubScore('Nilai Akhir:', score),
                   ],
                 ),
               ],

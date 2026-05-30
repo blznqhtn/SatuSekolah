@@ -461,7 +461,7 @@ class ProfileScreen extends StatelessWidget {
           // ─── HEADER PREMIUM ──────────────────────────────────
           PremiumHeader(
             title: 'Profil Saya',
-            expandedHeight: 260,
+            expandedHeight: 235,
             child: Padding(
               padding: const EdgeInsets.only(bottom: 24),
               child: Obx(() {
@@ -480,7 +480,7 @@ class ProfileScreen extends StatelessWidget {
                           Stack(
                             children: [
                               Container(
-                                width: 90, height: 90,
+                                width: 70, height: 70,
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
                                   border: Border.all(color: Colors.white.withOpacity(0.3), width: 3),
@@ -511,15 +511,10 @@ class ProfileScreen extends StatelessWidget {
                             ],
                           ),
                           const SizedBox(height: 16),
-                          Text(nama, style: GoogleFonts.nunito(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w800, letterSpacing: -0.5)),
+                          Text(nama, style: GoogleFonts.nunito(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800, letterSpacing: -0.5)),
                           const SizedBox(height: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.15),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: Colors.white.withOpacity(0.2)),
-                            ),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
                             child: Text(
                               info.isNotEmpty ? '$role • $info' : role,
                               style: GoogleFonts.nunito(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700),

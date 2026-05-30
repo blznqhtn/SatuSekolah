@@ -6,6 +6,8 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:aplikasi_mobile_siswa/features/dashboard/screens/main_wrapper_screen.dart';
 import 'package:aplikasi_mobile_siswa/core/services/notification_service.dart';
+import 'package:aplikasi_mobile_siswa/core/services/external_auth_service.dart';
+
 class AuthController extends GetxController {
   final TextEditingController identifierController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
@@ -50,6 +52,8 @@ class AuthController extends GetxController {
     await prefs.remove('user_data');
     isAuthenticated.value = false;
     userData.value = {};
+    // Logout dari semua layanan eksternal
+    ExternalAuthService().logoutAll();
     await GoogleSignIn.instance.signOut();
     // Jika perlu navigasi ke halaman login:
     // Get.offAll(() => LoginScreen()); 
@@ -97,12 +101,18 @@ class AuthController extends GetxController {
           await prefs.setString('jwt_token', data['token']);
           final userJson = jsonEncode(data['data']);
           await prefs.setString('user_data', userJson);
-          // === DEBUG: Lihat apa yang disimpan ===
           print('=== SAVED user_data: $userJson ===');
           isAuthenticated.value = true;
           await loadUserData();
-          // === DEBUG: Lihat userData setelah load ===
           print('=== userData setelah load: ${userData.value} ===');
+
+          // ── Auto-login ke semua layanan eksternal ──
+          final userEmail = data['data']['email']?.toString();
+          ExternalAuthService().autoLoginAll(
+            identifier: identifier,
+            password: password,
+            email: userEmail,
+          );
         } else {
           print('=== PERINGATAN: data[token] atau data[data] null! ===');
           print('=== token: ${data['token']} ===');

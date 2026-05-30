@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:carousel_slider/carousel_slider.dart';
@@ -14,6 +15,7 @@ import 'package:aplikasi_mobile_siswa/features/dashboard/screens/notification_sc
 import 'package:aplikasi_mobile_siswa/features/lms/screens/lms_dashboard_screen.dart';
 import 'package:aplikasi_mobile_siswa/features/health/screens/health_dashboard_screen.dart';
 import 'package:aplikasi_mobile_siswa/features/attendance/screens/attendance_screen.dart';
+import 'package:aplikasi_mobile_siswa/features/schedule/controllers/schedule_controller.dart';
 import 'package:aplikasi_mobile_siswa/shared/widgets/premium_header.dart';
 
 // Warna brand utama SatuSekolah
@@ -40,6 +42,7 @@ class HomeScreen extends StatelessWidget {
       statusBarIconBrightness: Brightness.light,
     ));
     final AuthController auth = Get.find<AuthController>();
+    final ScheduleController scheduleController = Get.put(ScheduleController());
 
     return Scaffold(
       backgroundColor: kBg,
@@ -142,6 +145,49 @@ class HomeScreen extends StatelessWidget {
                       _buildBannerItem('https://images.unsplash.com/photo-1509062522246-3755977927d7?q=80&w=600&auto=format&fit=crop', 'Ujian Tengah Semester 📚', 'Persiapkan diri untuk UTS mulai 15 Oktober.'),
                     ],
                   ),
+                  const SizedBox(height: 28),
+
+                  // ─── JADWAL HARI INI ─────────────────────────────────────
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('Jadwal Pelajaran Hari Ini', style: GoogleFonts.nunito(fontSize: 18, fontWeight: FontWeight.w800, color: kTextDark)),
+                      GestureDetector(
+                        onTap: () => Get.to(() => const ScheduleScreen()),
+                        child: Text('Lihat Semua', style: GoogleFonts.nunito(fontSize: 13, fontWeight: FontWeight.w800, color: kPrimary)),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Obx(() {
+                    if (scheduleController.isLoading.value && scheduleController.jadwalHariIni.isEmpty) {
+                      return const Center(child: Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator()));
+                    }
+                    if (scheduleController.jadwalHariIni.isEmpty) {
+                      return Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(vertical: 20),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                        ),
+                        child: Column(
+                          children: [
+                            Icon(Icons.event_busy_rounded, size: 48, color: Colors.grey[300]),
+                            const SizedBox(height: 8),
+                            Text('Tidak ada jadwal hari ini', style: GoogleFonts.nunito(color: kTextMuted, fontWeight: FontWeight.w600)),
+                          ],
+                        ),
+                      );
+                    }
+
+                    // Tampilkan max 3 jadwal teratas untuk hari ini
+                    final items = scheduleController.jadwalHariIni.take(3).toList();
+                    return Column(
+                      children: items.map((item) => _buildTodayScheduleItem(item)).toList(),
+                    );
+                  }),
                   const SizedBox(height: 28),
 
                   // ─── AKSES CEPAT (PREMIUM ICONS) ─────────────────────────
@@ -258,6 +304,52 @@ class HomeScreen extends StatelessWidget {
             ]),
           ),
         ]),
+      ),
+    );
+  }
+
+  Widget _buildTodayScheduleItem(ScheduleItem item) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 8, offset: const Offset(0, 2))],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: item.color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: FaIcon(item.icon, color: item.color, size: 24),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('${item.mataPelajaran} (Jam ke ${item.jamKeLabel})', style: GoogleFonts.nunito(fontWeight: FontWeight.bold, fontSize: 15, color: kTextDark)),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    const Icon(Icons.access_time_rounded, size: 12, color: kTextMuted),
+                    const SizedBox(width: 4),
+                    Text('${item.jamMulai} - ${item.jamSelesai}', style: GoogleFonts.nunito(fontSize: 12, color: kTextMuted, fontWeight: FontWeight.w600)),
+                    const SizedBox(width: 12),
+                    const Icon(Icons.location_on_rounded, size: 12, color: kTextMuted),
+                    const SizedBox(width: 4),
+                    Text(item.ruangan.isNotEmpty ? item.ruangan : 'Ruang Kelas', style: GoogleFonts.nunito(fontSize: 12, color: kTextMuted, fontWeight: FontWeight.w600)),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

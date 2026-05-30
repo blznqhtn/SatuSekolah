@@ -147,6 +147,20 @@ lib/
 
 ---
 
+## 🔑 Akun Pengujian (Login Google)
+
+Sistem telah di-seed dengan akun riil untuk pengujian integrasi Google Login. Seluruh akun di bawah ini telah di-set sebagai **Siswa** (`student`) agar Anda bisa menguji coba fitur Akademik, Rapor Digital, dan Leaderboard:
+
+- `keciltikus29@gmail.com` (Siswa Tikus Kecil)
+- `muhammadadrisela28@gmail.com` (Muhammad Adris Ela)
+- `azikaper886@gmail.com` (Azi Kaper)
+- `butterflybirubiru@gmail.com` (Guru Biru)
+- `bankbrialfamidi@gmail.com` (Admin Keuangan)
+
+*(Gunakan salah satu dari akun Google di atas pada saat memilih akun di layar Google Sign-In)*
+
+---
+
 ## 🔮 Rencana Pengembangan
 
 - [ ] Integrasi API Backend (ganti semua data dummy)

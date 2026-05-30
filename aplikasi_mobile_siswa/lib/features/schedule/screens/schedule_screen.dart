@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:get/get.dart';
+import '../controllers/schedule_controller.dart';
 
 class ScheduleScreen extends StatefulWidget {
   const ScheduleScreen({Key? key}) : super(key: key);
@@ -11,11 +13,14 @@ class ScheduleScreen extends StatefulWidget {
 
 class _ScheduleScreenState extends State<ScheduleScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  final ScheduleController controller = Get.put(ScheduleController());
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 5, vsync: this);
+    // Default to today's tab
+    int initialIndex = controller.todayTabIndex;
+    _tabController = TabController(length: 5, vsync: this, initialIndex: initialIndex);
   }
 
   @override
@@ -93,12 +98,34 @@ class _ScheduleScreenState extends State<ScheduleScreen> with SingleTickerProvid
   }
 
   Widget _buildDaySchedule(String day) {
-    // Data dummy berdasarkan gambar dan kondisi hari
-    List<Widget> scheduleItems = [];
+    return Obx(() {
+      if (controller.isLoading.value) {
+        return const Center(child: CircularProgressIndicator());
+      }
 
-    if (day == 'Senin') {
-      scheduleItems.add(
-        _buildScheduleItem(
+      final scheduleItems = controller.getJadwalHari(day);
+
+      if (scheduleItems.isEmpty) {
+        return Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.event_busy_rounded, size: 64, color: Colors.grey[300]),
+              const SizedBox(height: 16),
+              Text(
+                'Tidak ada jadwal untuk hari $day',
+                style: const TextStyle(color: Colors.grey, fontSize: 16),
+              ),
+            ],
+          ),
+        );
+      }
+
+      List<Widget> widgets = [];
+
+      // Tambahkan kegiatan rutin pagi (contoh)
+      if (day == 'Senin') {
+        widgets.add(_buildScheduleItemWidget(
           jamKe: '-',
           time: '07:00 - 08:00',
           subject: 'Upacara Bendera',
@@ -106,165 +133,53 @@ class _ScheduleScreenState extends State<ScheduleScreen> with SingleTickerProvid
           kode: '-',
           room: 'Lapangan Utama',
           color: const Color(0xFFE11D48),
-          icon: Icons.flag_rounded,
-        ),
+          icon: FontAwesomeIcons.flag,
+        ));
+      } else {
+        widgets.addAll([
+          _buildScheduleItemWidget(
+            jamKe: '-',
+            time: '07:00 - 07:30',
+            subject: 'Dhuha & Tadarus',
+            teacher: '-',
+            kode: '-',
+            room: 'Masjid',
+            color: const Color(0xFF14B8A6),
+            icon: FontAwesomeIcons.mosque,
+          ),
+        ]);
+      }
+
+      // Tambahkan item dari DB
+      for (int i = 0; i < scheduleItems.length; i++) {
+        final item = scheduleItems[i];
+        
+        // Cek jika butuh sisipkan istirahat berdasarkan jam
+        if (i > 0 && item.jamMulai.compareTo('09:40') >= 0 && scheduleItems[i-1].jamSelesai.compareTo('09:40') <= 0) {
+           // Contoh sisipan istirahat, di real app bisa diatur lebih dinamis
+        }
+
+        widgets.add(_buildScheduleItemWidget(
+          jamKe: item.jamKeLabel,
+          time: '${item.jamMulai} - ${item.jamSelesai}',
+          subject: item.mataPelajaran,
+          teacher: item.guru,
+          kode: item.courseId.isNotEmpty ? item.courseId.substring(0, 4) : '-',
+          room: item.ruangan,
+          color: item.color,
+          icon: item.icon,
+        ));
+      }
+
+      return ListView(
+        physics: const BouncingScrollPhysics(),
+        padding: const EdgeInsets.only(left: 20, right: 20, top: 20, bottom: 100),
+        children: widgets,
       );
-    } else {
-      scheduleItems.addAll([
-        _buildScheduleItem(
-          jamKe: '-',
-          time: '07:00 - 07:30',
-          subject: 'Dhuha & Tadarus',
-          teacher: '-',
-          kode: '-',
-          room: 'Masjid',
-          color: const Color(0xFF14B8A6),
-          icon: Icons.mosque_rounded,
-        ),
-        _buildScheduleItem(
-          jamKe: '-',
-          time: '07:30 - 08:00',
-          subject: 'Pembinaan Walas',
-          teacher: 'Wali Kelas',
-          kode: '-',
-          room: 'Ruang Kelas',
-          color: const Color(0xFF8B5CF6),
-          icon: Icons.groups_rounded,
-        ),
-      ]);
-    }
-
-    scheduleItems.addAll([
-      _buildScheduleItem(
-        jamKe: '1',
-        time: '08:00 - 08:40',
-        subject: 'Matematika',
-        teacher: 'Monica Irawati. R, S.Pd.',
-        kode: '03',
-        room: 'Ruang X RPL 1',
-        color: const Color(0xFF2563EB),
-        icon: Icons.calculate_rounded,
-      ),
-      _buildScheduleItem(
-        jamKe: '2',
-        time: '08:40 - 09:10',
-        subject: 'Matematika',
-        teacher: 'Monica Irawati. R, S.Pd.',
-        kode: '03',
-        room: 'Ruang X RPL 1',
-        color: const Color(0xFF2563EB),
-        icon: Icons.calculate_rounded,
-      ),
-      _buildScheduleItem(
-        jamKe: '-',
-        time: '09:10 - 09:40',
-        subject: 'Istirahat',
-        teacher: '-',
-        kode: '-',
-        room: 'Kantin',
-        color: const Color(0xFFF59E0B),
-        icon: Icons.fastfood_rounded,
-      ),
-      _buildScheduleItem(
-        jamKe: '3',
-        time: '09:40 - 10:10',
-        subject: 'Bahasa Indonesia',
-        teacher: 'Ine Yulianti, S.Pd.',
-        kode: '02',
-        room: 'Ruang X RPL 1',
-        color: const Color(0xFF059669),
-        icon: Icons.menu_book_rounded,
-      ),
-      _buildScheduleItem(
-        jamKe: '4',
-        time: '10:10 - 10:50',
-        subject: 'Bahasa Indonesia',
-        teacher: 'Ine Yulianti, S.Pd.',
-        kode: '02',
-        room: 'Ruang X RPL 1',
-        color: const Color(0xFF059669),
-        icon: Icons.menu_book_rounded,
-      ),
-      _buildScheduleItem(
-        jamKe: '5',
-        time: '10:50 - 11:30',
-        subject: 'Pendidikan Agama Islam',
-        teacher: 'Drs. H. Ahmad',
-        kode: '05',
-        room: 'Ruang X RPL 1',
-        color: const Color(0xFF055D97),
-        icon: Icons.mosque_rounded,
-      ),
-      _buildScheduleItem(
-        jamKe: '-',
-        time: '11:30 - 12:30',
-        subject: 'Ishoma',
-        teacher: '-',
-        kode: '-',
-        room: 'Masjid & Kantin',
-        color: const Color(0xFFF59E0B),
-        icon: Icons.fastfood_rounded,
-      ),
-      _buildScheduleItem(
-        jamKe: '6',
-        time: '12:30 - 13:10',
-        subject: 'Pemrograman Web',
-        teacher: 'Budi Santoso, M.Kom.',
-        kode: '10',
-        room: 'Lab Komputer 1',
-        color: const Color(0xFF7C3AED),
-        icon: Icons.computer_rounded,
-      ),
-      _buildScheduleItem(
-        jamKe: '7',
-        time: '13:10 - 13:50',
-        subject: 'Pemrograman Web',
-        teacher: 'Budi Santoso, M.Kom.',
-        kode: '10',
-        room: 'Lab Komputer 1',
-        color: const Color(0xFF7C3AED),
-        icon: Icons.computer_rounded,
-      ),
-      _buildScheduleItem(
-        jamKe: '8',
-        time: '13:50 - 14:30',
-        subject: 'Bahasa Inggris',
-        teacher: 'Siti Aminah, M.Pd.',
-        kode: '08',
-        room: 'Ruang X RPL 1',
-        color: const Color(0xFFDC2626),
-        icon: Icons.language_rounded,
-      ),
-      _buildScheduleItem(
-        jamKe: '9',
-        time: '14:30 - 15:10',
-        subject: 'Basis Data',
-        teacher: 'Rini Astuti, S.T.',
-        kode: '12',
-        room: 'Lab Komputer 2',
-        color: const Color(0xFF0D9488),
-        icon: Icons.storage_rounded,
-      ),
-      _buildScheduleItem(
-        jamKe: '10',
-        time: '15:10 - 15:50',
-        subject: 'Basis Data',
-        teacher: 'Rini Astuti, S.T.',
-        kode: '12',
-        room: 'Lab Komputer 2',
-        color: const Color(0xFF0D9488),
-        icon: Icons.storage_rounded,
-      ),
-    ]);
-
-    return ListView(
-      physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.only(left: 20, right: 20, top: 20, bottom: 100),
-      children: scheduleItems,
-    );
+    });
   }
 
-  Widget _buildScheduleItem({
+  Widget _buildScheduleItemWidget({
     required String jamKe,
     required String time,
     required String subject,
@@ -272,7 +187,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> with SingleTickerProvid
     required String kode,
     required String room,
     required Color color,
-    required IconData icon,
+    required dynamic icon,
   }) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -328,6 +243,19 @@ class _ScheduleScreenState extends State<ScheduleScreen> with SingleTickerProvid
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: color.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: FaIcon(
+                          icon,
+                          color: color,
+                          size: 20,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
                           color: const Color(0xFFF1F5F9),
@@ -348,7 +276,6 @@ class _ScheduleScreenState extends State<ScheduleScreen> with SingleTickerProvid
                           ],
                         ),
                       ),
-                      Icon(icon, color: color.withOpacity(0.5), size: 20),
                     ],
                   ),
                   const SizedBox(height: 10),
