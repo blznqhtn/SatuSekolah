@@ -141,11 +141,16 @@ func SetupRouter(db *sql.DB, cfg *config.Config) *fiber.App {
 	app.Use(helmet.New())
 
 	// CORS: only allow trusted origins. Adjust allowed origins via config if needed.
+	allowedOrigins := "https://satusekolah.id, https://www.satusekolah.id"
+	if cfg.App.Env == "development" || cfg.App.Env == "local" {
+		allowedOrigins = "http://localhost:3000, http://127.0.0.1:3000, http://localhost:5173, http://127.0.0.1:5173, https://satusekolah.id, https://www.satusekolah.id"
+	}
+
 	app.Use(cors.New(cors.Config{
-		AllowOrigins:     "*", // Tighten to specific origins in production e.g. "https://app.satusekolah.id"
+		AllowOrigins:     allowedOrigins, // Dynamic based on environment
 		AllowMethods:     "GET,POST,PUT,PATCH,DELETE,OPTIONS",
 		AllowHeaders:     "Origin, Content-Type, Accept, Authorization, X-Tenant-ID",
-		AllowCredentials: false,
+		AllowCredentials: true,  // Diperlukan jika menggunakan cookies/session lintas subdomain
 		MaxAge:           86400, // 24 hours preflight cache
 	}))
 

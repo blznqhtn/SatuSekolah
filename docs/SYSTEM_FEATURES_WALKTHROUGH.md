@@ -25,9 +25,12 @@ Backend ini memiliki sistem Ledger (buku besar) internal bergaya *crypto-wallet*
 Mendigitalisasi transaksi di lingkungan sekolah agar menjadi *cashless ecosystem*, dilengkapi dengan fitur setingkat *Enterprise* untuk memaksimalkan profitabilitas pemilik kantin.
 - **Pendaftaran Tenant Kantin & Manajemen Resep (BOM)**: Pemilik toko/kantin dapat membuka lapak, menambah menu jualan, dan memasukkan *Bill of Materials* (Resep/Bahan Baku) untuk makanan. Fitur ini memungkinkan sistem menghitung harga pokok produksi (Cost of Goods Sold/COGS).
 - **Manajemen Diskon Cerdas**: Pemilik kantin dapat menerapkan diskon untuk produk spesifik atau seluruh toko. Diskon dapat diatur dengan batas waktu (Start/End Date) dan batas kuota (*Max Uses*), sangat cocok untuk *Flash Sale* jam istirahat.
-- **Sistem POS & QR Static**: Pembeli (Siswa/Guru) bisa membayar langsung ke penjual dengan *scan QR* kantin dan memasukkan PIN dompet digital.
+- **Sistem Pembayaran POS Kasir Dinamis (Nirtunai)**: Kasir mengelola pesanan dan siswa/pembeli dapat membayar dengan tiga opsi pembayaran dinamis dan aman:
+  - **Dynamic QR**: Di-generate per transaksi dan hanya dapat dipindai oleh aplikasi internal Satu Sekolah.
+  - **Transfer Virtual Account Internal**: Meng-generate nomor rekening virtual sementara yang otomatis invalid dalam 24 jam.
+  - **Tap Kartu RFID**: Kasir menekan Selesai, dan pembeli mengetik PIN pada perangkat IoT RFID untuk memotong saldo langsung.
 - **Opsi Pengiriman (Delivery) & Pick-Up**: Selain mengambil sendiri (Pick-up), siswa bisa meminta pesanan diantar (Delivery) ke kelas/lokasi tertentu. Biaya antar dihitung *per-checkout* (bukan per-item).
-- **Pre-order Terjadwal**: Siswa bisa memesan makanan jauh-jauh hari (Pre-order Date & Time) untuk meminimalisir antrean panjang.
+- **Pre-order Terjadwal**: Siswa bisa memesan makanan dari aplikasi (Self-Service) jauh-jauh hari (Pre-order Date & Time) untuk meminimalisir antrean panjang.
 - **Laporan Finansial Canggih & AI Insight**: *Financial Report* harian/bulanan dengan *Gross Profit*, *Total Cost*, dan *Net Profit*. Didukung oleh **Business AI Insight** yang secara otomatis menganalisis performa bulanan dan memberikan saran *actionable* (aktif jika modul `CANTEEN` AI diaktifkan oleh admin).
 
 ## 5. Administrasi & Kesiswaan

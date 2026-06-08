@@ -62,21 +62,46 @@ Tersedia untuk `Student`, `Parent`, `Staff`, `Admin`, maupun *Custom Role*.
 
 ---
 
-## 🍔 3. Kantin Digital
-Akses modul kantin dibagi menjadi Pemilik (Owner) dan Pembeli (Buyer).
+## 🍔 3. Kantin Digital (Cashless POS Ecosystem)
+Akses modul kantin dibagi menjadi **Kasir/Pemilik** (Owner) dan **Pembeli** (Buyer). Seluruh transaksi nirtunas dan menggunakan otorisasi **PIN Hash**.
 
-### 🏪 Pemilik Kantin (Role Khusus Kantin / Staff / Staf)
-- `POST /canteen/shop` — Mendaftarkan toko baru (menghasilkan *Static QR*).
-- `POST /canteen/items` — Menambahkan menu lengkap dengan **Resep/Bahan Baku (BOM)** opsional.
-- `POST /canteen/discounts` — Membuat diskon produk spesifik atau seluruh toko (dengan batas waktu & kuota).
-- `PATCH /canteen/orders/:id/status` — Memperbarui status pesanan (misal: "Siap Diambil", "Sedang Diantar").
-- `GET /canteen/reports/financial?start=&end=` — Laporan keuangan harian (Gross Profit, Total Cost, Net Profit).
+### 🏪 Kasir / Pemilik Kantin (Staff dengan `MANAGE_CANTEEN`)
+
+**Manajemen Toko & Produk:**
+- `POST /canteen/shop` — Mendaftarkan toko kantin baru.
+- `PUT /canteen/shop` — Mengubah pengaturan toko, termasuk mengaktifkan **Layanan Delivery** dan biaya antar.
+- `POST /canteen/items` — Menambahkan menu lengkap beserta foto, stok, dan **Resep/Bahan Baku (BOM/COGS)** opsional untuk menghitung Harga Pokok Produksi.
+- `POST /canteen/discounts` — Membuat diskon untuk produk spesifik atau seluruh toko:
+  - Tipe: `PERCENTAGE` atau `FIXED_AMOUNT`.
+  - Batas waktu (Start/End Date) untuk *Flash Sale*.
+  - Batas kuota pemakaian (`max_uses`).
+
+**Sistem POS Kasir (Point of Sale):**
+
+Kasir kantin berperan sebagai operator transaksi langsung. Alur POS:
+1. **Masukkan NISN Pembeli** *(opsional — jika diisi, transaksi akan terhubung ke rekam kesehatan siswa untuk pemantauan gizi/pola makan)*.
+2. **Pilih item** yang dibeli dari daftar menu aktif — harga otomatis terakumulasi.
+3. **Pilih metode pembayaran**:
+
+   - 📱 **Dynamic QR** — Sistem meng-generate QR unik per transaksi. QR ini **hanya bisa dipindai melalui aplikasi Satu Sekolah** (bukan aplikasi QR umum). QR otomatis kedaluwarsa begitu transaksi berhasil.
+   
+   - 🏦 **Transfer Saldo Akun (Virtual Account Internal)** — Sistem meng-generate nomor rekening virtual dinamis (format: `{account_number pembeli}{angka acak}`, maks. 15 karakter). Pembeli tinggal mengirim saldo dari menu *Transfer* di aplikasi menggunakan nomor ini. Nomor **otomatis tidak valid** setelah transaksi berhasil *atau* lebih dari 24 jam.
+   
+   - 📳 **Tap Kartu RFID** — Kasir menekan *Selesai*, sistem meng-generate **kode bayar** unik. Kasir mengetikkan kode tersebut di **terminal IoT RFID**. Pembeli menempelkan kartu RFID → memasukkan PIN → jika saldo mencukupi *(harga + Rp500 biaya layanan)*, saldo otomatis terpotong dan transaksi langsung tercatat di riwayat Ledger kedua pihak.
+
+- `POST /canteen/pos/create-order` — Kasir membuat pesanan POS (NISN opsional + daftar item).
+- `POST /canteen/pos/select-payment` — Kasir memilih metode pembayaran dan sistem meng-generate kode/QR/nomor virtual yang sesuai.
+- `GET /canteen/pos/order-status/:id` — Kasir memantau status pembayaran secara real-time.
+- `PATCH /canteen/orders/:id/status` — Memperbarui status pesanan: `PREPARING` → `READY` → `DELIVERING` → `COMPLETED`.
+- `GET /canteen/reports/financial?start=&end=` — Laporan keuangan: *Gross Revenue*, *Total COGS*, *Net Profit*.
 - `GET /canteen/reports/insight?month=` — **AI Business Insight** bulanan *(hanya aktif jika modul `CANTEEN` AI dinyalakan)*.
 
-### 🛍️ Pembeli (Siswa / Staff / Orang Tua)
-- `POST /canteen/cart` — Menambahkan makanan ke keranjang.
-- `POST /canteen/checkout` — Membayar pesanan keranjang (opsional: *delivery* atau *pickup*, *pre-order*) dengan otorisasi **PIN**.
-- `POST /canteen/pay-qr` — Membayar langsung dengan memindai *Static QR* di POS kantin (otorisasi **PIN**).
+### 🛍️ Pembeli Mandiri (Siswa / Staff / Orang Tua — Pesan dari Aplikasi)
+- `POST /canteen/cart` — Menambahkan makanan ke keranjang belanja.
+- `POST /canteen/checkout` — Membayar pesanan keranjang dengan pilihan:
+  - **Metode pengambilan**: *Pickup* (ambil sendiri) atau *Delivery* (antar ke lokasi).
+  - **Waktu pesan**: Langsung atau *Pre-order* (pesan untuk tanggal/jam tertentu).
+  - **Metode bayar**: Pemotongan saldo Ledger langsung (otorisasi **PIN**).
 
 ---
 
