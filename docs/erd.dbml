@@ -1,0 +1,1494 @@
+// ==========================================
+// ENUMS (INTEGRITAS DATA)
+// ==========================================
+
+Enum user_category {
+  admin
+  staff
+  student
+  parent
+}
+
+Enum enrollment_status {
+  CANDIDATE  // Sudah bayar formulir, belum aktif belajar
+  ACTIVE     // Siswa aktif, berhak akses LMS & Jadwal
+  ALUMNI     // Sudah lulus, akses dibatasi ke histori/portofolio
+  SUSPENDED  // Akun dibekukan (misal: belum bayar SPP / dikeluarkan)
+}
+
+Enum transaction_type {
+  CREDIT  // Uang masuk (Topup, Gaji)
+  DEBIT   // Uang keluar (Bayar SPP, Jajan Kantin)
+}
+
+Enum attendance_status {
+  PRESENT
+  LATE
+  ABSENT
+  EXCUSED
+}
+
+Enum leave_status {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+Enum invoice_status {
+  PENDING
+  PARTIAL   // Pembayaran cicilan/DP
+  PAID
+  EXPIRED
+}
+
+Enum borrowing_status {
+  PENDING    // Siswa mengajukan, menunggu ACC
+  APPROVED   // Pustakawan ACC, QR siap discan
+  BORROWED   // QR discan, buku dibawa siswa
+  RETURNED   // Buku dikembalikan
+  REJECTED   // Pustakawan menolak
+  OVERDUE    // Terlambat dikembalikan
+}
+
+Enum book_type {
+  PHYSICAL
+  DIGITAL
+}
+
+Enum digital_payment_type {
+  FREE
+  ONE_TIME
+  SUBSCRIPTION
+}
+
+Enum journal_status {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+Enum job_type {
+  PKL
+  MAGANG
+  FULL_TIME
+  PART_TIME
+  CONTRACT
+  FREELANCE
+}
+
+Enum work_arrangement {
+  ON_SITE
+  HYBRID
+  REMOTE
+}
+
+Enum job_app_status {
+  APPLIED
+  REVIEWED
+  INTERVIEW
+  ACCEPTED
+  REJECTED
+}
+
+Enum job_target_role {
+  STUDENT
+  TEACHER
+  STAFF
+  ANY
+}
+
+Enum spmb_status {
+  PENDING
+  DOCUMENT_REVIEW
+  TEST
+  ACCEPTED
+  REJECTED
+}
+
+Enum inventory_condition {
+  GOOD
+  DAMAGED
+  MAINTENANCE
+}
+
+Enum gatepass_status {
+  PENDING
+  APPROVED
+  EXITED
+  RETURNED
+  REJECTED
+  OVERDUE
+}
+
+Enum media_type {
+  IMAGE
+  AUDIO
+  VIDEO
+  DOCUMENT
+  NONE
+}
+
+Enum canteen_order_status {
+  PENDING
+  PREPARING
+  READY
+  DELIVERING
+  COMPLETED
+  CANCELED
+}
+
+Enum activity_target_type {
+  USER
+  CLASS
+  MAJOR
+}
+
+Enum violation_applies_to {
+  STUDENT
+  STAFF
+  ALL
+}
+
+Enum holiday_applies_to {
+  STUDENT
+  STAFF
+  ALL
+}
+
+Enum ribbon_status {
+  BORROWED
+  RETURNED
+  OVERDUE
+}
+
+Enum menstrual_status {
+  ONGOING
+  COMPLETED
+  BLOCKED_OVERDUE
+}
+
+Enum gender_type {
+  MALE
+  FEMALE
+}
+
+Enum chat_room_type {
+  DIRECT
+  GROUP
+}
+
+Enum cba_session_status {
+  WAITING
+  ONGOING
+  SUBMITTED
+}
+
+// ==========================================
+// 1. CORE & MULTI-TENANT
+// ==========================================
+
+Table tenants {
+  id varchar(36) [pk]
+  name varchar(255) [not null]
+  bank_code varchar(3) [unique, not null, note: 'Kode unik 3 huruf untuk sistem rekening virtual tenant']
+  npsn varchar(50) [unique, note: 'Kunci identitas nasional sekolah untuk rapor resmi']
+  domain varchar(255) [unique, note: 'Untuk routing & white-labeling frontend']
+  address text
+  phone varchar(50)
+  email varchar(255)
+  logo_url varchar(255)
+  created_at timestamp [default: `current_timestamp`]
+  updated_at timestamp
+  deleted_at timestamp
+}
+
+// ==========================================
+// 2. RBAC (GRANULAR ROLES & PERMISSIONS)
+// ==========================================
+
+Table roles {
+  id varchar(36) [pk]
+  tenant_id varchar(36) [ref: > tenants.id]
+  name varchar(100) [not null]
+  is_custom boolean [default: true, note: 'false = role bawaan sistem yang tidak bisa dihapus admin']
+  created_at timestamp [default: `current_timestamp`]
+  updated_at timestamp
+}
+
+Table permissions {
+  id varchar(36) [pk]
+  name varchar(100) [unique, not null, note: 'MANAGE_ATTENDANCE, MANAGE_LMS, MANAGE_FINANCE, MANAGE_LIBRARY, MANAGE_CBA, MANAGE_HEALTH, MANAGE_INVENTORY, MANAGE_SPMB, MANAGE_ROLES_PERMISSIONS, MANAGE_USERS, MANAGE_VIOLATIONS, MANAGE_AI, MANAGE_BKK, MANAGE_PKG, MANAGE_PKL, MANAGE_CANTEEN, MANAGE_GATEPASS, MANAGE_COMMUNICATION, MANAGE_MENTOR']
+}
+
+Table role_permissions {
+  role_id varchar(36) [ref: > roles.id]
+  permission_id varchar(36) [ref: > permissions.id]
+
+  indexes {
+    (role_id, permission_id) [pk]
+  }
+}
+
+// Cache store untuk database cache driver
+Table cache_store {
+  key varchar(255) [pk]
+  value text [not null]
+  expires_at timestamp
+}
+
+// ==========================================
+// 3. MAJORS & CLASSES
+// ==========================================
+
+Table majors {
+  id varchar(36) [pk]
+  tenant_id varchar(36) [ref: > tenants.id]
+  name varchar(100) [not null]
+  created_at timestamp [default: `current_timestamp`]
+  deleted_at timestamp
+}
+
+Table classes {
+  id varchar(36) [pk]
+  tenant_id varchar(36) [ref: > tenants.id]
+  major_id varchar(36) [ref: > majors.id]
+  grade_level int
+  name varchar(100)
+  created_at timestamp [default: `current_timestamp`]
+  deleted_at timestamp
+}
+
+// ==========================================
+// 4. CENTRALIZED USERS
+// ==========================================
+
+Table users {
+  id varchar(36) [pk]
+  tenant_id varchar(36) [ref: > tenants.id, note: 'NULLABLE: Parent di Global App yang belum memilih sekolah']
+  class_id varchar(36) [ref: > classes.id, note: 'Terisi otomatis saat kenaikan kelas atau daftar ulang lunas']
+  account_number varchar(12) [unique, not null, note: 'Nomor rekening virtual internal (12 digit)']
+  category user_category [not null]
+  status enrollment_status [default: 'ACTIVE']
+  name varchar(255) [not null]
+  email varchar(255)
+  phone varchar(50)
+  password_hash varchar(255)
+  pin_hash varchar(255) [note: 'PIN 6 digit untuk verifikasi tap RFID/Pembayaran']
+  identifier varchar(100) [note: 'NIS (Siswa) atau NIP (Guru/Staf)']
+  rfid_tag varchar(100) [unique, note: 'ID serial dari kartu fisik RFID']
+  face_encoding text [note: 'Vektor biometrik untuk Face Recognition']
+  wallet_balance decimal(15,2) [default: 0, note: 'CACHE SALDO: Validasi ulang dengan wallet_ledgers']
+  public_key text [note: 'KUNCI E2EE: Public key RSA/ECC dari device user']
+  parent_id varchar(36) [ref: > users.id, note: 'SELF-RELATION: Mengikat akun Parent ke akun Student']
+  created_at timestamp [default: `current_timestamp`]
+  updated_at timestamp
+  deleted_at timestamp
+
+  indexes {
+    (tenant_id, email) [unique]
+    (tenant_id, identifier)
+    (tenant_id, class_id)
+  }
+}
+
+Table user_roles {
+  user_id varchar(36) [ref: > users.id]
+  role_id varchar(36) [ref: > roles.id]
+
+  indexes {
+    (user_id, role_id) [pk]
+  }
+}
+
+// ==========================================
+// 5. PAYOUT SETTINGS & WALLET LEDGER (WEB3)
+// ==========================================
+
+Table payout_methods {
+  id varchar(36) [pk]
+  user_id varchar(36) [ref: > users.id]
+  provider_name varchar(100)
+  account_number varchar(100)
+  account_name varchar(255)
+  is_primary boolean [default: false, note: 'Trigger: Jika true, yang lain otomatis false']
+  created_at timestamp [default: `current_timestamp`]
+  updated_at timestamp
+}
+
+// IMMUTABLE LEDGER: Append-Only, tidak ada updated_at / deleted_at
+Table wallet_ledgers {
+  id varchar(36) [pk]
+  tenant_id varchar(36) [ref: > tenants.id]
+  user_id varchar(36) [ref: > users.id]
+  transaction_type transaction_type [not null]
+  amount decimal(15,2) [not null]
+  fee decimal(10,2) [default: 0, note: 'Biaya admin gateway (Midtrans, tarik saldo, dll)']
+  reference_type varchar(100) [note: 'Konteks: SPP, PAYROLL, TOPUP, CANTEEN, dll']
+  reference_id varchar(36) [note: 'ID tabel terkait (misal: ID student_invoices)']
+  previous_hash varchar(64) [not null, note: 'Hash transaksi user sebelumnya (kriptografi)']
+  current_hash varchar(64) [not null, note: 'SHA256(previous_hash + amount + timestamp + id)']
+  created_at timestamp [default: `current_timestamp`]
+
+  indexes {
+    (tenant_id, user_id, created_at)
+  }
+}
+
+// ==========================================
+// 6. ATTENDANCE, HOLIDAYS & ACTIVITIES
+// ==========================================
+
+Table attendance_settings {
+  tenant_id varchar(36) [pk, ref: > tenants.id]
+  attendance_admin_staff_id varchar(36) [ref: > users.id]
+  holiday_manager_role_id varchar(36) [ref: > roles.id]
+  student_check_in_time time [default: '07:00:00']
+  student_check_out_time time [default: '15:00:00']
+  student_tolerance_minutes int [default: 15]
+  staff_check_in_time time [default: '07:30:00']
+  staff_check_out_time time [default: '16:00:00']
+  staff_tolerance_minutes int [default: 10]
+  allow_rfid boolean [default: true]
+  allow_fingerprint boolean [default: true]
+  allow_face boolean [default: true]
+  face_match_threshold decimal(5,2) [default: 80.00]
+  updated_at timestamp
+  updated_by varchar(36) [ref: > users.id]
+}
+
+Table holidays {
+  id varchar(36) [pk]
+  tenant_id varchar(36) [ref: > tenants.id]
+  name varchar(255) [not null]
+  date date [not null]
+  applies_to holiday_applies_to [default: 'ALL']
+  created_at timestamp [default: `current_timestamp`]
+  created_by varchar(36) [ref: > users.id]
+}
+
+Table activities {
+  id varchar(36) [pk]
+  tenant_id varchar(36) [ref: > tenants.id]
+  name varchar(255) [not null]
+  is_mandatory boolean [default: false]
+  start_time timestamp [not null]
+  end_time timestamp [not null]
+  requires_checkout boolean [default: false]
+  replaces_daily_attendance boolean [default: false]
+  created_by varchar(36) [ref: > users.id]
+  created_at timestamp [default: `current_timestamp`]
+}
+
+Table activity_targets {
+  id varchar(36) [pk]
+  activity_id varchar(36) [ref: > activities.id]
+  target_type activity_target_type [not null]
+  target_id varchar(36) [not null]
+  created_at timestamp [default: `current_timestamp`]
+}
+
+Table activity_attendances {
+  id varchar(36) [pk]
+  activity_id varchar(36) [ref: > activities.id]
+  user_id varchar(36) [ref: > users.id]
+  check_in_at timestamp
+  check_out_at timestamp
+  status attendance_status [default: 'PRESENT']
+  created_at timestamp [default: `current_timestamp`]
+
+  indexes {
+    (activity_id, user_id) [unique]
+  }
+}
+
+Table attendances {
+  id varchar(36) [pk]
+  tenant_id varchar(36) [ref: > tenants.id]
+  user_id varchar(36) [ref: > users.id]
+  type varchar(100) [note: 'DAILY atau ACTIVITY_REPLACEMENT']
+  method varchar(50) [note: 'RFID, FACE, FINGERPRINT, SYSTEM']
+  check_in_at timestamp
+  check_out_at timestamp
+  status attendance_status
+  notes text
+
+  indexes {
+    (tenant_id, user_id, check_in_at)
+  }
+}
+
+Table attendance_lates {
+  id varchar(36) [pk]
+  attendance_id varchar(36) [ref: > attendances.id]
+  reason text
+  submitted_at timestamp
+  is_excused boolean [default: false]
+  reviewed_by varchar(36) [ref: > users.id]
+}
+
+Table leave_requests {
+  id varchar(36) [pk]
+  tenant_id varchar(36) [ref: > tenants.id]
+  user_id varchar(36) [ref: > users.id]
+  reason text
+  start_time timestamp
+  end_time timestamp
+  status leave_status [default: 'PENDING']
+  current_tier int [default: 1, note: 'Melacak posisi surat izin di tingkat ke-berapa']
+  created_at timestamp [default: `current_timestamp`]
+  updated_at timestamp
+}
+
+Table leave_approvals {
+  id varchar(36) [pk]
+  leave_request_id varchar(36) [ref: > leave_requests.id]
+  approver_role_id varchar(36) [ref: > roles.id, note: 'Role yang berhak meng-approve di tier ini']
+  tier_level int [note: 'Urutan hirarki (1, 2, 3)']
+  status leave_status [default: 'PENDING']
+  approved_by varchar(36) [ref: > users.id]
+  approved_at timestamp
+}
+
+// ==========================================
+// 7. VIOLATION POINTS SYSTEM
+// ==========================================
+
+Table violation_types {
+  id varchar(36) [pk]
+  tenant_id varchar(36) [ref: > tenants.id]
+  name varchar(255) [not null]
+  description text
+  points int [default: 0]
+  applies_to violation_applies_to [default: 'ALL']
+  is_active boolean [default: true]
+  is_system_default boolean [default: false, note: 'true = tidak bisa dihapus (misal: LATE_ATTENDANCE)']
+  created_by varchar(36) [ref: > users.id]
+  created_at timestamp [default: `current_timestamp`]
+}
+
+Table user_violations {
+  id varchar(36) [pk]
+  tenant_id varchar(36) [ref: > tenants.id]
+  user_id varchar(36) [ref: > users.id]
+  violation_type_id varchar(36) [ref: > violation_types.id]
+  points_applied int [not null, note: 'Poin aktual saat dicatat (bisa beda dari type jika diubah kemudian)']
+  evidence_url varchar(255)
+  notes text
+  recorded_by varchar(36) [ref: > users.id, note: 'NULL jika dipicu otomatis oleh sistem (misal: terlambat)']
+  parent_notified boolean [default: false]
+  created_at timestamp [default: `current_timestamp`]
+}
+
+// ==========================================
+// 8. AI QUOTAS & MODULE SETTINGS
+// ==========================================
+
+Table ai_tenant_quotas {
+  tenant_id varchar(36) [pk, ref: > tenants.id]
+  total_input_tokens bigint [default: 1000000]
+  input_tokens_used bigint [default: 0]
+  total_output_tokens bigint [default: 1000000]
+  output_tokens_used bigint [default: 0]
+  updated_at timestamp
+}
+
+Table ai_module_settings {
+  id varchar(36) [pk]
+  tenant_id varchar(36) [ref: > tenants.id]
+  module_name varchar(50) [not null, note: 'HEALTH, CANTEEN, ACADEMIC_REPORT, VIOLATIONS, LIBRARY, PKL']
+  is_active boolean [default: true]
+  monthly_limit int [default: 0, note: '0 = unlimited']
+  daily_limit int [default: 0, note: '0 = unlimited']
+  monthly_used int [default: 0]
+  daily_used int [default: 0]
+  last_reset_date date
+  updated_at timestamp
+
+  indexes {
+    (tenant_id, module_name) [unique]
+  }
+}
+
+// ==========================================
+// 9. HEALTH RECORDS (UKS)
+// ==========================================
+
+Table health_settings {
+  tenant_id varchar(36) [pk, ref: > tenants.id]
+  health_admin_user_id varchar(36) [not null, ref: > users.id]
+  created_at timestamp [default: `current_timestamp`]
+}
+
+Table health_records {
+  id varchar(36) [pk]
+  tenant_id varchar(36) [ref: > tenants.id]
+  user_id varchar(36) [ref: > users.id]
+  record_type varchar(100)
+  date date
+  height decimal(5,2)
+  weight decimal(5,2)
+  hearing varchar(100)
+  vision varchar(100)
+  dental varchar(100)
+  hemoglobin decimal(5,2)
+  notes text
+  ai_recommendation text [note: 'Saran otomatis AI berdasarkan histori record sebelumnya']
+  created_at timestamp [default: `current_timestamp`]
+  updated_at timestamp
+  updated_by varchar(36) [ref: > users.id]
+}
+
+Table menstrual_cycles {
+  id varchar(36) [pk]
+  tenant_id varchar(36) [ref: > tenants.id]
+  user_id varchar(36) [ref: > users.id]
+  start_date date [not null]
+  end_date date
+  symptoms text
+  ai_advice text
+  status menstrual_status [default: 'ONGOING']
+  created_at timestamp [default: `current_timestamp`]
+  updated_at timestamp
+}
+
+Table ribbon_borrowings {
+  id varchar(36) [pk]
+  tenant_id varchar(36) [ref: > tenants.id]
+  user_id varchar(36) [ref: > users.id]
+  cycle_id varchar(36) [ref: > menstrual_cycles.id]
+  borrowed_at timestamp [default: `current_timestamp`]
+  expected_return_at timestamp [not null]
+  returned_at timestamp
+  status ribbon_status [default: 'BORROWED']
+  sanction_notes text
+  handled_by varchar(36) [ref: > users.id]
+}
+
+// ==========================================
+// 10. REIMBURSEMENT
+// ==========================================
+
+Table reimbursements {
+  id varchar(36) [pk]
+  tenant_id varchar(36) [ref: > tenants.id]
+  user_id varchar(36) [ref: > users.id]
+  amount decimal(15,2)
+  description text
+  receipt_file_url varchar(255)
+  status leave_status [default: 'PENDING']
+  approved_by varchar(36) [ref: > users.id]
+  approved_at timestamp
+  created_at timestamp [default: `current_timestamp`]
+  updated_at timestamp
+}
+
+// ==========================================
+// 11. PENILAIAN KINERJA GURU / STAFF (PKG)
+// ==========================================
+
+Table pkg_periods {
+  id varchar(36) [pk]
+  tenant_id varchar(36) [ref: > tenants.id]
+  name varchar(255) [not null]
+  start_date date [not null]
+  end_date date [not null]
+  is_active boolean [default: false]
+  created_at timestamp [default: `current_timestamp`]
+}
+
+Table pkg_indicators {
+  id varchar(36) [pk]
+  tenant_id varchar(36) [ref: > tenants.id]
+  name varchar(255) [not null]
+  description text
+  weight decimal(5,2) [default: 1.0]
+  is_applicable_to_all boolean [default: true, note: 'false = hanya untuk staf tertentu']
+  created_at timestamp [default: `current_timestamp`]
+}
+
+Table pkg_submissions {
+  id varchar(36) [pk]
+  period_id varchar(36) [ref: > pkg_periods.id]
+  indicator_id varchar(36) [ref: > pkg_indicators.id]
+  staff_id varchar(36) [ref: > users.id]
+  document_url varchar(255) [not null]
+  description text
+  submitted_at timestamp [default: `current_timestamp`]
+}
+
+Table pkg_evaluations {
+  id varchar(36) [pk]
+  submission_id varchar(36) [ref: > pkg_submissions.id]
+  evaluator_id varchar(36) [ref: > users.id]
+  score decimal(5,2) [not null]
+  comments text
+  evaluated_at timestamp [default: `current_timestamp`]
+}
+
+// ==========================================
+// 12. DYNAMIC FORMS (KUESIONER & PENILAIAN)
+// ==========================================
+
+Table dynamic_forms {
+  id varchar(36) [pk]
+  tenant_id varchar(36) [ref: > tenants.id]
+  title varchar(255)
+  description text
+  start_date timestamp
+  end_date timestamp [note: 'Akses form ditutup otomatis jika waktu server melewati end_date']
+  target_audience varchar(100) [note: 'PARENTS, STUDENTS, TEACHERS']
+  is_active boolean [default: true]
+  created_by varchar(36) [ref: > users.id]
+  created_at timestamp [default: `current_timestamp`]
+  updated_at timestamp
+  deleted_at timestamp
+}
+
+Table form_questions {
+  id varchar(36) [pk]
+  form_id varchar(36) [ref: > dynamic_forms.id]
+  question_type varchar(50) [note: 'text, dropdown, radio']
+  question_text text
+  is_required boolean [default: true]
+  order_index int
+  metadata json [note: 'Array opsi dropdown, atau trigger API dinamis (misal: $namaGuru)']
+}
+
+Table form_responses {
+  id varchar(36) [pk]
+  form_id varchar(36) [ref: > dynamic_forms.id]
+  responder_id varchar(36) [ref: > users.id]
+  created_at timestamp [default: `current_timestamp`]
+}
+
+Table form_answers {
+  id varchar(36) [pk]
+  response_id varchar(36) [ref: > form_responses.id]
+  question_id varchar(36) [ref: > form_questions.id]
+  answer_text text [note: 'Jika dropdown $namaGuru, berisi UUID guru yang dipilih']
+}
+
+// ==========================================
+// 13. AKADEMIK (TAHUN AJARAN, KURSUS, LMS)
+// ==========================================
+
+Table academic_years {
+  id varchar(36) [pk]
+  tenant_id varchar(36) [ref: > tenants.id]
+  name varchar(100)
+  start_date date
+  end_date date
+  is_active boolean [default: false, note: 'PENTING: Hanya 1 yang boleh true per sekolah']
+  created_at timestamp [default: `current_timestamp`]
+}
+
+Table courses {
+  id varchar(36) [pk]
+  tenant_id varchar(36) [ref: > tenants.id]
+  name varchar(255)
+  staff_id varchar(36) [ref: > users.id, note: 'Guru pembuat/pemilik kursus']
+  created_at timestamp [default: `current_timestamp`]
+  deleted_at timestamp
+}
+
+Table modules {
+  id varchar(36) [pk]
+  course_id varchar(36) [ref: > courses.id]
+  title varchar(255)
+  content text
+  created_at timestamp [default: `current_timestamp`]
+  deleted_at timestamp
+}
+
+Table quizzes {
+  id varchar(36) [pk]
+  module_id varchar(36) [ref: > modules.id]
+  title varchar(255)
+  deleted_at timestamp
+}
+
+Table questions {
+  id varchar(36) [pk]
+  quiz_id varchar(36) [ref: > quizzes.id]
+  type varchar(50) [note: 'MULTIPLE_CHOICE, MULTIPLE_SELECT, ESSAY, MATCHING']
+  question_text text
+  media_url varchar(255)
+  media_type media_type [default: 'NONE']
+  ai_reference_answer text [note: 'Panduan jawaban benar (prompt) untuk AI koreksi Essay']
+  deleted_at timestamp
+}
+
+Table question_options {
+  id varchar(36) [pk]
+  question_id varchar(36) [ref: > questions.id]
+  option_text text
+  media_url varchar(255)
+  media_type media_type [default: 'NONE']
+  is_correct boolean [default: false]
+  match_left text  [note: 'Untuk soal tipe MATCHING']
+  match_right text [note: 'Untuk soal tipe MATCHING']
+  created_at timestamp [default: `current_timestamp`]
+}
+
+Table student_answers {
+  id varchar(36) [pk]
+  question_id varchar(36) [ref: > questions.id]
+  student_id varchar(36) [ref: > users.id]
+  answer_text text [note: 'Jawaban asli siswa. Untuk upload tugas, berisi URL S3 file']
+  is_correct boolean
+  ai_score decimal(5,2) [note: 'Nilai 0-100 hasil koreksi AI Gemini']
+  ai_feedback text [note: 'Penjelasan AI mengapa jawaban siswa salah/benar']
+  created_at timestamp [default: `current_timestamp`]
+}
+
+Table assignment_targets {
+  id varchar(36) [pk]
+  source_type varchar(50) [not null, note: 'COURSE atau QUIZ']
+  source_id varchar(36) [not null]
+  target_type varchar(50) [not null, note: 'CLASS, MAJOR, ROLE, USER']
+  target_id varchar(36) [not null]
+  created_at timestamp [default: `current_timestamp`]
+}
+
+// ==========================================
+// 14. JADWAL PELAJARAN
+// ==========================================
+
+Table class_schedules {
+  id varchar(36) [pk]
+  tenant_id varchar(36) [ref: > tenants.id]
+  class_id varchar(36) [ref: > classes.id]
+  course_id varchar(36) [ref: > courses.id]
+  staff_id varchar(36) [ref: > users.id, note: 'Bisa berbeda jika ada guru pengganti']
+  day_of_week int [note: '1=Senin, 2=Selasa, ..., 7=Minggu']
+  start_time time
+  end_time time
+  created_at timestamp [default: `current_timestamp`]
+  updated_at timestamp
+}
+
+// ==========================================
+// 15. MANAJEMEN TARIF (DYNAMIC FEES)
+// ==========================================
+
+Table fee_types {
+  id varchar(36) [pk]
+  tenant_id varchar(36) [ref: > tenants.id]
+  name varchar(100)
+  billing_cycle varchar(50) [note: 'MONTHLY (SPP), YEARLY, ONE_TIME (SPMB)']
+  created_at timestamp [default: `current_timestamp`]
+  updated_at timestamp
+  deleted_at timestamp
+}
+
+Table fees {
+  id varchar(36) [pk]
+  fee_type_id varchar(36) [ref: > fee_types.id]
+  major_id varchar(36) [ref: > majors.id, note: 'NULLABLE: Jika null, tarif berlaku universal']
+  grade_level int [note: 'NULLABLE: Jika null, berlaku untuk semua tingkat']
+  amount decimal(15,2)
+  can_installment boolean [default: false]
+  minimum_installment decimal(15,2) [default: 0]
+  created_at timestamp [default: `current_timestamp`]
+  updated_at timestamp
+  deleted_at timestamp
+  updated_by varchar(36) [ref: > users.id]
+}
+
+// ==========================================
+// 16. TAGIHAN & CICILAN (INVOICING)
+// ==========================================
+
+Table student_invoices {
+  id varchar(36) [pk]
+  tenant_id varchar(36) [ref: > tenants.id]
+  student_id varchar(36) [ref: > users.id]
+  fee_id varchar(36) [ref: > fees.id]
+  invoice_name varchar(255)
+  total_amount decimal(15,2)
+  paid_amount decimal(15,2) [default: 0, note: 'Akumulasi total yang sudah dicicil']
+  status invoice_status [default: 'PENDING']
+  can_installment boolean [default: false]
+  minimum_installment decimal(15,2) [default: 0]
+  dynamic_qr_code varchar(100) [unique, note: 'QR code dinamis untuk pembayaran']
+  rfid_payment_code varchar(20) [unique]
+  transfer_target_account varchar(20) [unique, note: 'Rekening virtual untuk transfer bank']
+  midtrans_order_id varchar(100) [unique, note: 'Order ID untuk pembayaran tunai via Midtrans']
+  due_date date
+  created_at timestamp [default: `current_timestamp`]
+  updated_at timestamp
+  deleted_at timestamp
+  updated_by varchar(36) [ref: > users.id]
+
+  indexes {
+    (tenant_id, student_id, status)
+  }
+}
+
+Table invoice_payments {
+  id varchar(36) [pk]
+  invoice_id varchar(36) [ref: > student_invoices.id]
+  wallet_ledger_id varchar(36) [ref: > wallet_ledgers.id, note: 'Bukti sah pemotongan saldo']
+  paid_amount decimal(15,2)
+  paid_at timestamp [default: `current_timestamp`]
+}
+
+// ==========================================
+// 17. RAPOR DIGITAL & SEMESTER
+// ==========================================
+
+Table academic_terms {
+  id varchar(36) [pk]
+  tenant_id varchar(36) [ref: > tenants.id]
+  academic_year_id varchar(36) [ref: > academic_years.id]
+  name varchar(100) [note: 'Ganjil / Genap']
+  is_active boolean [default: false]
+  created_at timestamp [default: `current_timestamp`]
+}
+
+Table report_cards {
+  id varchar(36) [pk]
+  tenant_id varchar(36) [ref: > tenants.id]
+  term_id varchar(36) [ref: > academic_terms.id]
+  student_id varchar(36) [ref: > users.id]
+  class_rank int [note: 'Hasil kalkulasi ranking akhir semester']
+  homeroom_notes text
+  created_at timestamp [default: `current_timestamp`]
+  updated_at timestamp
+  updated_by varchar(36) [ref: > users.id]
+}
+
+Table report_card_grades {
+  id varchar(36) [pk]
+  report_card_id varchar(36) [ref: > report_cards.id]
+  course_id varchar(36) [ref: > courses.id]
+  score int
+  predicate varchar(5)
+  description text
+  created_at timestamp [default: `current_timestamp`]
+  updated_at timestamp
+}
+
+// ==========================================
+// 18. COMPUTER BASED ASSESSMENT (CBA)
+// ==========================================
+
+Table cba_folders {
+  id varchar(36) [pk]
+  tenant_id varchar(36) [ref: > tenants.id]
+  name varchar(255) [not null, note: 'Folder ujian: UTS, UKK, Ulangan Harian, dll']
+  description text
+  current_token varchar(12) [not null, note: '6-char alphanumeric, di-refresh tiap 5 menit']
+  token_expires_at timestamp [not null]
+  created_by varchar(36) [ref: > users.id]
+  created_at timestamp [default: `current_timestamp`]
+  updated_at timestamp
+  deleted_at timestamp
+}
+
+Table cba_exams {
+  id varchar(36) [pk]
+  folder_id varchar(36) [ref: > cba_folders.id]
+  tenant_id varchar(36) [ref: > tenants.id]
+  title varchar(255) [not null]
+  terms_and_conditions text [note: 'T&C yang ditampilkan di waiting room']
+  start_time timestamp [not null, note: 'Waktu mulai server-authoritative']
+  end_time timestamp [not null, note: 'Semua siswa berakhir bersamaan']
+  waiting_room_open_minutes int [default: 5]
+  show_results boolean [default: false, note: 'true = tampilkan skor langsung']
+  created_by varchar(36) [ref: > users.id]
+  created_at timestamp [default: `current_timestamp`]
+  updated_at timestamp
+  deleted_at timestamp
+}
+
+Table cba_questions {
+  id varchar(36) [pk]
+  exam_id varchar(36) [ref: > cba_exams.id]
+  order_index int [not null, default: 0]
+  question_type varchar(50) [not null, note: 'MULTIPLE_CHOICE, ESSAY, MATCHING']
+  question_text text [not null]
+  media_url varchar(500)
+  media_type varchar(50) [default: 'NONE']
+  score_weight decimal(5,2) [default: 1.0]
+  ai_reference_answer text [note: 'Untuk AI auto-grading soal ESSAY']
+  created_at timestamp [default: `current_timestamp`]
+}
+
+Table cba_options {
+  id varchar(36) [pk]
+  question_id varchar(36) [ref: > cba_questions.id]
+  option_text text
+  media_url varchar(500)
+  media_type varchar(50) [default: 'NONE']
+  is_correct boolean [default: false]
+  created_at timestamp [default: `current_timestamp`]
+}
+
+Table cba_sessions {
+  id varchar(36) [pk]
+  exam_id varchar(36) [ref: > cba_exams.id]
+  student_id varchar(36) [ref: > users.id]
+  waiting_room_joined_at timestamp [note: 'Saat siswa masuk waiting room']
+  started_at timestamp
+  submitted_at timestamp
+  is_auto_submitted boolean [default: false]
+  final_score decimal(5,2) [note: 'Dihitung dan disimpan saat submit']
+  status cba_session_status [default: 'WAITING']
+  created_at timestamp [default: `current_timestamp`]
+
+  indexes {
+    (exam_id, student_id) [unique, note: 'Satu session per siswa per ujian']
+  }
+}
+
+Table cba_answers {
+  id varchar(36) [pk]
+  session_id varchar(36) [ref: > cba_sessions.id]
+  question_id varchar(36) [ref: > cba_questions.id]
+  option_id varchar(36) [ref: > cba_options.id, note: 'NULL untuk jawaban ESSAY']
+  essay_text text [note: 'Untuk tipe ESSAY']
+  is_doubt boolean [default: false, note: 'Flag ragu-ragu']
+  answered_at timestamp [default: `current_timestamp`]
+
+  indexes {
+    (session_id, question_id) [unique, note: 'Upsert: satu jawaban per soal per sesi']
+  }
+}
+
+// ==========================================
+// 19. KANTIN DIGITAL (CASHLESS POS)
+// ==========================================
+
+Table canteen_shops {
+  id varchar(36) [pk]
+  tenant_id varchar(36) [ref: > tenants.id]
+  owner_id varchar(36) [ref: > users.id]
+  name varchar(255) [not null]
+  static_qr_code varchar(255) [unique, note: 'QR statis untuk pembayaran langsung di kasir']
+  allow_delivery boolean [default: false]
+  base_delivery_fee decimal(15,2) [default: 0]
+  created_at timestamp [default: `current_timestamp`]
+  updated_at timestamp
+  deleted_at timestamp
+}
+
+Table canteen_items {
+  id varchar(36) [pk]
+  shop_id varchar(36) [ref: > canteen_shops.id]
+  name varchar(255) [not null]
+  description text
+  price decimal(15,2) [not null]
+  stock int [default: 0]
+  image_url varchar(255)
+  created_at timestamp [default: `current_timestamp`]
+  updated_at timestamp
+  deleted_at timestamp
+}
+
+Table canteen_item_ingredients {
+  id varchar(36) [pk]
+  item_id varchar(36) [ref: > canteen_items.id]
+  name varchar(255) [not null, note: 'Nama bahan baku (untuk BOM/COGS)']
+  cost decimal(15,2) [not null]
+  quantity decimal(10,2) [default: 1]
+  unit varchar(50)
+  created_at timestamp [default: `current_timestamp`]
+  updated_at timestamp
+}
+
+Table canteen_discounts {
+  id varchar(36) [pk]
+  shop_id varchar(36) [ref: > canteen_shops.id]
+  item_id varchar(36) [ref: > canteen_items.id, note: 'NULL = berlaku untuk seluruh toko']
+  discount_type varchar(50) [not null, note: 'PERCENTAGE atau FIXED_AMOUNT']
+  value decimal(15,2) [not null]
+  start_date timestamp
+  end_date timestamp
+  max_uses int
+  current_uses int [default: 0]
+  created_at timestamp [default: `current_timestamp`]
+}
+
+Table canteen_carts {
+  id varchar(36) [pk]
+  user_id varchar(36) [ref: > users.id]
+  item_id varchar(36) [ref: > canteen_items.id]
+  quantity int [not null, default: 1]
+  created_at timestamp [default: `current_timestamp`]
+  updated_at timestamp
+}
+
+Table canteen_orders {
+  id varchar(36) [pk]
+  shop_id varchar(36) [ref: > canteen_shops.id]
+  buyer_id varchar(36) [ref: > users.id]
+  wallet_ledger_id varchar(36) [ref: > wallet_ledgers.id]
+  total_amount decimal(15,2) [not null]
+  delivery_fee decimal(15,2) [default: 0]
+  is_preorder boolean [default: false]
+  preorder_time time
+  preorder_date date
+  delivery_method varchar(50) [default: 'PICKUP', note: 'PICKUP atau DELIVERY']
+  payment_method varchar(50) [default: 'DIRECT', note: 'DIRECT, QR, RFID, TRANSFER']
+  dynamic_qr_code varchar(255) [unique]
+  rfid_payment_code varchar(10) [unique]
+  transfer_target_account varchar(15) [unique]
+  expires_at timestamp
+  status canteen_order_status [default: 'PENDING']
+  created_at timestamp [default: `current_timestamp`]
+  updated_at timestamp
+}
+
+Table canteen_order_items {
+  id varchar(36) [pk]
+  order_id varchar(36) [ref: > canteen_orders.id]
+  item_id varchar(36) [ref: > canteen_items.id]
+  quantity int [not null]
+  price_at_purchase decimal(15,2) [not null, note: 'Harga snapshot saat transaksi']
+}
+
+// ==========================================
+// 20. SURAT IZIN KELUAR (GATE PASS)
+// ==========================================
+
+Table gate_pass_settings {
+  id varchar(36) [pk]
+  tenant_id varchar(36) [unique, ref: > tenants.id]
+  level_1_role_id varchar(36) [ref: > roles.id]
+  level_2_role_id varchar(36) [ref: > roles.id]
+  level_3_role_id varchar(36) [ref: > roles.id]
+  main_approver_role_id varchar(36) [ref: > roles.id]
+  updated_at timestamp
+}
+
+Table gate_passes {
+  id varchar(36) [pk]
+  tenant_id varchar(36) [ref: > tenants.id]
+  student_id varchar(36) [ref: > users.id]
+  reason text [not null]
+  expected_exit_time timestamp [not null]
+  expected_return_time timestamp [not null]
+  actual_exit_time timestamp
+  actual_return_time timestamp
+  exit_qr_token varchar(255) [unique, note: 'QR dipindai Satpam saat siswa keluar']
+  return_qr_token varchar(255) [unique, note: 'QR dipindai Satpam saat siswa kembali']
+  status gatepass_status [default: 'PENDING']
+  created_at timestamp [default: `current_timestamp`]
+  updated_at timestamp
+}
+
+Table gate_pass_approvals {
+  id varchar(36) [pk]
+  gate_pass_id varchar(36) [ref: > gate_passes.id]
+  approver_role_id varchar(36) [ref: > roles.id]
+  tier_level int [not null]
+  status leave_status [default: 'PENDING']
+  approved_by varchar(36) [ref: > users.id]
+  approved_at timestamp
+}
+
+// ==========================================
+// 21. PKL & BURSA KERJA (BKK)
+// ==========================================
+
+Table companies {
+  id varchar(36) [pk]
+  tenant_id varchar(36) [ref: > tenants.id]
+  name varchar(255)
+  industry varchar(100)
+  logo_url varchar(255)
+  address text
+  created_at timestamp [default: `current_timestamp`]
+  deleted_at timestamp
+}
+
+Table job_vacancies {
+  id varchar(36) [pk]
+  company_id varchar(36) [ref: > companies.id]
+  tenant_id varchar(36) [ref: > tenants.id]
+  title varchar(255)
+  type job_type
+  target_role job_target_role [default: 'STUDENT']
+  arrangement work_arrangement [default: 'ON_SITE']
+  description text
+  requirements text
+  is_active boolean [default: true]
+  is_public boolean [default: false, note: 'true = terlihat oleh seluruh jaringan sekolah']
+  salary_min decimal(15,2)
+  salary_max decimal(15,2)
+  hide_salary boolean [default: false]
+  deadline date
+  created_at timestamp [default: `current_timestamp`]
+  updated_at timestamp
+  deleted_at timestamp
+}
+
+Table job_applications {
+  id varchar(36) [pk]
+  job_vacancy_id varchar(36) [ref: > job_vacancies.id]
+  user_id varchar(36) [ref: > users.id]
+  resume_url varchar(255)
+  status job_app_status [default: 'APPLIED']
+  applied_at timestamp [default: `current_timestamp`]
+  updated_at timestamp
+}
+
+Table pkl_mentorships {
+  id varchar(36) [pk]
+  tenant_id varchar(36) [not null]
+  academic_year_id varchar(36) [ref: > academic_years.id]
+  student_id varchar(36) [unique, ref: > users.id]
+  mentor_id varchar(36) [ref: > users.id]
+  created_at timestamp [default: `current_timestamp`]
+}
+
+Table pkl_mentoring_schedules {
+  id varchar(36) [pk]
+  mentorship_id varchar(36) [ref: > pkl_mentorships.id]
+  schedule_date date [not null]
+  zoom_link text
+  mentor_notes text
+  created_at timestamp [default: `current_timestamp`]
+}
+
+Table pkl_journals {
+  id varchar(36) [pk]
+  schedule_id varchar(36) [ref: > pkl_mentoring_schedules.id]
+  description text
+  document_urls text [note: 'JSON array URL file (maks 5 file PDF/Word/Excel)']
+  status varchar(20) [default: 'PENDING']
+  feedback text
+  created_at timestamp [default: `current_timestamp`]
+  updated_at timestamp
+}
+
+Table pkl_final_report_settings {
+  id varchar(36) [pk]
+  tenant_id varchar(36) [not null]
+  target_type varchar(20) [not null, note: 'CLASS atau MAJOR']
+  target_id varchar(36)
+  start_date timestamp
+  end_date timestamp
+}
+
+Table pkl_final_reports {
+  id varchar(36) [pk]
+  student_id varchar(36) [ref: > users.id]
+  document_url text [not null]
+  status varchar(20) [default: 'PENDING']
+  notes text
+  approved_by varchar(36) [ref: > users.id]
+  created_at timestamp [default: `current_timestamp`]
+  updated_at timestamp
+}
+
+Table pkl_monitorings {
+  id varchar(36) [pk]
+  tenant_id varchar(36) [ref: > tenants.id]
+  student_id varchar(36) [ref: > users.id]
+  supervisor_staff_id varchar(36) [ref: > users.id]
+  documentation_url varchar(500)
+  notes text
+  status journal_status [default: 'PENDING']
+  principal_score decimal(5,2)
+  principal_notes text
+  evaluated_at timestamp
+  created_at timestamp [default: `current_timestamp`]
+}
+
+Table performance_settings {
+  tenant_id varchar(36) [pk, ref: > tenants.id]
+  principal_staff_id varchar(36) [ref: > users.id]
+  created_at timestamp [default: `current_timestamp`]
+}
+
+// ==========================================
+// 22. PORTOFOLIO (Profil ala LinkedIn)
+// ==========================================
+
+Table portfolios {
+  id varchar(36) [pk]
+  user_id varchar(36) [unique, ref: > users.id]
+  summary text
+  cv_url varchar(255)
+  created_at timestamp [default: `current_timestamp`]
+  updated_at timestamp
+  deleted_at timestamp
+}
+
+Table portfolio_experiences {
+  id varchar(36) [pk]
+  portfolio_id varchar(36) [ref: > portfolios.id]
+  title varchar(255) [not null]
+  company_name varchar(255) [not null]
+  start_date date
+  end_date date
+  is_current boolean [default: false]
+  description text
+}
+
+Table portfolio_educations {
+  id varchar(36) [pk]
+  portfolio_id varchar(36) [ref: > portfolios.id]
+  school varchar(255) [not null]
+  degree varchar(100)
+  field_of_study varchar(100)
+  start_date date
+  end_date date
+}
+
+Table portfolio_projects {
+  id varchar(36) [pk]
+  portfolio_id varchar(36) [ref: > portfolios.id]
+  title varchar(255) [not null]
+  description text
+  project_url varchar(255)
+  thumbnail_url varchar(255)
+}
+
+Table portfolio_skills {
+  id varchar(36) [pk]
+  portfolio_id varchar(36) [ref: > portfolios.id]
+  skill_name varchar(100) [not null]
+}
+
+Table portfolio_certificates {
+  id varchar(36) [pk]
+  portfolio_id varchar(36) [ref: > portfolios.id]
+  name varchar(255) [not null]
+  issuing_organization varchar(255) [not null]
+  issue_date date
+  credential_url varchar(255)
+}
+
+// ==========================================
+// 23. PENGUMUMAN & KOMUNIKASI (E2EE)
+// ==========================================
+
+Table announcements {
+  id varchar(36) [pk]
+  tenant_id varchar(36) [ref: > tenants.id]
+  title varchar(255)
+  content text
+  type varchar(50) [note: 'PENGUMUMAN atau EVENT']
+  target_audience varchar(100)
+  event_date date
+  created_at timestamp [default: `current_timestamp`]
+  updated_at timestamp
+  deleted_at timestamp
+  updated_by varchar(36) [ref: > users.id]
+}
+
+Table chat_rooms {
+  id varchar(36) [pk]
+  tenant_id varchar(36) [ref: > tenants.id]
+  type chat_room_type [default: 'DIRECT']
+  participant_ids json [not null, note: 'Array UUID peserta chat']
+  created_at timestamp [default: `current_timestamp`]
+  updated_at timestamp
+}
+
+Table chat_messages {
+  id varchar(36) [pk]
+  room_id varchar(36) [ref: > chat_rooms.id]
+  sender_id varchar(36) [ref: > users.id]
+  ciphertext text [not null, note: 'E2EE CIPHERTEXT: AES-256-GCM. Server tidak bisa membaca isinya']
+  created_at timestamp [default: `current_timestamp`]
+}
+
+// Untuk backward-compat: pesan DM lama (1-on-1 tanpa chat room)
+Table direct_messages {
+  id varchar(36) [pk]
+  tenant_id varchar(36) [ref: > tenants.id]
+  sender_id varchar(36) [ref: > users.id]
+  receiver_id varchar(36) [ref: > users.id]
+  encrypted_content text [note: 'E2EE CIPHERTEXT. Server tidak bisa membaca isinya']
+  is_read boolean [default: false]
+  created_at timestamp [default: `current_timestamp`]
+  deleted_at timestamp
+}
+
+// ==========================================
+// 24. ETALASE SEKOLAH & SPMB
+// ==========================================
+
+Table school_facilities {
+  id varchar(36) [pk]
+  tenant_id varchar(36) [ref: > tenants.id]
+  name varchar(255)
+  description text
+  photo_url varchar(255)
+  created_at timestamp [default: `current_timestamp`]
+  updated_at timestamp
+  deleted_at timestamp
+}
+
+Table spmb_batches {
+  id varchar(36) [pk]
+  tenant_id varchar(36) [ref: > tenants.id]
+  name varchar(255)
+  description text
+  start_date date
+  end_date date [note: 'Backend menolak daftar jika Date.Now() > end_date']
+  is_active boolean [default: false]
+  created_at timestamp [default: `current_timestamp`]
+  updated_at timestamp
+  deleted_at timestamp
+}
+
+Table spmb_batch_majors {
+  id varchar(36) [pk]
+  spmb_batch_id varchar(36) [ref: > spmb_batches.id]
+  major_id varchar(36) [ref: > majors.id]
+  registration_fee decimal(15,2) [default: 0, note: 'Harga formulir pendaftaran']
+  re_registration_fee decimal(15,2) [default: 0, note: 'Biaya daftar ulang jika diterima']
+  created_at timestamp [default: `current_timestamp`]
+
+  indexes {
+    (spmb_batch_id, major_id) [unique]
+  }
+}
+
+Table spmb_registrations {
+  id varchar(36) [pk]
+  tenant_id varchar(36) [ref: > tenants.id]
+  parent_id varchar(36) [ref: > users.id]
+  spmb_batch_id varchar(36) [ref: > spmb_batches.id]
+  major_id varchar(36) [ref: > majors.id, note: 'Jurusan pilihan pertama']
+  second_major_id varchar(36) [ref: > majors.id, note: 'Jurusan pilihan kedua']
+  invoice_id varchar(36) [ref: > student_invoices.id, note: 'Auto-generate dari registration_fee batch']
+
+  // Data Calon Siswa
+  student_name varchar(255)
+  nisn varchar(50)
+  previous_school varchar(255)
+  region varchar(255)
+  gender gender_type
+  religion varchar(50)
+  photo_url varchar(255)
+  student_phone varchar(50)
+
+  // Data Orang Tua
+  father_name varchar(255)
+  mother_name varchar(255)
+  father_phone varchar(50)
+  mother_phone varchar(50)
+  father_job varchar(100)
+  mother_job varchar(100)
+  father_income varchar(100)
+  mother_income varchar(100)
+
+  // Status & Jadwal Seleksi
+  registration_status spmb_status [default: 'PENDING', note: 'Trigger: Jika ACCEPTED, buat invoice Daftar Ulang']
+  exam_schedule timestamp
+
+  created_at timestamp [default: `current_timestamp`]
+  updated_at timestamp
+  deleted_at timestamp
+  updated_by varchar(36) [ref: > users.id]
+}
+
+// ==========================================
+// 25. INVENTARIS ASET SEKOLAH
+// ==========================================
+
+Table inventory_items {
+  id varchar(36) [pk]
+  tenant_id varchar(36) [ref: > tenants.id]
+  name varchar(100) [not null]
+  description text
+  stock int [default: 0]
+  condition varchar(50) [default: 'GOOD', note: 'GOOD, NEEDS_REPAIR, BROKEN']
+  created_at timestamp [default: `current_timestamp`]
+  updated_at timestamp
+}
+
+Table inventory_reports {
+  id varchar(36) [pk]
+  tenant_id varchar(36) [ref: > tenants.id]
+  item_id varchar(36) [ref: > inventory_items.id]
+  staff_id varchar(36) [ref: > users.id]
+  condition varchar(50)
+  notes text
+  document_url varchar(255)
+  created_at timestamp [default: `current_timestamp`]
+}
+
+// ==========================================
+// 26. PERPUSTAKAAN DIGITAL
+// ==========================================
+
+Table library_settings {
+  tenant_id varchar(36) [pk, ref: > tenants.id]
+  archive_admin_staff_id varchar(36) [ref: > users.id]
+  created_at timestamp [default: `current_timestamp`]
+}
+
+Table books {
+  id varchar(36) [pk]
+  tenant_id varchar(36) [ref: > tenants.id]
+  title varchar(255) [not null]
+  author varchar(255)
+  isbn varchar(50)
+  cover_url varchar(255)
+  book_type book_type [not null]
+  stock int [default: 0, note: 'Berkurang otomatis saat QR dipindai (BORROWED)']
+  is_negotiable_time boolean [default: false, note: 'true = durasi pinjam bisa dinegosiasi']
+  max_borrow_days int [default: 7]
+  late_fee_per_day decimal(10,2) [default: 0.00]
+  file_url varchar(500) [note: 'URL PDF/EPUB untuk buku digital']
+  payment_type digital_payment_type [default: 'FREE']
+  price decimal(10,2) [default: 0.00]
+  uploader_staff_id varchar(36) [not null, ref: > users.id]
+  created_at timestamp [default: `current_timestamp`]
+  updated_at timestamp
+  deleted_at timestamp
+}
+
+Table book_borrowings {
+  id varchar(36) [pk]
+  tenant_id varchar(36) [ref: > tenants.id]
+  user_id varchar(36) [ref: > users.id]
+  book_id varchar(36) [ref: > books.id]
+  requested_start_date timestamp [not null]
+  requested_end_date timestamp [not null]
+  approved_start_date timestamp
+  approved_end_date timestamp
+  status borrowing_status [default: 'PENDING']
+  borrow_qr_token varchar(255) [note: 'QR untuk memindai saat pengambilan buku']
+  return_qr_token varchar(255) [note: 'QR untuk memindai saat pengembalian buku']
+  actual_borrowed_at timestamp
+  actual_returned_at timestamp
+  late_fee_paid decimal(10,2) [default: 0.00]
+  created_at timestamp [default: `current_timestamp`]
+}
+
+Table digital_book_access {
+  id varchar(36) [pk]
+  user_id varchar(36) [ref: > users.id]
+  book_id varchar(36) [ref: > books.id]
+  access_type digital_payment_type [not null, note: 'ONE_TIME atau SUBSCRIPTION']
+  expires_at timestamp
+  granted_at timestamp [default: `current_timestamp`]
+
+  indexes {
+    (user_id, book_id) [unique]
+  }
+}
+
+Table scientific_journals {
+  id varchar(36) [pk]
+  tenant_id varchar(36) [ref: > tenants.id]
+  uploader_id varchar(36) [ref: > users.id]
+  title varchar(255) [not null]
+  abstract text
+  angkatan int [not null, note: 'Tahun angkatan/lulus']
+  kelas varchar(50) [not null]
+  jurusan varchar(100) [not null]
+  softcopy_url varchar(500)
+  scanner_url varchar(500)
+  status journal_status [default: 'PENDING']
+  approved_by varchar(36) [ref: > users.id]
+  created_at timestamp [default: `current_timestamp`]
+}
