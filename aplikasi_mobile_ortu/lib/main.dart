@@ -1,33 +1,31 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart'; // Import library ini
+import 'package:get_storage/get_storage.dart';
+import 'main_screen.dart';
 import 'auth/login_screen.dart';
 
-void main() {
-  runApp(const ParentSchoolApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await GetStorage.init();
+  runApp(const MyApp());
 }
 
-class ParentSchoolApp extends StatelessWidget {
-  const ParentSchoolApp({super.key});
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final box = GetStorage();
+    bool isLoggedIn = box.read('isLoggedIn') ?? false;
+
     return MaterialApp(
+      title: 'Satu Sekolah Orang Tua',
       debugShowCheckedModeBanner: false,
-      title: 'Parent Portal',
       theme: ThemeData(
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blueAccent),
-        
-        // PERBAIKAN: Mengatur Poppins sebagai font utama dan memperbesar ukurannya
-        textTheme: GoogleFonts.poppinsTextTheme(
-          Theme.of(context).textTheme,
-        ).apply(
-          fontSizeFactor: 1.1, // Memperbesar semua teks dasar sebesar 10%
-          bodyColor: Colors.black87,
-          displayColor: Colors.black,
-        ),
+        fontFamily: 'Nunito',
+        primarySwatch: Colors.orange,
+        scaffoldBackgroundColor: const Color(0xFFECEAE3), // AppTheme.bg2
       ),
-      home: const LoginScreen(),
+      home: isLoggedIn ? const MainScreen() : const LoginScreen(),
     );
   }
 }
