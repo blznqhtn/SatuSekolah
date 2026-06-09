@@ -55,10 +55,13 @@ Tersedia untuk `Student`, `Parent`, `Staff`, `Admin`, maupun *Custom Role*.
   - `GET /spmb/batches` — Melihat gelombang pendaftaran murid baru.
   - `POST /spmb/register` — Mengirim formulir pendaftaran SPMB.
   - `POST /spmb/registrations/:id/reregister` — Membayar daftar ulang (Re-Register) anak.
-- **Dompet Digital (Web3 Ledger) & Tagihan:**
-  - `POST /finance/ledger/transaction` — Melakukan transaksi ledger atau transfer (menggunakan PIN Hash).
-  - `GET /finance/invoices` — Melihat histori tagihan (SPP, Kegiatan, dll).
-  - `POST /finance/invoices/:id/pay` — Membayar tagihan menggunakan PIN Hash via pemotongan Ledger.
+- **Dompet Digital (Satu Pay Ledger) & Tagihan:**
+  - `GET /finance/ledger/history` — Melihat riwayat transaksi masuk/keluar.
+  - `POST /finance/transfer` — Transfer saldo P2P ke pengguna lain (wajib **PIN 6 digit**).
+  - `GET /finance/invoices` — Melihat semua tagihan milik sendiri (SPP, Kegiatan, dll).
+  - `GET /finance/invoices/va/:va` — **Auto-fetch tagihan via VA 15 digit** (tanpa PIN, hanya untuk preview — sistem otomatis menampilkan nama tagihan & nominal).
+  - `POST /finance/invoices/pay-va` — **Bayar tagihan via VA 15 digit** menggunakan saldo dompet (wajib **PIN**). Kode VA hangus setelah lunas, dan kedaluwarsa otomatis setelah **24 jam** jika belum dibayar.
+  - `POST /finance/invoices/pay-dynamic-qr` — Bayar tagihan via QR Dinamis (wajib **PIN**).
 
 ---
 
@@ -81,16 +84,18 @@ Akses modul kantin dibagi menjadi **Kasir/Pemilik** (Owner) dan **Pembeli** (Buy
 Kasir kantin berperan sebagai operator transaksi langsung. Alur POS:
 1. **Masukkan NISN Pembeli** *(opsional — jika diisi, transaksi akan terhubung ke rekam kesehatan siswa untuk pemantauan gizi/pola makan)*.
 2. **Pilih item** yang dibeli dari daftar menu aktif — harga otomatis terakumulasi.
-3. **Pilih metode pembayaran**:
+3. **Pilih metode pembayaran awal** — Ketika kasir menekan *Buat Pesanan*, **sistem secara otomatis meng-generate ketiga kode pembayaran sekaligus** (QR, RFID, dan VA). Ini memungkinkan kasir mengganti metode kapan saja tanpa loading ulang:
 
-   - 📱 **Dynamic QR** — Sistem meng-generate QR unik per transaksi. QR ini **hanya bisa dipindai melalui aplikasi Satu Sekolah** (bukan aplikasi QR umum). QR otomatis kedaluwarsa begitu transaksi berhasil.
+   - 📱 **Dynamic QR** — Sistem meng-generate QR unik per transaksi. QR ini **hanya bisa dipindai melalui aplikasi Satu Sekolah**. QR otomatis kedaluwarsa begitu transaksi berhasil atau lewat 24 jam.
    
-   - 🏦 **Transfer Saldo Akun (Virtual Account Internal)** — Sistem meng-generate nomor rekening virtual dinamis (format: `{account_number pembeli}{angka acak}`, maks. 15 karakter). Pembeli tinggal mengirim saldo dari menu *Transfer* di aplikasi menggunakan nomor ini. Nomor **otomatis tidak valid** setelah transaksi berhasil *atau* lebih dari 24 jam.
+   - 🏦 **Transfer Saldo In-App (Virtual Account 15 Digit)** — Sistem meng-generate nomor VA dinamis (format: `{12 digit nomor akun kantin}{3 digit unik}`, total 15 digit). Pembeli mengetikkan VA di aplikasi → **nama & nominal tagihan muncul otomatis** → masukkan PIN → bayar. Nomor **otomatis hangus** setelah lunas *atau* kedaluwarsa setelah **24 jam**.
    
-   - 📳 **Tap Kartu RFID** — Kasir menekan *Selesai*, sistem meng-generate **kode bayar** unik. Kasir mengetikkan kode tersebut di **terminal IoT RFID**. Pembeli menempelkan kartu RFID → memasukkan PIN → jika saldo mencukupi *(harga + Rp500 biaya layanan)*, saldo otomatis terpotong dan transaksi langsung tercatat di riwayat Ledger kedua pihak.
+   - 📳 **Tap Kartu RFID** — Sistem meng-generate kode bayar 12 digit. Kasir mengetikkan kode di **terminal IoT RFID**. Pembeli tap kartu → masukkan PIN → saldo terpotong beserta **Rp500 biaya layanan**.
 
-- `POST /canteen/pos/create-order` — Kasir membuat pesanan POS (NISN opsional + daftar item).
-- `POST /canteen/pos/select-payment` — Kasir memilih metode pembayaran dan sistem meng-generate kode/QR/nomor virtual yang sesuai.
+4. **Ganti Metode Kapan Saja**: Jika siswa berubah pikiran, kasir cukup klik "Ganti Metode". Sistem menampilkan kode yang sudah ada — **tidak perlu generate ulang**.
+
+- `POST /canteen/pos/order` — Kasir membuat pesanan POS (sistem otomatis generate semua kode).
+- `PATCH /canteen/pos/orders/:id/payment-method` — **Ganti metode pembayaran** tanpa generate kode baru.
 - `GET /canteen/pos/order-status/:id` — Kasir memantau status pembayaran secara real-time.
 - `PATCH /canteen/orders/:id/status` — Memperbarui status pesanan: `PREPARING` → `READY` → `DELIVERING` → `COMPLETED`.
 - `GET /canteen/reports/financial?start=&end=` — Laporan keuangan: *Gross Revenue*, *Total COGS*, *Net Profit*.
@@ -101,7 +106,10 @@ Kasir kantin berperan sebagai operator transaksi langsung. Alur POS:
 - `POST /canteen/checkout` — Membayar pesanan keranjang dengan pilihan:
   - **Metode pengambilan**: *Pickup* (ambil sendiri) atau *Delivery* (antar ke lokasi).
   - **Waktu pesan**: Langsung atau *Pre-order* (pesan untuk tanggal/jam tertentu).
-  - **Metode bayar**: Pemotongan saldo Ledger langsung (otorisasi **PIN**).
+  - **Metode bayar**: Pemotongan saldo Ledger langsung (wajib **PIN 6 digit**).
+- `GET /canteen/order/va/:va` — **Auto-fetch detail pesanan kantin** saat mengetikkan VA 15 digit (preview nama & nominal, tanpa PIN).
+- `POST /canteen/pay-va` — **Bayar pesanan kantin via VA 15 digit** (wajib **PIN**). VA hangus setelah lunas.
+- `POST /canteen/pay-dynamic-qr` — Bayar pesanan kantin dengan scan QR dari kasir (wajib **PIN**).
 
 ---
 

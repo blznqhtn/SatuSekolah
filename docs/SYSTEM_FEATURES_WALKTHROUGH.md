@@ -15,22 +15,28 @@ Sistem manajemen pembelajaran digital untuk mendukung KBM (Kegiatan Belajar Meng
 - **Computer Based Assessment (CBA)**: Ujian online mandiri dengan dukungan soal kaya media (gambar/audio/video) dan tipe soal kompleks seperti pencocokan (tarik garis).
 - **Raport Digital & Leaderboard**: Generate Excel template nilai, proses upload massal oleh wali kelas, serta perankingan (leaderboard) instan berdasarkan kelas, jurusan, maupun keseluruhan angkatan.
 
-## 3. Keuangan & Tagihan Digital (Billing & E-Wallet)
-Sistem ini menggunakan dompet virtual (*Ledger-based Wallet*) bernama **Satu Pay** untuk setiap siswa.
-- **Top-Up & Transaksi Tercatat**: Semua uang masuk dan keluar memiliki jejak (*immutable ledger*) dan PIN keamanan (*PIN Hash*).
-- **Tagihan Sekolah (SPP/Uang Gedung)**: Bendahara sekolah membuat tagihan *(invoice)* massal secara otomatis. Siswa bisa membayarnya langsung dari saldo Satu Pay mereka.
-- **Pembayaran Eksternal (Midtrans Gateway)**: Jika siswa/orang tua tidak memiliki saldo internal yang cukup, mereka bisa membayar tagihan secara tunai atau melalui *Payment Gateway* Midtrans (Virtual Account, E-Wallet, GoPay, Qris). 
-  - **Arsitektur Keamanan Midtrans**: Sistem menggunakan pendekatan *Backend-Calculated*. Backend yang akan menghitung nominal secara final (beserta *Admin Fee*), lalu backend akan meminta *Snap Token* ke server Midtrans, dan mengembalikannya ke Frontend untuk memunculkan *Pop-up Pembayaran*. Validasi sukses dilakukan sepenuhnya melalui *Webhook* Midtrans ke Backend (dengan verifikasi *HMAC Signature*) sehingga mencegah *hacker* memanipulasi frontend.
+## 3. Keuangan & Tagihan Digital (Billing & E-Wallet "Satu Pay")
+Sistem ini menggunakan dompet virtual (*Ledger-based Wallet*) bernama **Satu Pay** untuk setiap siswa. Setiap transaksi finansial — baik pembayaran tagihan, pemindahan saldo, maupun pembelian — **wajib menggunakan PIN 6 Digit** sebagai validasi identitas.
+- **Top-Up & Transaksi Tercatat**: Semua uang masuk dan keluar memiliki jejak (*immutable ledger*) yang tidak bisa dimanipulasi.
+- **Tagihan Sekolah (SPP/Uang Gedung)**: Bendahara sekolah membuat tagihan *(invoice)* massal secara otomatis, bisa ditarget ke kelas, jurusan, atau siswa individual.
+- **Pembayaran Tagihan via Virtual Account Internal 15 Digit (Cashless Penuh)**:
+  - Bendahara menyodorkan kode VA 15 digit kepada siswa (generasi kode: 12 digit nomor akun sekolah + 3 digit unik per transaksi).
+  - Siswa mengetikkan VA di aplikasi, sistem **otomatis menampilkan nama tagihan dan nominal** tanpa perlu ketik jumlah secara manual (karena VA sekali pakai, sudah terikat ke 1 invoice).
+  - Setelah siswa memasukkan PIN, saldo langsung dipotong dan tagihan lunas instan.
+  - **Kode VA otomatis hangus** setelah dibayar, dan secara otomatis kedaluwarsa **24 jam** setelah dibuat jika belum dibayar.
+- **Pembayaran Eksternal (Midtrans Gateway)**: Jika siswa/orang tua tidak memiliki saldo internal yang cukup, mereka bisa membayar tagihan melalui *Payment Gateway* Midtrans (QRIS, Virtual Account Bank, GoPay, dsb).
+  - **Arsitektur Keamanan Midtrans**: Menggunakan pendekatan *Backend-Calculated*. Backend menghitung nominal final, meminta *Snap Token* ke server Midtrans, lalu mengembalikannya ke Frontend. Validasi sukses dilakukan sepenuhnya melalui *Webhook* Midtrans dengan verifikasi *HMAC Signature*, mencegah manipulasi dari sisi frontend.
 - **Pembelian Token AI via Midtrans**: Integrasi webhook untuk pembelian paket kuota AI bagi sekolah secara otomatis.
 
 ## 4. Kantin Digital (Digital Canteen & POS) Enterprise-Grade
 Mendigitalisasi transaksi di lingkungan sekolah agar menjadi *cashless ecosystem*, dilengkapi dengan fitur setingkat *Enterprise* untuk memaksimalkan profitabilitas pemilik kantin.
 - **Pendaftaran Tenant Kantin & Manajemen Resep (BOM)**: Pemilik toko/kantin dapat membuka lapak, menambah menu jualan, dan memasukkan *Bill of Materials* (Resep/Bahan Baku) untuk makanan. Fitur ini memungkinkan sistem menghitung harga pokok produksi (Cost of Goods Sold/COGS).
 - **Manajemen Diskon Cerdas**: Pemilik kantin dapat menerapkan diskon untuk produk spesifik atau seluruh toko. Diskon dapat diatur dengan batas waktu (Start/End Date) dan batas kuota (*Max Uses*), sangat cocok untuk *Flash Sale* jam istirahat.
-- **Sistem Pembayaran POS Kasir Dinamis (Nirtunai)**: Kasir mengelola pesanan dan siswa/pembeli dapat membayar dengan tiga opsi pembayaran dinamis dan aman:
-  - **Dynamic QR**: Di-generate per transaksi dan hanya dapat dipindai oleh aplikasi internal Satu Sekolah.
-  - **Transfer Virtual Account Internal**: Meng-generate nomor rekening virtual sementara yang otomatis invalid dalam 24 jam.
-  - **Tap Kartu RFID**: Kasir menekan Selesai, dan pembeli mengetik PIN pada perangkat IoT RFID untuk memotong saldo langsung.
+- **Sistem Pembayaran POS Kasir Dinamis (Nirtunai)**: Saat kasir menekan *Checkout*, **sistem langsung meng-generate ketiga kode pembayaran sekaligus** dalam satu langkah:
+  - **Dynamic QR**: Di-generate per transaksi dan hanya dapat dipindai oleh aplikasi internal Satu Sekolah. Pembeli scan → masukkan PIN → bayar.
+  - **Transfer Virtual Account Internal 15 Digit**: Kode VA unik yang terikat ke 1 pesanan, otomatis kedaluwarsa **24 jam**. Pembeli ketik VA di aplikasi → nominal tampil otomatis → masukkan PIN → bayar.
+  - **Tap Kartu RFID**: Perangkat IoT menampilkan tagihan di layar → pembeli tap kartu → mesin meminta PIN → saldo dipotong langsung.
+- **Ganti Metode Pembayaran Tanpa Hambatan**: Karena semua kode di-generate serentak, kasir bisa mengganti metode pembayaran (misal dari RFID ke Transfer) kapan saja **tanpa loading ulang atau generate kode baru**. Kode yang lama tetap valid hingga pesanan dibayar atau kedaluwarsa 24 jam.
 - **Opsi Pengiriman (Delivery) & Pick-Up**: Selain mengambil sendiri (Pick-up), siswa bisa meminta pesanan diantar (Delivery) ke kelas/lokasi tertentu. Biaya antar dihitung *per-checkout* (bukan per-item).
 - **Pre-order Terjadwal**: Siswa bisa memesan makanan dari aplikasi (Self-Service) jauh-jauh hari (Pre-order Date & Time) untuk meminimalisir antrean panjang.
 - **Laporan Finansial Canggih & AI Insight**: *Financial Report* harian/bulanan dengan *Gross Profit*, *Total Cost*, dan *Net Profit*. Didukung oleh **Business AI Insight** yang secara otomatis menganalisis performa bulanan dan memberikan saran *actionable* (aktif jika modul `CANTEEN` AI diaktifkan oleh admin).

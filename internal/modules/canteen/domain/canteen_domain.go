@@ -153,6 +153,7 @@ type CanteenRepository interface {
 	GetOrderByDynamicQR(ctx context.Context, qrCode string) (*CanteenOrder, error)
 	GetOrderByRFIDPaymentCode(ctx context.Context, rfidPaymentCode string) (*CanteenOrder, error)
 	GetOrderByTransferAccount(ctx context.Context, transferAccount string) (*CanteenOrder, error)
+	UpdatePaymentMethod(ctx context.Context, orderID uuid.UUID, paymentMethod string) error
 
 	GetDailyFinancialReport(ctx context.Context, shopID uuid.UUID, startDate, endDate string) ([]FinancialReport, error)
 }
@@ -169,6 +170,13 @@ type CanteenUsecase interface {
 	PayViaDynamicQR(ctx context.Context, buyerID uuid.UUID, dynamicQRCode string, pin string) (*CanteenOrder, error)
 	GetOrderForIoT(ctx context.Context, rfidPaymentCode string) (*CanteenOrder, error)
 	PayViaRFID(ctx context.Context, rfidPaymentCode string, rfidTag string, pin string) (*CanteenOrder, error)
+
+	// Transfer Saldo In-App (VA 15 Digit)
+	GetOrderForVA(ctx context.Context, va string) (*CanteenOrder, error)
+	PayViaVA(ctx context.Context, buyerID uuid.UUID, va string, pin string) (*CanteenOrder, error)
+
+	// Ganti metode pembayaran (reuse kode yang sudah ada, tidak generate baru)
+	SwitchPaymentMethod(ctx context.Context, ownerID, orderID uuid.UUID, newPaymentMethod string) (*CanteenOrder, error)
 
 	AddDiscount(ctx context.Context, ownerID uuid.UUID, req *CanteenDiscount) error
 	UpdateOrderStatus(ctx context.Context, ownerID, orderID uuid.UUID, status string) error

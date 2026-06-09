@@ -375,19 +375,16 @@ func (u *canteenUsecase) CreatePOSOrder(ctx context.Context, ownerID uuid.UUID, 
 		expiresAt := time.Now().Add(24 * time.Hour)
 		order.ExpiresAt = &expiresAt
 
-		if paymentMethod == "DYNAMIC_QR" {
-			qrCode := "QR-" + uuid.New().String()
-			order.DynamicQRCode = &qrCode
-		} else if paymentMethod == "RFID" {
-			// Random 12 digits untuk pembayaran fisik RFID
-			code := fmt.Sprintf("%012d", rand.Int63n(1_000_000_000_000))
-			order.RFIDPaymentCode = &code
-		} else if paymentMethod == "TRANSFER" {
-			// Suffix up to 3 digits
-			suffix := fmt.Sprintf("%03d", rand.Intn(1000))
-			target := shopOwner.AccountNumber + suffix
-			order.TransferTargetAccount = &target
-		}
+		// Selalu generate SEMUA kode sekaligus, terlepas dari payment_method awal.
+		// Ini memungkinkan kasir ganti metode pembayaran kapan saja tanpa generate ulang.
+		qrCode := "QR-" + uuid.New().String()
+		rfidCode := fmt.Sprintf("%012d", rand.Int63n(1_000_000_000_000))
+		suffix := fmt.Sprintf("%03d", rand.Intn(1000))
+		vaTarget := shopOwner.AccountNumber + suffix
+
+		order.DynamicQRCode = &qrCode
+		order.RFIDPaymentCode = &rfidCode
+		order.TransferTargetAccount = &vaTarget
 
 		if err := txRepo.CreateOrder(ctx, order); err != nil {
 			return err
@@ -405,6 +402,116 @@ func (u *canteenUsecase) CreatePOSOrder(ctx context.Context, ownerID uuid.UUID, 
 	})
 
 	return finalOrder, err
+}
+
+// GetOrderForVA — Ambil detail order berdasarkan VA 15 digit, untuk auto-show nominal ke pembeli
+func (u *canteenUsecase) GetOrderForVA(ctx context.Context, va string) (*canteenDomain.CanteenOrder, error) {
+	order, err := u.canteenRepo.GetOrderByTransferAccount(ctx, va)
+	if err != nil {
+		return nil, err
+	}
+	if order == nil {
+		return nil, errors.New("kode VA tidak valid: pesanan tidak ditemukan")
+	}
+	if order.Status != canteenDomain.OrderStatusPending {
+		return nil, errors.New("pesanan ini sudah selesai atau dibatalkan")
+	}
+	if order.ExpiresAt != nil && time.Now().After(*order.ExpiresAt) {
+		_ = u.canteenRepo.UpdateOrderStatus(ctx, order.ID, canteenDomain.OrderStatusCanceled)
+		return nil, errors.New("kode VA sudah kedaluwarsa (lebih dari 24 jam), harap buat pesanan baru")
+	}
+	return order, nil
+}
+
+// PayViaVA — Bayar pesanan kantin menggunakan VA 15 digit (wajib PIN)
+func (u *canteenUsecase) PayViaVA(ctx context.Context, buyerID uuid.UUID, va string, pin string) (*canteenDomain.CanteenOrder, error) {
+	if err := u.verifyPIN(ctx, buyerID, pin); err != nil {
+		return nil, err
+	}
+
+	order, err := u.GetOrderForVA(ctx, va)
+	if err != nil {
+		return nil, err
+	}
+
+	shop, err := u.canteenRepo.GetShopByID(ctx, order.ShopID)
+	if err != nil || shop == nil {
+		return nil, errors.New("toko tidak ditemukan")
+	}
+
+	err = u.canteenRepo.ExecTx(ctx, func(txRepo canteenDomain.CanteenRepository) error {
+		refType := financeDomain.RefPayment
+
+		ledgerEntry, err := u.ledgerUc.RecordTransaction(ctx, &financeDomain.WalletLedger{
+			TenantID:        shop.TenantID,
+			UserID:          buyerID,
+			TransactionType: financeDomain.TxDebit,
+			Amount:          order.TotalAmount,
+			ReferenceType:   &refType,
+		})
+		if err != nil {
+			return err
+		}
+
+		_, err = u.ledgerUc.RecordTransaction(ctx, &financeDomain.WalletLedger{
+			TenantID:        shop.TenantID,
+			UserID:          shop.OwnerID,
+			TransactionType: financeDomain.TxCredit,
+			Amount:          order.TotalAmount,
+			ReferenceType:   &refType,
+		})
+		if err != nil {
+			return err
+		}
+
+		ledgerID := ledgerEntry.ID
+		order.WalletLedgerID = &ledgerID
+		order.BuyerID = &buyerID
+
+		return txRepo.UpdateOrderStatus(ctx, order.ID, canteenDomain.OrderStatusCompleted)
+	})
+
+	if err == nil {
+		order.Status = canteenDomain.OrderStatusCompleted
+	}
+	return order, err
+}
+
+// SwitchPaymentMethod — Kasir ganti metode pembayaran pesanan POS
+// Sistem TIDAK generate kode baru; cukup update field payment_method
+// karena semua kode (QR, RFID, VA) sudah di-generate saat CreatePOSOrder
+func (u *canteenUsecase) SwitchPaymentMethod(ctx context.Context, ownerID, orderID uuid.UUID, newPaymentMethod string) (*canteenDomain.CanteenOrder, error) {
+	shop, err := u.canteenRepo.GetShopByOwnerID(ctx, ownerID)
+	if err != nil || shop == nil {
+		return nil, errors.New("toko tidak ditemukan")
+	}
+
+	order, err := u.canteenRepo.GetOrder(ctx, orderID)
+	if err != nil {
+		return nil, err
+	}
+	if order == nil || order.ShopID != shop.ID {
+		return nil, errors.New("pesanan tidak ditemukan di toko Anda")
+	}
+	if order.Status != canteenDomain.OrderStatusPending {
+		return nil, errors.New("hanya pesanan berstatus PENDING yang bisa diganti metode pembayarannya")
+	}
+	if order.ExpiresAt != nil && time.Now().After(*order.ExpiresAt) {
+		_ = u.canteenRepo.UpdateOrderStatus(ctx, order.ID, canteenDomain.OrderStatusCanceled)
+		return nil, errors.New("pesanan sudah kedaluwarsa (lebih dari 24 jam), harap buat pesanan baru")
+	}
+
+	validMethods := map[string]bool{"DYNAMIC_QR": true, "RFID": true, "TRANSFER": true}
+	if !validMethods[newPaymentMethod] {
+		return nil, errors.New("metode pembayaran tidak valid: pilih DYNAMIC_QR, RFID, atau TRANSFER")
+	}
+
+	if err := u.canteenRepo.UpdatePaymentMethod(ctx, orderID, newPaymentMethod); err != nil {
+		return nil, err
+	}
+
+	order.PaymentMethod = newPaymentMethod
+	return order, nil
 }
 
 func (u *canteenUsecase) PayViaDynamicQR(ctx context.Context, buyerID uuid.UUID, dynamicQRCode string, pin string) (*canteenDomain.CanteenOrder, error) {

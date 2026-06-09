@@ -12,7 +12,7 @@ Sistem akan melakukan *generate* kode yang berbeda berdasarkan modul dan metode 
 | :--- | :--- | :--- | :--- |
 | **Tap Mesin RFID** | Terminal Fisik IoT (Mesin EDC Sekolah) | **12 Digit Angka Murni** | `048192348572` |
 | **Dynamic QR Code** | Layar Kasir / Aplikasi Siswa | **QR- + UUID** | `QR-8a7b6c5d-4e3f...` |
-| **Transfer Langsung** | Aplikasi Siswa | **No. Rekening + 3 Digit Unik** | `1234567890123` |
+| **Transfer Saldo In-App** | Kasir / Aplikasi Siswa | **VA Internal 15 Digit** | `123456789012345` |
 
 ### Modul Keuangan (Bayar SPP / Tagihan)
 
@@ -20,7 +20,7 @@ Sistem akan melakukan *generate* kode yang berbeda berdasarkan modul dan metode 
 | :--- | :--- | :--- | :--- |
 | **Online (Midtrans)** | Virtual Account, QRIS, GoPay, e-Wallet | **NCS + BankCode + YYYYMMDD + 6 Angka** | `NCS12320260609038291` |
 | **Tap Mesin RFID** | Terminal Fisik IoT di Loket Tata Usaha | **12 Digit Angka Murni** | `918273645019` |
-| **Transfer Bank Manual** | Aplikasi M-Banking Orang Tua | **VA 15 Digit** | `123456789012345` |
+| **Transfer Saldo In-App** | Kasir Offline (Loket Keuangan) | **VA Internal 15 Digit** (Sekali Pakai) | `123456789012345` |
 
 ### Modul AI (SaaS Billing Sekolah)
 
@@ -109,3 +109,37 @@ Skenario teknis ini menggambarkan interaksi antara *Frontend* Orang Tua/Siswa, *
 3. *Backend* mengambil `order_id` (`NCS12320260609038291`) dan status transaksi (`settlement` / `capture`).
 4. Backend mencari invoice terkait berdasarkan ID tersebut, memperbarui `paid_amount`, dan jika sudah lunas mengubah status menjadi `PAID`.
 5. Uang masuk secara otomatis. Orang tua melihat tagihan telah lunas di aplikasi.
+
+---
+
+## 4. Alur Pembayaran Menggunakan Transfer Saldo In-App (VA 15 Digit)
+
+Sistem *Satu Sekolah* tidak melayani Transfer Bank Manual di luar Midtrans. "Transfer" di sini berarti memindahkan saldo antar pengguna di dalam ekosistem aplikasi *Satu Sekolah* (Saldo Dompet Digital).
+
+### Kasus: Siswa Membayar Tagihan Offline di Loket Keuangan
+1. Siswa datang ke loket Tata Usaha (Keuangan) ingin membayar SPP.
+2. Petugas Keuangan bertindak sebagai **Kasir Offline**.
+3. Di sistem, Kasir memilih metode **"Transfer In-App"**.
+4. Sistem meng-generate **Virtual Account Internal (15 Digit Sekali Pakai)**. Terdiri dari `12 Digit No. Rekening Sekolah` + `3 Digit Unik Transaksi`. (Contoh: `123456789012345`).
+5. Kasir memberikan nomor VA 15 digit ini kepada Siswa.
+6. Siswa membuka aplikasi *Satu Sekolah* miliknya, masuk ke menu **Transfer Saldo**, lalu menginputkan VA 15 digit tersebut.
+7. Aplikasi Siswa secara **otomatis menampilkan detail Tagihan dan Nominal (Rp)** yang harus dibayar. (Karena VA 15 digit ini sekali pakai / *single-use* yang diikat ke 1 *invoice*, siswa tidak perlu mengetik nominal secara manual).
+8. Aplikasi Siswa akan meminta **Konfirmasi PIN (6 Digit)** sebagai validasi keamanan ganda sebelum saldo dipotong.
+9. Setelah PIN divalidasi dan benar, Aplikasi Siswa mengirimkan uang (memotong saldonya sendiri).
+10. Backend mengenali VA 15 digit ini terkait dengan *Invoice* tertentu, memindahkan saldo dari Siswa ke Sekolah, dan otomatis mengubah status Tagihan menjadi `PAID` secara instan. VA tersebut hangus/tidak bisa dipakai lagi. (Sistem juga otomatis kedaluwarsa setelah 24 jam).
+
+---
+
+## 5. Fitur "Ganti Metode Pembayaran" Secara Instan di Kasir
+Untuk mencegah kebingungan saat antrean panjang, sistem *Satu Sekolah* mendesain agar **Sistem meng-generate ketiga kode pembayaran (Dynamic QR, RFID Code 12-Digit, dan VA Internal 15-Digit) secara bersamaan** sejak pesanan pertama kali dibuat oleh kasir.
+
+**Skenario Praktis:**
+1. Kasir menekan tombol *Checkout* dengan pilihan awal: "Kartu RFID".
+2. Siswa ternyata menyadari kartu RFID-nya tertinggal.
+3. Siswa meminta untuk bayar lewat HP saja (Transfer Saldo / QR).
+4. Kasir cukup mengklik tombol **"Ganti Metode Pembayaran"** ke pilihan "Transfer In-App" di layar POS.
+5. **Keunggulan:** Sistem **TIDAK** perlu loading lama atau me-request nomor Virtual Account yang baru. Sistem cukup menampilkan VA 15-digit yang memang sudah dibuat dan dikunci ke pesanan tersebut sejak menit pertama. Pesanan yang sama, harga yang sama, kode yang sudah siap sedia.
+
+> [!IMPORTANT]
+> **Kebijakan PIN Keamanan**
+> Apapun metode transaksinya (Tap RFID Fisik, Scan Dynamic QR, maupun Transfer Saldo In-App), selama melibatkan pemotongan saldo Dompet Digital internal aplikasi, sistem *Satu Sekolah* **DIWAJIBKAN** meminta otentikasi PIN 6-Digit milik pengguna. Jika PIN salah atau tidak ada, transaksi akan langsung ditolak oleh sistem.

@@ -198,6 +198,87 @@ func (h *CanteenHandler) PayViaRFID(c *fiber.Ctx) error {
 	})
 }
 
+// GET /api/v1/canteen/order/va/:va
+// Role: Siswa / User (dengan JWT)
+// Saat user input VA 15 digit, sistem otomatis menampilkan nama pesanan dan total bayar.
+// Tidak butuh PIN — hanya untuk preview sebelum konfirmasi bayar.
+func (h *CanteenHandler) GetOrderForVA(c *fiber.Ctx) error {
+	va := c.Params("va")
+	if va == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "kode VA wajib diisi"})
+	}
+
+	order, err := h.uc.GetOrderForVA(c.Context(), va)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"message": "Detail pesanan ditemukan",
+		"data":    order,
+	})
+}
+
+// POST /api/v1/canteen/pay-va
+// Role: Siswa / User (dengan JWT + PIN)
+// Eksekusi pembayaran pesanan kantin menggunakan VA 15 digit.
+// Wajib PIN — saldo dompet digital dipotong dari akun buyer.
+// Body: { "va": "123456789012345", "pin": "123456" }
+func (h *CanteenHandler) PayViaVA(c *fiber.Ctx) error {
+	claims := c.Locals("claims").(*middleware.Claims)
+	buyerID, _ := uuid.Parse(claims.UserID)
+
+	var body struct {
+		VA  string `json:"va"`
+		PIN string `json:"pin"`
+	}
+	if err := c.BodyParser(&body); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
+	}
+	if body.VA == "" || body.PIN == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "va dan pin wajib diisi"})
+	}
+
+	order, err := h.uc.PayViaVA(c.Context(), buyerID, body.VA, body.PIN)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+	}
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"message": "Pembayaran berhasil via Transfer Saldo",
+		"data":    order,
+	})
+}
+
+// PATCH /api/v1/canteen/pos/orders/:id/payment-method
+// Role: Kasir (Shop Owner)
+// Kasir ganti metode pembayaran pesanan POS (RFID -> QR -> Transfer, dll).
+// Sistem TIDAK generate kode baru — semua kode sudah dibuat saat CreatePOSOrder.
+// Body: { "payment_method": "DYNAMIC_QR" }
+func (h *CanteenHandler) SwitchPaymentMethod(c *fiber.Ctx) error {
+	claims := c.Locals("claims").(*middleware.Claims)
+	ownerID, _ := uuid.Parse(claims.UserID)
+	orderID, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid order id"})
+	}
+
+	var body struct {
+		PaymentMethod string `json:"payment_method"`
+	}
+	if err := c.BodyParser(&body); err != nil || body.PaymentMethod == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "payment_method wajib diisi (DYNAMIC_QR, RFID, atau TRANSFER)"})
+	}
+
+	order, err := h.uc.SwitchPaymentMethod(c.Context(), ownerID, orderID, body.PaymentMethod)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+	}
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"message": "Metode pembayaran berhasil diubah ke " + body.PaymentMethod,
+		"data":    order,
+	})
+}
+
 // PATCH /api/v1/canteen/orders/:id/status — Shop owner updates order status
 func (h *CanteenHandler) UpdateOrderStatus(c *fiber.Ctx) error {
 	claims := c.Locals("claims").(*middleware.Claims)

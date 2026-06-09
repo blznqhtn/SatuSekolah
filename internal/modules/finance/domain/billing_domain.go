@@ -120,7 +120,11 @@ type BillingUsecase interface {
 	GetInvoiceForIoT(ctx context.Context, rfidCode string) (*StudentInvoice, error)
 	PayInvoiceRFID(ctx context.Context, rfidCode, rfidTag, pin string, amount float64) error
 
-	// Pembayaran via Saldo / Transfer (ditangani TransferP2P di LedgerUsecase)
+	// Pembayaran via VA 15 Digit (Transfer Saldo In-App)
+	// - GetInvoiceByVA: frontend menampilkan detail tagihan otomatis saat siswa input VA 15 digit
+	// - PayInvoiceVA: eksekusi potong saldo + hanguskan VA setelah bayar
+	GetInvoiceByVA(ctx context.Context, va string) (*StudentInvoice, error)
+	PayInvoiceVA(ctx context.Context, payerID uuid.UUID, va string, pin string) error
 
 	// Pembayaran Tunai via Midtrans (oleh Admin Keuangan)
 	InitiateCashPayment(ctx context.Context, adminID, invoiceID uuid.UUID, amount float64) (*CashPaymentResponse, error)

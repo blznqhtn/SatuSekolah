@@ -146,6 +146,55 @@ func (h *BillingHandler) PayInvoiceRFID(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{"message": "Pembayaran berhasil via RFID"})
 }
 
+// GET /api/v1/finance/invoices/va/:va
+// Role: Siswa / Orang Tua
+// Saat user input VA 15 digit, sistem otomatis menampilkan detail tagihan (nama, sisa tagihan).
+// Tidak butuh PIN — hanya untuk preview sebelum konfirmasi bayar.
+func (h *BillingHandler) GetInvoiceByVA(c *fiber.Ctx) error {
+	va := c.Params("va")
+	if va == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "kode VA wajib diisi"})
+	}
+
+	inv, err := h.usecase.GetInvoiceByVA(c.Context(), va)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"message": "Detail tagihan ditemukan",
+		"data":    inv,
+	})
+}
+
+// POST /api/v1/finance/invoices/pay-va
+// Role: Siswa / Orang Tua
+// Eksekusi pembayaran tagihan menggunakan VA 15 digit (Transfer Saldo In-App).
+// Wajib PIN — saldo dipotong dari dompet digital user.
+// Setelah berhasil, VA otomatis hangus (tidak bisa dipakai lagi).
+// Body: { "va": "123456789012345", "pin": "123456" }
+func (h *BillingHandler) PayInvoiceVA(c *fiber.Ctx) error {
+	claims := c.Locals("claims").(*middleware.Claims)
+	payerID, _ := uuid.Parse(claims.UserID)
+
+	var body struct {
+		VA  string `json:"va"`
+		PIN string `json:"pin"`
+	}
+	if err := c.BodyParser(&body); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "request tidak valid"})
+	}
+	if body.VA == "" || body.PIN == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "va dan pin wajib diisi"})
+	}
+
+	if err := h.usecase.PayInvoiceVA(c.Context(), payerID, body.VA, body.PIN); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{"message": "Pembayaran berhasil via VA, tagihan telah lunas"})
+}
+
 // POST /api/v1/finance/invoices/:id/pay-cash
 // Role: Admin Keuangan
 // Admin keuangan memulai sesi pembayaran tunai via Midtrans Snap.

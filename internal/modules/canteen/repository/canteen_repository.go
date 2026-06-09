@@ -252,6 +252,12 @@ func (r *canteenRepository) UpdateOrderStatus(ctx context.Context, orderID uuid.
 	return err
 }
 
+func (r *canteenRepository) UpdatePaymentMethod(ctx context.Context, orderID uuid.UUID, paymentMethod string) error {
+	query := `UPDATE canteen_orders SET payment_method = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`
+	_, err := r.exec(ctx, query, paymentMethod, orderID)
+	return err
+}
+
 func (r *canteenRepository) GetOrder(ctx context.Context, orderID uuid.UUID) (*domain.CanteenOrder, error) {
 	query := `SELECT id, shop_id, buyer_id, wallet_ledger_id, total_amount, delivery_fee, delivery_method, is_preorder, preorder_date, preorder_time, payment_method, dynamic_qr_code, rfid_payment_code, transfer_target_account, expires_at, status, created_at, updated_at FROM canteen_orders WHERE id = $1`
 	var o domain.CanteenOrder

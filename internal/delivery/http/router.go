@@ -398,6 +398,8 @@ func SetupRouter(db *sql.DB, cfg *config.Config) *fiber.App {
 	// Finance - Tagihan & Pembayaran
 	financeGroup.Post("/fees/generate", billingHandler.GenerateMassInvoices)     // Keuangan: buat tagihan massal
 	financeGroup.Get("/invoices", billingHandler.GetMyInvoices)                  // Semua: lihat tagihan (siswa/ortu)
+	financeGroup.Get("/invoices/va/:va", billingHandler.GetInvoiceByVA)          // Siswa/Ortu: auto-fetch tagihan via VA 15 digit
+	financeGroup.Post("/invoices/pay-va", billingHandler.PayInvoiceVA)           // Siswa/Ortu: bayar tagihan via VA 15 digit
 	financeGroup.Post("/invoices/pay-dynamic-qr", billingHandler.PayInvoiceDynamicQR) // Siswa/Ortu: bayar via QR
 	financeGroup.Post("/invoices/:id/pay-cash", billingHandler.InitiateCashPayment)   // Keuangan: bayar tunai Midtrans
 	financeGroup.Get("/reports/invoices", billingHandler.GetFinanceReport)        // Keuangan: laporan rekap tagihan
@@ -574,7 +576,10 @@ func SetupRouter(db *sql.DB, cfg *config.Config) *fiber.App {
 	canteenGroup.Post("/cart", canteenHandler.AddToCart)               // Buyer: add to cart
 	canteenGroup.Post("/checkout", canteenHandler.Checkout)            // Buyer: checkout cart (PIN)
 	canteenGroup.Post("/pos/order", canteenHandler.CreatePOSOrder)     // Owner: POS create order
+	canteenGroup.Patch("/pos/orders/:id/payment-method", canteenHandler.SwitchPaymentMethod) // Owner: ganti metode bayar
 	canteenGroup.Post("/pay-dynamic-qr", canteenHandler.PayViaDynamicQR) // Buyer: POS scan QR (PIN)
+	canteenGroup.Get("/order/va/:va", canteenHandler.GetOrderForVA)      // Buyer: auto-fetch order via VA 15 digit
+	canteenGroup.Post("/pay-va", canteenHandler.PayViaVA)                // Buyer: pay via VA 15 digit (PIN)
 	canteenGroup.Patch("/orders/:id/status", canteenHandler.UpdateOrderStatus) // Owner: update status
 	canteenGroup.Get("/reports/financial", canteenHandler.GetFinancialReport) // Owner: financial report
 	canteenGroup.Get("/reports/insight", canteenHandler.GetAIInsight)         // Owner: AI business insight

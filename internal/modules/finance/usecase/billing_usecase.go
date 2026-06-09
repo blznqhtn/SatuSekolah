@@ -278,6 +278,53 @@ func (u *billingUsecase) PayInvoiceRFID(ctx context.Context, rfidCode, rfidTag, 
 	return u.applyPayment(ctx, inv, buyer.ID, amount, desc)
 }
 
+// GetInvoiceByVA — Saat siswa input VA 15 digit, sistem otomatis menampilkan detail tagihan
+// Endpoint ini tidak butuh PIN; hanya untuk preview tagihan sebelum konfirmasi bayar
+func (u *billingUsecase) GetInvoiceByVA(ctx context.Context, va string) (*domain.StudentInvoice, error) {
+	inv, err := u.repo.GetInvoiceByTransferAccount(ctx, va)
+	if err != nil {
+		return nil, err
+	}
+	if inv == nil {
+		return nil, errors.New("kode VA tidak valid atau tagihan tidak ditemukan")
+	}
+	if inv.Status == "PAID" {
+		return nil, errors.New("tagihan sudah lunas, kode VA ini sudah hangus")
+	}
+	if inv.Status == "EXPIRED" {
+		return nil, errors.New("tagihan sudah kedaluwarsa")
+	}
+	if inv.DueDate != nil && time.Now().After(*inv.DueDate) {
+		_ = u.repo.UpdateInvoiceStatus(ctx, inv.ID, inv.PaidAmount, "EXPIRED")
+		return nil, errors.New("tagihan sudah kedaluwarsa")
+	}
+	return inv, nil
+}
+
+// PayInvoiceVA — Eksekusi bayar menggunakan VA 15 digit (wajib PIN, kemudian VA hangus)
+func (u *billingUsecase) PayInvoiceVA(ctx context.Context, payerID uuid.UUID, va string, pin string) error {
+	if err := u.verifyPIN(ctx, payerID, pin); err != nil {
+		return err
+	}
+
+	inv, err := u.GetInvoiceByVA(ctx, va)
+	if err != nil {
+		return err
+	}
+
+	// Bayar penuh sisa tagihan
+	remaining := inv.TotalAmount - inv.PaidAmount
+	desc := fmt.Sprintf("Bayar Tagihan (VA): %s", inv.InvoiceName)
+	if err := u.applyPayment(ctx, inv, payerID, remaining, desc); err != nil {
+		return err
+	}
+
+	// Hanguskan VA setelah berhasil dibayar (set NULL agar tidak bisa dipakai lagi)
+	// Ini dilakukan via UpdateInvoiceStatus yang sudah meng-update status menjadi PAID/PARTIAL
+	// VA sudah tidak bisa diakses karena GetInvoiceByVA akan mengembalikan error jika status = PAID
+	return nil
+}
+
 // InitiateCashPayment — Admin keuangan memulai pembayaran tunai melalui Midtrans Snap
 func (u *billingUsecase) InitiateCashPayment(ctx context.Context, adminID, invoiceID uuid.UUID, amount float64) (*domain.CashPaymentResponse, error) {
 	inv, err := u.repo.GetInvoiceByID(ctx, invoiceID)

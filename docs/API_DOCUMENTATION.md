@@ -139,6 +139,17 @@ User A topup Rp 300.000 via Debit Card
 ```
 
 ### 3.2 Penarikan Saldo (ke Rekening/DANA/dll)
+```
+POST /api/v1/finance/withdraw
+```
+
+### 3.3 Pembayaran Tagihan Sekolah (Internal VA 15-Digit)
+Siswa dapat menggunakan saldo *Satu Sekolah* mereka untuk melunasi tagihan (SPP/dll) tanpa potong admin bank. Kasir keuangan menyodorkan kode VA 15 digit.
+```
+GET /api/v1/finance/invoices/va/:va
+POST /api/v1/finance/invoices/pay-va
+```
+`GET` untuk mengambil nama tagihan secara otomatis di HP siswa. `POST` untuk eksekusi bayar memotong saldo (memerlukan `pin`). Kode VA akan otomatis hangus setelah lunas.
 
 Penarikan menggunakan **Midtrans IRIS**. Fee dihitung terpisah dan ditambahkan ke total potongan.
 
@@ -305,7 +316,13 @@ Membutuhkan `pin` wallet pengguna. Jika `is_delivery` true, tambahan `delivery_f
 ```
 POST /api/v1/canteen/pos/order
 ```
-Kasir (Kantin) membuat pesanan baru dan memilih metode pembayaran (`QR`, `RFID`, `SALDO`). Sistem akan menghasilkan `dynamic_qr_code`, `rfid_payment_code`, dan `transfer_target_account` yang valid selama 24 jam.
+Kasir (Kantin) membuat pesanan baru dan memilih metode pembayaran (contoh: `RFID`). Sistem akan menghasilkan **3 kode sekaligus** secara otomatis: `dynamic_qr_code`, `rfid_payment_code`, dan `transfer_target_account` (VA 15 Digit). Semua kode valid selama 24 jam.
+
+### 5.3.1 Cashier: Ganti Metode Pembayaran
+```
+PATCH /api/v1/canteen/pos/orders/:id/payment-method
+```
+Jika siswa ingin mengubah cara bayar, kasir memanggil endpoint ini (misal mengganti dari `RFID` ke `TRANSFER`). **Sistem tidak akan me-generate kode baru**, melainkan memunculkan kode yang sudah dicetak sejak pesanan dibuat.
 
 ### 5.4 Buyer: Bayar POS (QR Dinamis)
 ```
@@ -320,9 +337,12 @@ POST /api/v1/iot/canteen/pay-rfid
 ```
 Mesin IoT pertama akan memanggil endpoint `GET` untuk menampilkan tagihan di layar mesin. Setelah pembeli menempelkan kartu (tap) dan memasukkan PIN di mesin, mesin memanggil endpoint `pay-rfid`. Pembayaran RFID dikenakan biaya admin Rp500.
 
-### 5.6 Buyer: Bayar POS (Transfer Saldo / Virtual Account Kantin)
+### 5.6 Buyer: Bayar POS (Virtual Account Kantin 15 Digit)
 ```
-POST /api/v1/finance/transfer
+GET /api/v1/canteen/order/va/:va
+POST /api/v1/canteen/pay-va
+```
+Siswa yang ingin membayar dengan metode *Transfer In-App* mengetikkan VA 15-digit yang diberikan kasir. Sistem merespon dengan nominal pasti, dan siswa memasukkan PIN untuk memotong saldo. VA otomatis hangus setelah dibayar.
 ```
 Pembeli menggunakan fitur transfer saldo biasa. Jika memasukkan nomor rekening VA Kantin (15 digit: rekening kantin + kode unik), sistem akan mendeteksi otomatis dan membayarkan pesanan kantin tanpa biaya admin tambahan.
 
@@ -499,7 +519,8 @@ Menghentikan siklus haid dan mengembalikan pita secara paksa, dengan opsi member
 |--------|----------|-----------|
 | `GET`  | `/users/profile` | Profil user |
 | `GET`  | `/tenants/:id` | Profil sekolah |
-| `POST` | `/finance/ledger/transaction` | Catat transaksi wallet |
+| `GET`  | `/finance/ledger/history` | Riwayat transaksi wallet |
+| `POST` | `/finance/transfer` | Transfer saldo P2P (wajib PIN) |
 | `GET`  | `/academic/courses` | Daftar mata pelajaran |
 | `POST` | `/academic/courses` | Buat kursus baru |
 | `POST` | `/academic/modules` | Buat modul kursus |
@@ -557,22 +578,28 @@ Menghentikan siklus haid dan mengembalikan pita secara paksa, dengan opsi member
 | `POST` | `/spmb/register` | Kirim form pendaftaran SPMB |
 | `PATCH`| `/spmb/registrations/:id/approve` | Setujui pendaftaran (Admin) |
 | `POST` | `/spmb/registrations/:id/reregister` | Bayar daftar ulang |
-| `POST` | `/finance/fees/generate` | Generate tagihan massal |
+| `POST` | `/finance/fees/generate` | Generate tagihan massal (Keuangan) |
 | `GET`  | `/finance/invoices` | Lihat daftar tagihan |
-| `POST` | `/finance/invoices/pay-dynamic-qr` | Bayar tagihan via QR Dinamis |
-| `POST` | `/finance/invoices/:id/pay-cash` | Bayar tunai via Midtrans (Admin) |
-| `GET`  | `/finance/reports/invoices` | Rekap laporan tagihan (Admin) |
+| `GET`  | `/finance/invoices/va/:va` | **Auto-fetch tagihan via VA 15 digit** (preview, tanpa PIN) |
+| `POST` | `/finance/invoices/pay-va` | **Bayar tagihan via VA 15 digit** (wajib PIN, VA hangus setelah lunas) |
+| `POST` | `/finance/invoices/pay-dynamic-qr` | Bayar tagihan via QR Dinamis (wajib PIN) |
+| `POST` | `/finance/invoices/:id/pay-cash` | Bayar tunai via Midtrans Snap (Admin Keuangan) |
+| `GET`  | `/finance/reports/invoices` | Rekap laporan tagihan (Admin Keuangan) |
 | `GET`  | `/iot/finance/invoice/:code` | Info tagihan untuk mesin RFID (IoT) |
 | `POST` | `/iot/finance/pay-rfid` | Bayar tagihan via Tap RFID (IoT) |
-| `GET`  | `/inventory/items` | Inventaris aset |
 | `POST` | `/canteen/shop` | Buat toko kantin (Kantin) |
 | `POST` | `/canteen/items` | Tambah menu toko (Kantin) |
 | `POST` | `/canteen/discounts` | Buat diskon harga (Kantin) |
-| `POST` | `/canteen/checkout` | Bayar pesanan kantin (Kantin) |
-| `POST` | `/canteen/pos/order` | Buat pesanan POS kasir (Kantin) |
-| `POST` | `/canteen/pay-dynamic-qr` | Bayar via QR Dinamis (Pembeli) |
+| `POST` | `/canteen/cart` | Tambah ke keranjang (Pembeli) |
+| `POST` | `/canteen/checkout` | Checkout keranjang, saldo terpotong (wajib PIN) |
+| `POST` | `/canteen/pos/order` | **Buat pesanan POS — generate semua kode sekaligus** (Kasir) |
+| `PATCH`| `/canteen/pos/orders/:id/payment-method` | **Ganti metode pembayaran** tanpa generate ulang (Kasir) |
+| `POST` | `/canteen/pay-dynamic-qr` | Bayar pesanan kantin via QR (wajib PIN, Pembeli) |
+| `GET`  | `/canteen/order/va/:va` | **Auto-fetch pesanan kantin via VA 15 digit** (preview, tanpa PIN) |
+| `POST` | `/canteen/pay-va` | **Bayar pesanan kantin via VA 15 digit** (wajib PIN, VA hangus setelah lunas) |
 | `GET`  | `/iot/canteen/order/:code` | Ambil info tagihan mesin IoT (IoT Kantin) |
-| `POST` | `/iot/canteen/pay-rfid` | Bayar via RFID Tap (IoT Kantin) |
+| `POST` | `/iot/canteen/pay-rfid` | Bayar via RFID Tap + PIN (IoT Kantin) |
+| `PATCH`| `/canteen/orders/:id/status` | Update status pesanan (Kasir) |
 | `GET`  | `/canteen/reports/financial` | Laporan laba/rugi (Kantin) |
 | `GET`  | `/canteen/reports/insight` | Saran AI untuk kantin (Kantin) |
 | `GET`  | `/cba/time` | Waktu server (CBA) |
