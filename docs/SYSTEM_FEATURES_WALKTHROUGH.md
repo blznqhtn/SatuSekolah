@@ -15,10 +15,12 @@ Sistem manajemen pembelajaran digital untuk mendukung KBM (Kegiatan Belajar Meng
 - **Computer Based Assessment (CBA)**: Ujian online mandiri dengan dukungan soal kaya media (gambar/audio/video) dan tipe soal kompleks seperti pencocokan (tarik garis).
 - **Raport Digital & Leaderboard**: Generate Excel template nilai, proses upload massal oleh wali kelas, serta perankingan (leaderboard) instan berdasarkan kelas, jurusan, maupun keseluruhan angkatan.
 
-## 3. Keuangan & Dompet Digital (Web3 Ledger)
-Backend ini memiliki sistem Ledger (buku besar) internal bergaya *crypto-wallet* yang *immutable* (tidak bisa diubah sembarangan).
-- **Dompet Digital Siswa**: Memungkinkan siswa dan staf memiliki saldo digital yang diamankan menggunakan transaksi dengan hashing (*previous hash & current hash*). Menghindari *fraud* / kecurangan pengubahan saldo di database.
-- **Tagihan & Pembayaran (Billing)**: Admin dapat membuat tagihan (seperti SPP, uang gedung, dll) dan siswa/wali dapat langsung membayarnya dari saldo Ledger menggunakan verifikasi PIN Hash.
+## 3. Keuangan & Tagihan Digital (Billing & E-Wallet)
+Sistem ini menggunakan dompet virtual (*Ledger-based Wallet*) bernama **Satu Pay** untuk setiap siswa.
+- **Top-Up & Transaksi Tercatat**: Semua uang masuk dan keluar memiliki jejak (*immutable ledger*) dan PIN keamanan (*PIN Hash*).
+- **Tagihan Sekolah (SPP/Uang Gedung)**: Bendahara sekolah membuat tagihan *(invoice)* massal secara otomatis. Siswa bisa membayarnya langsung dari saldo Satu Pay mereka.
+- **Pembayaran Eksternal (Midtrans Gateway)**: Jika siswa/orang tua tidak memiliki saldo internal yang cukup, mereka bisa membayar tagihan secara tunai atau melalui *Payment Gateway* Midtrans (Virtual Account, E-Wallet, GoPay, Qris). 
+  - **Arsitektur Keamanan Midtrans**: Sistem menggunakan pendekatan *Backend-Calculated*. Backend yang akan menghitung nominal secara final (beserta *Admin Fee*), lalu backend akan meminta *Snap Token* ke server Midtrans, dan mengembalikannya ke Frontend untuk memunculkan *Pop-up Pembayaran*. Validasi sukses dilakukan sepenuhnya melalui *Webhook* Midtrans ke Backend (dengan verifikasi *HMAC Signature*) sehingga mencegah *hacker* memanipulasi frontend.
 - **Pembelian Token AI via Midtrans**: Integrasi webhook untuk pembelian paket kuota AI bagi sekolah secara otomatis.
 
 ## 4. Kantin Digital (Digital Canteen & POS) Enterprise-Grade

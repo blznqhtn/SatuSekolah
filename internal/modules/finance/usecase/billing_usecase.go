@@ -59,10 +59,11 @@ func generateQRCode() string {
 	return string(b)
 }
 
-// generateRFIDCode membuat kode RFID unik 8 digit angka
+// generateRFIDCode membuat kode RFID unik 12 digit angka murni
+// Hanya angka karena diketik manual di terminal IoT RFID fisik
 func generateRFIDCode() string {
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
-	return fmt.Sprintf("%08d", r.Intn(100_000_000))
+	return fmt.Sprintf("%012d", r.Int63n(1_000_000_000_000))
 }
 
 // generateVA membuat Virtual Account 15 digit: 12 account_number + 3 digit unik
@@ -309,15 +310,35 @@ func (u *billingUsecase) InitiateCashPayment(ctx context.Context, adminID, invoi
 
 	// Total yang dibayar via Midtrans = nominal tagihan + 5000 (biaya admin tunai)
 	totalWithFee := amount + cashAdminFee
-	orderID := fmt.Sprintf("INV-%s-%s", inv.ID.String()[:8], uuid.New().String()[:8])
+
+	// Ambil bank_code tenant untuk disisipkan di Order ID
+	// Format: NCS{bank_code}{YYYYMMDD}{6 digit random} — contoh: NCS12320260609038291
+	bankCode := "000" // default jika gagal ambil tenant
+	tenant, _ := u.coreRepo.GetTenantByID(ctx, inv.TenantID)
+	if tenant != nil {
+		bankCode = tenant.BankCode
+	}
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	orderID := fmt.Sprintf("NCS%s%s%06d", bankCode, time.Now().Format("20060102"), r.Intn(1_000_000))
 
 	midtrans.ServerKey = u.midtransKey
+
+	// Ambil data siswa untuk mengisi detail pelanggan (opsional tapi sangat bagus untuk UI Snap)
+	var custDetails *midtrans.CustomerDetails
+	student, _ := u.coreRepo.GetUserByID(ctx, inv.StudentID)
+	if student != nil {
+		custDetails = &midtrans.CustomerDetails{
+			FName: student.Name,
+			Email: student.Email,
+		}
+	}
 
 	snapReq := &snap.Request{
 		TransactionDetails: midtrans.TransactionDetails{
 			OrderID:  orderID,
 			GrossAmt: int64(totalWithFee),
 		},
+		CustomerDetail: custDetails,
 		Items: &[]midtrans.ItemDetails{
 			{
 				ID:    inv.ID.String(),

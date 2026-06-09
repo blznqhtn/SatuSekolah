@@ -171,7 +171,9 @@ func (h *AIHandler) WebhookTokenPurchase(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusOK).JSON(fiber.Map{"message": "transaction not settled/captured, ignoring"})
 	}
 
-	// Order ID format: AI-TOKENS-{tenant_id}-{random}
+	// Order ID format: NCS{YYYYMMDD}{random} OR AI-TOKENS-{tenant_id}-{random}
+	// Untuk AI Token, tenant_id wajib ada agar tahu siapa yang topup.
+	// Kita kembalikan ke format AI-TOKENS agar mudah diekstrak UUID-nya tanpa perlu konek coreRepo.
 	parts := strings.Split(payload.OrderID, "-")
 	if len(parts) < 4 || parts[0] != "AI" || parts[1] != "TOKENS" {
 		return c.Status(fiber.StatusOK).JSON(fiber.Map{"message": "not an ai token order, ignoring"})

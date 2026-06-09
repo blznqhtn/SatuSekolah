@@ -154,13 +154,25 @@ func SetupRouter(db *sql.DB, cfg *config.Config) *fiber.App {
 		MaxAge:           86400, // 24 hours preflight cache
 	}))
 
-	// Rate Limiter: max 60 requests per IP per minute — prevents brute-force & DDoS.
+	// Smart Rate Limiter: Limit berdasarkan Token/Device ID. Melindungi NAT sekolah.
 	app.Use(limiter.New(limiter.Config{
-		Max:        60,
+		Max:        100, // 100 request per menit per User/Device
 		Expiration: 1 * time.Minute,
 		KeyGenerator: func(c *fiber.Ctx) string {
-			// Use real IP (handles proxies) as the rate limit key.
-			return c.IP()
+			// 1. Cek IoT Device ID
+			deviceID := c.Get("X-Device-ID")
+			if deviceID != "" {
+				return "device:" + deviceID
+			}
+
+			// 2. Cek JWT Token (User yang sudah login)
+			authHeader := c.Get("Authorization")
+			if authHeader != "" {
+				return "token:" + authHeader
+			}
+
+			// 3. Fallback: Gunakan IP (untuk request anonim seperti login/register)
+			return "ip:" + c.IP()
 		},
 		LimitReached: func(c *fiber.Ctx) error {
 			return c.Status(fiber.StatusTooManyRequests).JSON(fiber.Map{

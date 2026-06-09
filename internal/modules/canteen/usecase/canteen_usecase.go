@@ -379,8 +379,8 @@ func (u *canteenUsecase) CreatePOSOrder(ctx context.Context, ownerID uuid.UUID, 
 			qrCode := "QR-" + uuid.New().String()
 			order.DynamicQRCode = &qrCode
 		} else if paymentMethod == "RFID" {
-			// Random 6 digits
-			code := fmt.Sprintf("%06d", rand.Intn(1000000))
+			// Random 12 digits untuk pembayaran fisik RFID
+			code := fmt.Sprintf("%012d", rand.Int63n(1_000_000_000_000))
 			order.RFIDPaymentCode = &code
 		} else if paymentMethod == "TRANSFER" {
 			// Suffix up to 3 digits

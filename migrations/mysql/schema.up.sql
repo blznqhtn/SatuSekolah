@@ -1156,6 +1156,11 @@ ALTER TABLE canteen_shops ADD COLUMN IF NOT EXISTS base_delivery_fee DECIMAL(15,
 
 ALTER TABLE canteen_orders ADD COLUMN IF NOT EXISTS delivery_method VARCHAR(50) DEFAULT 'PICKUP';
 ALTER TABLE canteen_orders ADD COLUMN IF NOT EXISTS preorder_date DATE;
+ALTER TABLE canteen_orders ADD COLUMN IF NOT EXISTS payment_method VARCHAR(50) DEFAULT 'DIRECT';
+ALTER TABLE canteen_orders ADD COLUMN IF NOT EXISTS dynamic_qr_code VARCHAR(255) UNIQUE;
+ALTER TABLE canteen_orders ADD COLUMN IF NOT EXISTS rfid_payment_code VARCHAR(20) UNIQUE;
+ALTER TABLE canteen_orders ADD COLUMN IF NOT EXISTS transfer_target_account VARCHAR(15) UNIQUE;
+ALTER TABLE canteen_orders ADD COLUMN IF NOT EXISTS expires_at TIMESTAMP;
 
 CREATE TABLE IF NOT EXISTS canteen_item_ingredients (
     id CHAR(36) PRIMARY KEY,

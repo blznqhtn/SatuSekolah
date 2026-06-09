@@ -790,7 +790,7 @@ CREATE TABLE canteen_orders (
     preorder_time TIME,
     payment_method VARCHAR(50) DEFAULT 'DIRECT',
     dynamic_qr_code VARCHAR(255) UNIQUE,
-    rfid_payment_code VARCHAR(10) UNIQUE,
+    rfid_payment_code VARCHAR(20) UNIQUE,
     transfer_target_account VARCHAR(15) UNIQUE,
     expires_at TIMESTAMP,
     status ENUM('PENDING', 'PREPARING', 'READY', 'DELIVERING', 'COMPLETED', 'CANCELED') DEFAULT 'PENDING',
