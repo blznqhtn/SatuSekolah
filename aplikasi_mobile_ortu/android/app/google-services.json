@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "89676501781",
+    "project_id": "satu-sekolah-ortu",
+    "storage_bucket": "satu-sekolah-ortu.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:89676501781:android:81b413f32906a6a98e4f1c",
+        "android_client_info": {
+          "package_name": "com.example.aplikasi_mobile_ortu"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "89676501781-codhkmnnu0q1rji5peldkkrd3ckde5m8.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.aplikasi_mobile_ortu",
+            "certificate_hash": "658a4c40409484c614fe8918e4b974fbd4b4e027"
+          }
+        },
+        {
+          "client_id": "89676501781-gvlkg43at1huvd4heuaitgtp3e41a3s7.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDTh3juQ_jnbJm64lXV-ybM_1807dRxDR0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "89676501781-gvlkg43at1huvd4heuaitgtp3e41a3s7.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
