@@ -118,9 +118,9 @@ func (h *AIHandler) BuyTokens(c *fiber.Ctx) error {
 		},
 	}
 
-	snapResp, err := snap.CreateTransaction(snapReq)
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to create payment gateway checkout: " + err.Error()})
+	snapResp, snapErr := snap.CreateTransaction(snapReq)
+	if snapErr != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to create payment gateway checkout: " + snapErr.Error()})
 	}
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
