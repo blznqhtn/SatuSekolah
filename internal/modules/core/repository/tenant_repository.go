@@ -284,14 +284,15 @@ func (r *coreRepository) AssignRoleToUser(ctx context.Context, userID, roleID uu
 	return nil
 }
 
-func (r *coreRepository) GetUserByEmail(ctx context.Context, email string) (*domain.User, error) {
+func (r *coreRepository) GetUserByLoginIdentifier(ctx context.Context, identifier string) (*domain.User, error) {
 	query := `
 		SELECT id, tenant_id, category, name, email, password_hash, created_at
-		FROM users WHERE email = ? AND deleted_at IS NULL
+		FROM users 
+		WHERE (email = ? OR username = ? OR nisn = ? OR npk = ?) AND deleted_at IS NULL
 		LIMIT 1
 	`
 	var user domain.User
-	err := r.db.QueryRowContext(ctx, query, email).Scan(
+	err := r.db.QueryRowContext(ctx, query, identifier, identifier, identifier, identifier).Scan(
 		&user.ID, &user.TenantID, &user.Category, &user.Name, &user.Email, &user.Password, &user.CreatedAt,
 	)
 	if err != nil {

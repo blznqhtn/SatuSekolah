@@ -15,6 +15,9 @@ type User struct {
 	Category      string     `json:"category"`
 	Name          string     `json:"name"`
 	Email         string     `json:"email"`
+	Username      *string    `json:"username"`
+	Nisn          *string    `json:"nisn"`
+	Npk           *string    `json:"npk"`
 	Password      string     `json:"-"` // NEVER expose password hash in JSON responses
 	PinHash       string     `json:"-"` // NEVER expose pin hash in JSON responses
 	CreatedAt     time.Time  `json:"created_at"`
@@ -79,7 +82,7 @@ type CoreRepository interface {
 	AssignRoleToUser(ctx context.Context, userID, roleID uuid.UUID) error
 
 	// Auth helpers
-	GetUserByEmail(ctx context.Context, email string) (*User, error)
+	GetUserByLoginIdentifier(ctx context.Context, identifier string) (*User, error)
 	GetUserByID(ctx context.Context, id uuid.UUID) (*User, error)
 	GetUserByAccountNumber(ctx context.Context, accountNumber string) (*User, error)
 	GetUserByRFID(ctx context.Context, rfidTag string) (*User, error)
