@@ -1,3 +1,4 @@
+DROP TABLE IF EXISTS torrent_metadata;
 DROP TABLE IF EXISTS canteen_discounts;
 DROP TABLE IF EXISTS canteen_item_ingredients;
 ALTER TABLE canteen_orders DROP COLUMN IF EXISTS delivery_method;
@@ -26,5 +27,6 @@ DROP TABLE IF EXISTS scientific_journals;
 DROP TABLE IF EXISTS book_borrowings;
 DROP TABLE IF EXISTS books;
 DROP TABLE IF EXISTS library_settings;
+
 
 

@@ -24,6 +24,7 @@
 13. [Komunikasi (WebSocket Chat E2EE)](#13-komunikasi-websocket-chat-e2ee)
 14. [Modul Inventaris (Sarana & Prasarana)](#14-modul-inventaris-sarana--prasarana)
 15. [Batasan Akses Admin](#15-batasan-akses-admin)
+16. [Upload Media & WebTorrent (P2P)](#16-upload-media--webtorrent-p2p)
 
 ---
 
@@ -980,3 +981,45 @@ Semua konfigurasi disimpan di file `.env`. Referensi lengkap ada di file `.env.e
 ---
 
 > 🏗️ **Catatan Developer:** Dokumentasi ini akan terus diperbarui seiring penambahan endpoint baru. Untuk kontribusi, pastikan setiap endpoint baru memiliki entry di tabel routing dan test case yang sesuai.
+
+## 16. Upload Media & WebTorrent (P2P)
+
+Sistem Satu Sekolah mendukung penyimpanan lokal dengan optimasi kompresi canggih (WebP, Opus, MP4 H.264) dan batas dinamis. Untuk file berukuran >15MB, sistem akan secara otomatis membuat *metadata* WebTorrent, memungkinkan *streaming* hibrida HTTP (WebSeed) dan P2P via tracker lokal.
+
+### Endpoint:
+
+**1. Unggah Media**
+- **Endpoint:** POST /media/upload`r
+- **Auth:** Wajib (JWT)
+- **Body (Multipart):** ile (berkas gambar/audio/video/dokumen)
+- **Batasan Ukuran:** 
+  - Gambar: Maks 5 MB (Otomatis konversi ke WebP / re-encode kualitas 92)
+  - Dokumen: Maks 10 MB
+  - Audio: Maks 20 MB (Otomatis konversi ke .opus 192kbps VBR)
+  - Video: Maks 500 MB (Otomatis konversi ke .mp4 CRF 20)
+- **Respons Berhasil:**
+  ``json
+  {
+    "message": "Upload successful",
+    "data": {
+      "file_url": "/files/media/uuid.mp4",
+      "original_size": 25000000,
+      "final_size": 18000000,
+      "converted": true,
+      "is_torrentable": true
+    }
+  }
+  ``
+
+**2. Dapatkan Metadata WebTorrent (Untuk Frontend)**
+- **Endpoint:** GET /media/torrent?path=/files/media/uuid.mp4`r
+- **Auth:** Wajib (JWT)
+- **Fungsi:** Digunakan jika is_torrentable bernilai true. Frontend menggunakan info hash & magnet link ini ke WebTorrent.js.
+- **Respons Berhasil:**
+  ``json
+  {
+    "info_hash": "a1b2c3d4e5f6...",
+    "magnet_link": "magnet:?xt=urn:btih:...&ws=..."
+  }
+  ``
+

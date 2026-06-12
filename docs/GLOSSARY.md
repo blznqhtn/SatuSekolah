@@ -864,6 +864,19 @@ Di URL endpoint, bagian yang diawali `:` adalah *wildcard* — nilainya diganti 
                    ↑ :id diganti UUID tenant aktual
 ```
 
+### WebTorrent / P2P Streaming
+**Arti:** Teknologi berbagi file secara *Peer-to-Peer* (dari pengguna ke pengguna) langsung melalui peramban web (browser) tanpa memerlukan instalasi aplikasi tambahan (berkat WebRTC).
+
+Di Satu Sekolah, file yang sangat besar (>15MB) seperti video pembelajaran akan dialirkan menggunakan jaringan ini. Jika ada 30 siswa yang menonton video yang sama di kelas, backend server hanya melayani unduhan untuk siswa pertama (WebSeed). Siswa kedua dan seterusnya akan saling mengunduh dari perangkat teman sekelasnya secara otomatis. Ini menghemat *bandwidth* sekolah dan server hingga 95%.
+
+### Magnet Link
+**Arti:** Tautan unik yang bukan menunjuk ke lokasi server file, melainkan menunjuk ke "identitas" file tersebut (berbasis algoritma *hash* kriptografi).
+
+Jika URL biasa bekerja seperti alamat rumah (misal: `http://sekolah.com/video.mp4`), Magnet Link bekerja seperti sidik jari orangnya. Di mana pun orangnya berada, kita bisa menemukannya. Di Satu Sekolah, API akan membagikan *magnet link* kepada siswa untuk saling menemukan potongan video dari siswa lain melalui Private Tracker lokal.
+
+### InfoHash
+**Arti:** Identitas kriptografis (sidik jari digital) dari sebuah file torrent. Merupakan komponen inti penyusun *Magnet Link*. Di database, `info_hash` disimpan di tabel `torrent_metadata` untuk memastikan integritas data (agar file video tidak korup atau dimanipulasi).
+
 ---
 
 *📝 Dokumen ini terus diperbarui. Jika ada istilah yang belum ada di sini atau kurang jelas, silakan tanyakan ke tim backend!*

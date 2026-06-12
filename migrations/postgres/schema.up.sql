@@ -1483,3 +1483,13 @@ JOIN users u ON u.id = sa.student_id
 JOIN classes c ON c.id = u.class_id
 LEFT JOIN majors m ON m.id = c.major_id;
 
+
+-- ==========================================
+-- 24. WebTorrent Metadata
+-- ==========================================
+CREATE TABLE IF NOT EXISTS torrent_metadata (
+    file_path VARCHAR(500) PRIMARY KEY,
+    info_hash VARCHAR(40) NOT NULL,
+    magnet_link TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);

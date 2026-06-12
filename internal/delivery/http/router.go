@@ -120,7 +120,8 @@ import (
 // SetupRouter initializes the Fiber app, injects dependencies, and defines routes.
 func SetupRouter(db *sql.DB, cfg *config.Config) *fiber.App {
 	app := fiber.New(fiber.Config{
-		AppName: "Satu Sekolah Backend API v1.0",
+		AppName:   "Satu Sekolah Backend API v1.0",
+		BodyLimit: 500 * 1024 * 1024, // 500 MB (Maksimal untuk Video)
 		// Prevent internal stack traces leaking in production error responses.
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
 			code := fiber.StatusInternalServerError
@@ -335,6 +336,9 @@ func SetupRouter(db *sql.DB, cfg *config.Config) *fiber.App {
 	spmbRepository := spmbRepo.NewSpmbRepository(db)
 	spmbUsecase := spmbUc.NewSpmbUsecase(spmbRepository)
 	spmbHandler := spmbHttp.NewSpmbHandler(spmbUsecase)
+
+	// WebTorrent Handler (shared media upload + magnet link resolver)
+	torrentHandler := coreHttp.NewTorrentHandler(db)
 
 	// ==========================================
 	// ROUTE MIDDLEWARE SHORTCUTS
@@ -646,6 +650,22 @@ func SetupRouter(db *sql.DB, cfg *config.Config) *fiber.App {
 	aiModuleGroup.Get("/modules", aiModuleHandler.ListModules)                // List all modules & stats
 	aiModuleGroup.Put("/modules/:module", aiModuleHandler.UpdateModule)       // Toggle + set limits
 	aiModuleGroup.Get("/modules/:module/status", aiModuleHandler.CheckModuleStatus) // Check current status
+
+	// ==========================================
+	// STATIC FILE SERVING (with byte-range/WebSeed support)
+	// Fiber's Static middleware enables Accept-Ranges: bytes by default,
+	// which is the WebSeed requirement for WebTorrent.
+	// ==========================================
+	app.Static("/files/media", "./uploads/media")
+
+	// ==========================================
+	// MEDIA / WEBTORRENT ROUTES
+	// ==========================================
+	mediaGroup := apiV1.Group("/media", jwtAuth)
+	// POST /api/v1/media/upload   — upload any file; if > 10MB, generates magnet link async
+	mediaGroup.Post("/upload", torrentHandler.UploadMedia)
+	// GET  /api/v1/media/torrent?path=... — return info_hash + magnet_link for a given file
+	mediaGroup.Get("/torrent", torrentHandler.GetTorrentMeta)
 
 	// Health Check
 	app.Get("/health", func(c *fiber.Ctx) error {
