@@ -85,20 +85,19 @@ func (r *coreRepository) CreateTenant(ctx context.Context, tenant *domain.Tenant
 	// Auto-generate a unique 3-digit bank code for this school
 	tenant.BankCode = generateBankCode()
 
+	// Generate UUID first
+	tenant.ID = uuid.New()
+
 	query := `
-		INSERT INTO tenants (name, bank_code, npsn, domain, address, phone, email, logo_url)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO tenants (id, name, bank_code, npsn, domain, address, phone, email, logo_url)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
-	result, err := r.exec(ctx, query,
-		tenant.Name, tenant.BankCode, tenant.NPSN, tenant.Domain, tenant.Address, tenant.Phone, tenant.Email, tenant.LogoURL,
+	_, err := r.exec(ctx, query,
+		tenant.ID, tenant.Name, tenant.BankCode, tenant.NPSN, tenant.Domain, tenant.Address, tenant.Phone, tenant.Email, tenant.LogoURL,
 	)
 	if err != nil {
 		return err
 	}
-	// MySQL uses LastInsertId for auto-increment; for UUID we set it before insert
-	// Since our PK is a UUID string we generate it here
-	tenant.ID = uuid.New()
-	_ = result
 	return nil
 }
 
@@ -149,20 +148,19 @@ func (r *coreRepository) GetTenantByDomain(ctx context.Context, domainStr string
 }
 
 func (r *coreRepository) CreateRole(ctx context.Context, role *domain.Role) error {
+	role.ID = uuid.New()
 	query := `
-		INSERT INTO roles (tenant_id, name, is_custom)
-		VALUES ($1, $2, $3)
-		RETURNING id, created_at
+		INSERT INTO roles (id, tenant_id, name, is_custom)
+		VALUES (?, ?, ?, ?)
 	`
-	err := r.queryRow(ctx, query, role.TenantID, role.Name, role.IsCustom).
-		Scan(&role.ID, &role.CreatedAt)
+	_, err := r.exec(ctx, query, role.ID, role.TenantID, role.Name, role.IsCustom)
 	return err
 }
 
 func (r *coreRepository) GetRolesByTenantID(ctx context.Context, tenantID uuid.UUID) ([]*domain.Role, error) {
 	query := `
 		SELECT id, tenant_id, name, is_custom, created_at, updated_at
-		FROM roles WHERE tenant_id = $1 OR tenant_id IS NULL
+		FROM roles WHERE tenant_id = ? OR tenant_id IS NULL
 	`
 	rows, err := r.db.QueryContext(ctx, query, tenantID)
 	if err != nil {
@@ -221,7 +219,7 @@ func (r *coreRepository) GetSystemPermissions(ctx context.Context) ([]*domain.Pe
 func (r *coreRepository) GetRoleByNameAndTenant(ctx context.Context, roleName string, tenantID uuid.UUID) (*domain.Role, error) {
 	query := `
 		SELECT id, tenant_id, name, is_custom, created_at, updated_at
-		FROM roles WHERE name = $1 AND (tenant_id = $2 OR tenant_id IS NULL)
+		FROM roles WHERE name = ? AND (tenant_id = ? OR tenant_id IS NULL)
 		LIMIT 1
 	`
 	row := r.queryRow(ctx, query, roleName, tenantID)
@@ -273,7 +271,7 @@ func (r *coreRepository) CreateUser(ctx context.Context, user *domain.User) erro
 func (r *coreRepository) AssignRoleToUser(ctx context.Context, userID, roleID uuid.UUID) error {
 	query := `
 		INSERT INTO user_roles (user_id, role_id)
-		VALUES ($1, $2) ON CONFLICT DO NOTHING
+		VALUES (?, ?)
 	`
 	_, err := r.exec(ctx, query, userID, roleID)
 	if err != nil {
@@ -478,7 +476,7 @@ func incrementVersion(ver string) string {
 // UpdatePublicKey stores a user's E2EE public key for client-side encryption.
 // Called on first login on a new device after key generation.
 func (r *coreRepository) UpdatePublicKey(ctx context.Context, userID uuid.UUID, publicKey string) error {
-	query := `UPDATE users SET public_key = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`
+	query := `UPDATE users SET public_key = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`
 	_, err := r.db.ExecContext(ctx, query, publicKey, userID)
 	return err
 }
