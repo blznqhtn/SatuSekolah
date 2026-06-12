@@ -1472,7 +1472,7 @@ SELECT
     sa.term_id,
     sa.student_id,
     u.name AS student_name,
-    u.identifier AS nisn,
+    u.nisn,
     c.id AS class_id,
     c.name AS class_name,
     m.id AS major_id,
