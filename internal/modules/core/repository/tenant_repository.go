@@ -287,7 +287,7 @@ func (r *coreRepository) AssignRoleToUser(ctx context.Context, userID, roleID uu
 func (r *coreRepository) GetUserByEmail(ctx context.Context, email string) (*domain.User, error) {
 	query := `
 		SELECT id, tenant_id, category, name, email, password_hash, created_at
-		FROM users WHERE email = $1 AND deleted_at IS NULL
+		FROM users WHERE email = ? AND deleted_at IS NULL
 		LIMIT 1
 	`
 	var user domain.User
@@ -371,7 +371,7 @@ func (r *coreRepository) GetUserRoleName(ctx context.Context, userID uuid.UUID) 
 		SELECT r.name
 		FROM roles r
 		JOIN user_roles ur ON r.id = ur.role_id
-		WHERE ur.user_id = $1
+		WHERE ur.user_id = ?
 		ORDER BY ur.role_id
 		LIMIT 1
 	`
@@ -409,7 +409,7 @@ func (r *coreRepository) GetUserPermissions(ctx context.Context, userID uuid.UUI
 		SELECT DISTINCT rp.permission_id
 		FROM user_roles ur
 		JOIN role_permissions rp ON ur.role_id = rp.role_id
-		WHERE ur.user_id = $1
+		WHERE ur.user_id = ?
 	`
 	rows, err := r.db.QueryContext(ctx, query, userID)
 	if err != nil {
