@@ -10,7 +10,7 @@ import (
 
 // NewMySQLConnection establishes a connection to MySQL database.
 func NewMySQLConnection(cfg *config.Config) (*sql.DB, error) {
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?parseTime=true",
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?parseTime=true&multiStatements=true",
 		cfg.Database.User,
 		cfg.Database.Password,
 		cfg.Database.Host,

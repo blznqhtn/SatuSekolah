@@ -668,29 +668,6 @@ CREATE TABLE report_card_grades (
     updated_at TIMESTAMP
 );
 
--- ==========================================
--- 16. POIN PELANGGARAN
--- ==========================================
-CREATE TABLE violation_types (
-    id VARCHAR(36) PRIMARY KEY,
-    tenant_id VARCHAR(36) REFERENCES tenants(id),
-    name VARCHAR(255),
-    point_weight INT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    deleted_at TIMESTAMP
-);
-
-CREATE TABLE student_violations (
-    id VARCHAR(36) PRIMARY KEY,
-    tenant_id VARCHAR(36) REFERENCES tenants(id),
-    student_id VARCHAR(36) REFERENCES users(id),
-    violation_type_id VARCHAR(36) REFERENCES violation_types(id),
-    reported_by VARCHAR(36) REFERENCES users(id),
-    notes TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP,
-    deleted_at TIMESTAMP
-);
 
 -- ==========================================
 -- 17. DIGITAL CANTEEN
@@ -976,7 +953,7 @@ CREATE TABLE inventories (
     name VARCHAR(255),
     category VARCHAR(100),
     quantity INT,
-    condition ENUM('GOOD', 'DAMAGED', 'MAINTENANCE') DEFAULT 'GOOD',
+    `condition` ENUM('GOOD', 'DAMAGED', 'MAINTENANCE') DEFAULT 'GOOD',
     location VARCHAR(255),
     managed_by VARCHAR(36) REFERENCES users(id),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -1151,16 +1128,16 @@ CREATE TABLE pkl_final_reports (
 -- ==========================================
 -- 20. CANTEEN ENHANCEMENTS (BOM, DISCOUNTS, DELIVERY)
 -- ==========================================
-ALTER TABLE canteen_shops ADD COLUMN IF NOT EXISTS allow_delivery BOOLEAN DEFAULT FALSE;
-ALTER TABLE canteen_shops ADD COLUMN IF NOT EXISTS base_delivery_fee DECIMAL(15,2) DEFAULT 0;
+ALTER TABLE canteen_shops ADD COLUMN allow_delivery BOOLEAN DEFAULT FALSE;
+ALTER TABLE canteen_shops ADD COLUMN base_delivery_fee DECIMAL(15,2) DEFAULT 0;
 
-ALTER TABLE canteen_orders ADD COLUMN IF NOT EXISTS delivery_method VARCHAR(50) DEFAULT 'PICKUP';
-ALTER TABLE canteen_orders ADD COLUMN IF NOT EXISTS preorder_date DATE;
-ALTER TABLE canteen_orders ADD COLUMN IF NOT EXISTS payment_method VARCHAR(50) DEFAULT 'DIRECT';
-ALTER TABLE canteen_orders ADD COLUMN IF NOT EXISTS dynamic_qr_code VARCHAR(255) UNIQUE;
-ALTER TABLE canteen_orders ADD COLUMN IF NOT EXISTS rfid_payment_code VARCHAR(20) UNIQUE;
-ALTER TABLE canteen_orders ADD COLUMN IF NOT EXISTS transfer_target_account VARCHAR(15) UNIQUE;
-ALTER TABLE canteen_orders ADD COLUMN IF NOT EXISTS expires_at TIMESTAMP;
+ALTER TABLE canteen_orders ADD COLUMN delivery_method VARCHAR(50) DEFAULT 'PICKUP';
+ALTER TABLE canteen_orders ADD COLUMN preorder_date DATE;
+ALTER TABLE canteen_orders ADD COLUMN payment_method VARCHAR(50) DEFAULT 'DIRECT';
+ALTER TABLE canteen_orders ADD COLUMN dynamic_qr_code VARCHAR(255) UNIQUE;
+ALTER TABLE canteen_orders ADD COLUMN rfid_payment_code VARCHAR(20) UNIQUE;
+ALTER TABLE canteen_orders ADD COLUMN transfer_target_account VARCHAR(15) UNIQUE;
+ALTER TABLE canteen_orders ADD COLUMN expires_at TIMESTAMP;
 
 CREATE TABLE IF NOT EXISTS canteen_item_ingredients (
     id CHAR(36) PRIMARY KEY,
@@ -1192,14 +1169,13 @@ CREATE TABLE IF NOT EXISTS canteen_discounts (
 -- ==========================================
 -- 21. AI FEATURE CONTROL ENHANCEMENTS
 -- ==========================================
-INSERT INTO permissions (id, name) VALUES ('p-012', 'MANAGE_AI') ON CONFLICT DO NOTHING;
+INSERT IGNORE INTO permissions (id, name) VALUES ('p-012', 'MANAGE_AI');
 
-ALTER TABLE ai_module_settings ADD COLUMN IF NOT EXISTS monthly_limit INT DEFAULT 0; -- 0 = unlimited
-ALTER TABLE ai_module_settings ADD COLUMN IF NOT EXISTS daily_limit INT DEFAULT 0;   -- 0 = unlimited
-ALTER TABLE ai_module_settings ADD COLUMN IF NOT EXISTS monthly_used INT DEFAULT 0;
-ALTER TABLE ai_module_settings ADD COLUMN IF NOT EXISTS daily_used INT DEFAULT 0;
-ALTER TABLE ai_module_settings ADD COLUMN IF NOT EXISTS last_reset_date DATE;
-ALTER TABLE ai_module_settings ADD COLUMN IF NOT EXISTS id VARCHAR(36);
+ALTER TABLE ai_module_settings ADD COLUMN monthly_limit INT DEFAULT 0; -- 0 = unlimited
+ALTER TABLE ai_module_settings ADD COLUMN daily_limit INT DEFAULT 0;   -- 0 = unlimited
+ALTER TABLE ai_module_settings ADD COLUMN monthly_used INT DEFAULT 0;
+ALTER TABLE ai_module_settings ADD COLUMN daily_used INT DEFAULT 0;
+ALTER TABLE ai_module_settings ADD COLUMN last_reset_date DATE;
 
 -- Seed default AI module settings for existing tenants (idempotent)
 -- Modules: HEALTH, CANTEEN, ACADEMIC_REPORT, VIOLATIONS
