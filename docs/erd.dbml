@@ -1228,6 +1228,13 @@ Table "canteen_discounts" {
   "created_at" TIMESTAMP [default: `CURRENT_TIMESTAMP`]
 }
 
+Table torrent_metadata {
+    file_path varchar(500) [pk]
+    info_hash varchar(40) [not null]
+    magnet_link text [not null]
+    created_at timestamp [default: `CURRENT_TIMESTAMP`]
+}
+
 Ref:"tenants"."id" < "roles"."tenant_id"
 
 Ref:"roles"."id" < "role_permissions"."role_id"
@@ -1565,14 +1572,3 @@ Ref:"canteen_items"."id" < "canteen_item_ingredients"."item_id" [delete: cascade
 Ref:"canteen_shops"."id" < "canteen_discounts"."shop_id" [delete: cascade]
 
 Ref:"canteen_items"."id" < "canteen_discounts"."item_id" [delete: cascade]
-
-// ==========================================
-// 23. WebTorrent Metadata
-// ==========================================
-Table torrent_metadata {
-    file_path varchar(500) [pk]
-    info_hash varchar(40) [not null]
-    magnet_link text [not null]
-    created_at timestamp [default: CURRENT_TIMESTAMP]
-}
-
