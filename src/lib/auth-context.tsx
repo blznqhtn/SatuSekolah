@@ -2,17 +2,21 @@
 
 import React, { createContext, useContext, useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import { fetchApi } from "./api"
 
-interface User {
+export interface User {
+  id: string
   name: string
-  role: string
   email: string
-  avatar?: string
+  role?: string
+  category?: string
+  permissions?: string[]
+  tenant_id?: string
 }
 
 interface AuthContextType {
   user: User | null
-  login: (email: string, pass: string) => Promise<boolean>
+  login: (email: string, pass: string) => Promise<{ success: boolean; error?: string }>
   logout: () => void
   isLoading: boolean
 }
@@ -34,25 +38,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const login = async (identifier: string, pass: string) => {
-    // Simulasi API delay
-    await new Promise(resolve => setTimeout(resolve, 800))
+    try {
+      const data = await fetchApi("/users/login", {
+        method: "POST",
+        body: JSON.stringify({ identifier: identifier, password: pass }),
+      });
 
-    if ((identifier === "admin@sekolah.id" || identifier === "123456") && pass === "admin123") {
-      const mockUser = {
-        name: "Budi Santoso, S.Pd",
-        role: "Wali Kelas - XII RPL 1",
-        email: "budi@sekolah.id"
+      if (data.token && data.user) {
+        // Blokir akses untuk kategori selain admin atau staff
+        const category = data.user.category?.toLowerCase() || "";
+        if (category !== "admin" && category !== "staff") {
+          return { 
+            success: false, 
+            error: "Akses Ditolak: Aplikasi web ini khusus untuk Admin dan Staff/Guru. Siswa dan Orang Tua silakan menggunakan aplikasi Satu Sekolah Mobile." 
+          };
+        }
+
+        setUser(data.user);
+        localStorage.setItem("satu_sekolah_user", JSON.stringify(data.user));
+        localStorage.setItem("satu_sekolah_token", data.token);
+        return { success: true };
       }
-      setUser(mockUser)
-      localStorage.setItem("satu_sekolah_user", JSON.stringify(mockUser))
-      return true
+      return { success: false, error: "Format respons tidak valid." };
+    } catch (error: any) {
+      return { success: false, error: error.message || "Terjadi kesalahan saat login." };
     }
-    return false
   }
 
   const logout = () => {
     setUser(null)
     localStorage.removeItem("satu_sekolah_user")
+    localStorage.removeItem("satu_sekolah_token")
     router.push("/login")
   }
 
