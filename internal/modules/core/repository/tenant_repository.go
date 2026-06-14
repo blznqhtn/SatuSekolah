@@ -148,21 +148,42 @@ func (r *coreRepository) GetTenantByDomain(ctx context.Context, domainStr string
 	return &tenant, nil
 }
 
-func (r *coreRepository) CreateRole(ctx context.Context, role *domain.Role) error {
+func (r *coreRepository) GetFirstTenant(ctx context.Context) (*domain.Tenant, error) {
 	query := `
-		INSERT INTO roles (tenant_id, name, is_custom)
-		VALUES ($1, $2, $3)
-		RETURNING id, created_at
+		SELECT id, name, bank_code, npsn, domain, address, phone, email, logo_url, created_at, updated_at, deleted_at
+		FROM tenants WHERE deleted_at IS NULL ORDER BY created_at ASC LIMIT 1
 	`
-	err := r.queryRow(ctx, query, role.TenantID, role.Name, role.IsCustom).
-		Scan(&role.ID, &role.CreatedAt)
+	row := r.queryRow(ctx, query)
+	var tenant domain.Tenant
+	err := row.Scan(
+		&tenant.ID, &tenant.Name, &tenant.BankCode, &tenant.NPSN, &tenant.Domain, &tenant.Address,
+		&tenant.Phone, &tenant.Email, &tenant.LogoURL, &tenant.CreatedAt,
+		&tenant.UpdatedAt, &tenant.DeletedAt,
+	)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &tenant, nil
+}
+
+func (r *coreRepository) CreateRole(ctx context.Context, role *domain.Role) error {
+	role.ID = uuid.New()
+	role.CreatedAt = time.Now()
+	query := `
+		INSERT INTO roles (id, tenant_id, name, is_custom, created_at)
+		VALUES (?, ?, ?, ?, ?)
+	`
+	_, err := r.exec(ctx, query, role.ID, role.TenantID, role.Name, role.IsCustom, role.CreatedAt)
 	return err
 }
 
 func (r *coreRepository) GetRolesByTenantID(ctx context.Context, tenantID uuid.UUID) ([]*domain.Role, error) {
 	query := `
 		SELECT id, tenant_id, name, is_custom, created_at, updated_at
-		FROM roles WHERE tenant_id = $1 OR tenant_id IS NULL
+		FROM roles WHERE tenant_id = ? OR tenant_id IS NULL
 	`
 	rows, err := r.db.QueryContext(ctx, query, tenantID)
 	if err != nil {
@@ -221,7 +242,7 @@ func (r *coreRepository) GetSystemPermissions(ctx context.Context) ([]*domain.Pe
 func (r *coreRepository) GetRoleByNameAndTenant(ctx context.Context, roleName string, tenantID uuid.UUID) (*domain.Role, error) {
 	query := `
 		SELECT id, tenant_id, name, is_custom, created_at, updated_at
-		FROM roles WHERE name = $1 AND (tenant_id = $2 OR tenant_id IS NULL)
+		FROM roles WHERE name = ? AND (tenant_id = ? OR tenant_id IS NULL)
 		LIMIT 1
 	`
 	row := r.queryRow(ctx, query, roleName, tenantID)
@@ -272,8 +293,8 @@ func (r *coreRepository) CreateUser(ctx context.Context, user *domain.User) erro
 
 func (r *coreRepository) AssignRoleToUser(ctx context.Context, userID, roleID uuid.UUID) error {
 	query := `
-		INSERT INTO user_roles (user_id, role_id)
-		VALUES ($1, $2) ON CONFLICT DO NOTHING
+		INSERT IGNORE INTO user_roles (user_id, role_id)
+		VALUES (?, ?)
 	`
 	_, err := r.exec(ctx, query, userID, roleID)
 	if err != nil {
@@ -286,13 +307,13 @@ func (r *coreRepository) AssignRoleToUser(ctx context.Context, userID, roleID uu
 
 func (r *coreRepository) GetUserByEmail(ctx context.Context, email string) (*domain.User, error) {
 	query := `
-		SELECT id, tenant_id, category, name, email, password_hash, created_at
-		FROM users WHERE email = $1 AND deleted_at IS NULL
+		SELECT id, tenant_id, category, name, email, phone, address, avatar_url, password_hash, created_at
+		FROM users WHERE email = ? AND deleted_at IS NULL
 		LIMIT 1
 	`
 	var user domain.User
 	err := r.db.QueryRowContext(ctx, query, email).Scan(
-		&user.ID, &user.TenantID, &user.Category, &user.Name, &user.Email, &user.Password, &user.CreatedAt,
+		&user.ID, &user.TenantID, &user.Category, &user.Name, &user.Email, &user.Phone, &user.Address, &user.AvatarURL, &user.Password, &user.CreatedAt,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -305,12 +326,12 @@ func (r *coreRepository) GetUserByEmail(ctx context.Context, email string) (*dom
 
 func (r *coreRepository) GetUserByID(ctx context.Context, id uuid.UUID) (*domain.User, error) {
 	query := `
-		SELECT id, tenant_id, account_number, category, name, email, password_hash, COALESCE(pin_hash, ''), created_at
+		SELECT id, tenant_id, account_number, category, name, email, phone, address, avatar_url, password_hash, COALESCE(pin_hash, ''), created_at
 		FROM users WHERE id = ? AND deleted_at IS NULL
 	`
 	var user domain.User
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
-		&user.ID, &user.TenantID, &user.AccountNumber, &user.Category, &user.Name, &user.Email, &user.Password, &user.PinHash, &user.CreatedAt,
+		&user.ID, &user.TenantID, &user.AccountNumber, &user.Category, &user.Name, &user.Email, &user.Phone, &user.Address, &user.AvatarURL, &user.Password, &user.PinHash, &user.CreatedAt,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -323,12 +344,12 @@ func (r *coreRepository) GetUserByID(ctx context.Context, id uuid.UUID) (*domain
 
 func (r *coreRepository) GetUserByAccountNumber(ctx context.Context, accountNumber string) (*domain.User, error) {
 	query := `
-		SELECT id, tenant_id, account_number, category, name, email, password_hash, COALESCE(pin_hash, ''), created_at
+		SELECT id, tenant_id, account_number, category, name, email, phone, address, avatar_url, password_hash, COALESCE(pin_hash, ''), created_at
 		FROM users WHERE account_number = ? AND deleted_at IS NULL
 	`
 	var user domain.User
 	err := r.db.QueryRowContext(ctx, query, accountNumber).Scan(
-		&user.ID, &user.TenantID, &user.AccountNumber, &user.Category, &user.Name, &user.Email, &user.Password, &user.PinHash, &user.CreatedAt,
+		&user.ID, &user.TenantID, &user.AccountNumber, &user.Category, &user.Name, &user.Email, &user.Phone, &user.Address, &user.AvatarURL, &user.Password, &user.PinHash, &user.CreatedAt,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -341,12 +362,12 @@ func (r *coreRepository) GetUserByAccountNumber(ctx context.Context, accountNumb
 
 func (r *coreRepository) GetUserByRFID(ctx context.Context, rfidTag string) (*domain.User, error) {
 	query := `
-		SELECT id, tenant_id, account_number, category, name, email, password_hash, COALESCE(pin_hash, ''), created_at
+		SELECT id, tenant_id, account_number, category, name, email, phone, address, avatar_url, password_hash, COALESCE(pin_hash, ''), created_at
 		FROM users WHERE rfid_tag = ? AND deleted_at IS NULL
 	`
 	var user domain.User
 	err := r.db.QueryRowContext(ctx, query, rfidTag).Scan(
-		&user.ID, &user.TenantID, &user.AccountNumber, &user.Category, &user.Name, &user.Email, &user.Password, &user.PinHash, &user.CreatedAt,
+		&user.ID, &user.TenantID, &user.AccountNumber, &user.Category, &user.Name, &user.Email, &user.Phone, &user.Address, &user.AvatarURL, &user.Password, &user.PinHash, &user.CreatedAt,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -355,6 +376,16 @@ func (r *coreRepository) GetUserByRFID(ctx context.Context, rfidTag string) (*do
 		return nil, err
 	}
 	return &user, nil
+}
+
+func (r *coreRepository) UpdateUserProfile(ctx context.Context, user *domain.User) error {
+	query := `
+		UPDATE users 
+		SET name = ?, phone = ?, address = ?, avatar_url = ?, updated_at = NOW()
+		WHERE id = ? AND deleted_at IS NULL
+	`
+	_, err := r.exec(ctx, query, user.Name, user.Phone, user.Address, user.AvatarURL, user.ID)
+	return err
 }
 
 // GetUserRoleName returns the role name for a user, using versioned cache.
@@ -371,7 +402,7 @@ func (r *coreRepository) GetUserRoleName(ctx context.Context, userID uuid.UUID) 
 		SELECT r.name
 		FROM roles r
 		JOIN user_roles ur ON r.id = ur.role_id
-		WHERE ur.user_id = $1
+		WHERE ur.user_id = ?
 		ORDER BY ur.role_id
 		LIMIT 1
 	`
@@ -409,7 +440,7 @@ func (r *coreRepository) GetUserPermissions(ctx context.Context, userID uuid.UUI
 		SELECT DISTINCT rp.permission_id
 		FROM user_roles ur
 		JOIN role_permissions rp ON ur.role_id = rp.role_id
-		WHERE ur.user_id = $1
+		WHERE ur.user_id = ?
 	`
 	rows, err := r.db.QueryContext(ctx, query, userID)
 	if err != nil {
@@ -480,4 +511,14 @@ func (r *coreRepository) UpdatePublicKey(ctx context.Context, userID uuid.UUID, 
 	query := `UPDATE users SET public_key = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`
 	_, err := r.db.ExecContext(ctx, query, publicKey, userID)
 	return err
+}
+
+func (r *coreRepository) CheckSpmbCompleted(ctx context.Context, parentID uuid.UUID) (bool, error) {
+	query := `SELECT COUNT(*) FROM spmb_registrations WHERE parent_id = ? AND registration_status = 'ACCEPTED'`
+	var count int
+	err := r.db.QueryRowContext(ctx, query, parentID).Scan(&count)
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
 }

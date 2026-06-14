@@ -32,8 +32,8 @@ type SpmbRegistration struct {
 	ID                 uuid.UUID  `json:"id"`
 	TenantID           uuid.UUID  `json:"tenant_id"`
 	ParentID           uuid.UUID  `json:"parent_id"`
-	SpmbBatchID        uuid.UUID  `json:"spmb_batch_id"`
-	MajorID            uuid.UUID  `json:"major_id"`
+	SpmbBatchID        *uuid.UUID `json:"spmb_batch_id"`
+	MajorID            *uuid.UUID `json:"major_id"`
 	SecondMajorID      *uuid.UUID `json:"second_major_id"` // Optional
 	InvoiceID          *uuid.UUID `json:"invoice_id"`      // Link to re-registration invoice
 
@@ -76,10 +76,12 @@ type PublicSchoolInfo struct {
 
 type SpmbRepository interface {
 	GetPublicSchools(ctx context.Context) ([]*PublicSchoolInfo, error)
-	// TODO: Add more methods as needed
+	CreateRegistration(ctx context.Context, reg *SpmbRegistration) error
+	UpdateRegistrationStatus(ctx context.Context, id uuid.UUID, status string) error
 }
 
 type SpmbUsecase interface {
 	GetPublicSchools(ctx context.Context) ([]*PublicSchoolInfo, error)
-	// TODO: Add more methods as needed
+	RegisterSpmb(ctx context.Context, reg *SpmbRegistration) error
+	UpdateRegistrationStatus(ctx context.Context, id uuid.UUID, status string) error
 }

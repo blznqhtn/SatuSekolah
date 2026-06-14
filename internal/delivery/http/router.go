@@ -369,7 +369,11 @@ func SetupRouter(db *sql.DB, cfg *config.Config) *fiber.App {
 			})
 		},
 	})
+	apiV1.Post("/users/register", usersHandler.RegisterParent)
 	apiV1.Post("/users/login", loginLimiter, usersHandler.Login)
+	apiV1.Post("/users/auth/google", usersHandler.GoogleLogin)
+	apiV1.Get("/users/profile", jwtAuth, usersHandler.GetProfile)
+	apiV1.Put("/users/profile", jwtAuth, usersHandler.UpdateProfile)
 	apiV1.Put("/users/profile/public-key", jwtAuth, usersHandler.UploadPublicKey)
 
 	// Tenant Registration (called by web main — internal, ideally protected by API key)
@@ -422,6 +426,7 @@ func SetupRouter(db *sql.DB, cfg *config.Config) *fiber.App {
 	spmbGroup.Post("/register", spmbHandler.RegisterSpmb)
 	spmbGroup.Patch("/registrations/:id/approve", spmbHandler.ApproveRegistration)
 	spmbGroup.Post("/registrations/:id/reregister", spmbHandler.ReRegister)
+	spmbGroup.Post("/registrations/:id/pay", spmbHandler.SimulatePayment)
 
 	// Academic & LMS
 	academicGroup := apiV1.Group("/academic", jwtAuth)

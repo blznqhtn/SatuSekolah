@@ -15,6 +15,9 @@ type User struct {
 	Category      string     `json:"category"`
 	Name          string     `json:"name"`
 	Email         string     `json:"email"`
+	Phone         *string    `json:"phone"`
+	Address       *string    `json:"address"`
+	AvatarURL     *string    `json:"avatar_url"`
 	Password      string     `json:"-"` // NEVER expose password hash in JSON responses
 	PinHash       string     `json:"-"` // NEVER expose pin hash in JSON responses
 	CreatedAt     time.Time  `json:"created_at"`
@@ -68,6 +71,7 @@ type CoreRepository interface {
 	CreateTenant(ctx context.Context, tenant *Tenant) error
 	GetTenantByID(ctx context.Context, id uuid.UUID) (*Tenant, error)
 	GetTenantByDomain(ctx context.Context, domain string) (*Tenant, error)
+	GetFirstTenant(ctx context.Context) (*Tenant, error)
 	
 	CreateRole(ctx context.Context, role *Role) error
 	GetRolesByTenantID(ctx context.Context, tenantID uuid.UUID) ([]*Role, error)
@@ -83,9 +87,11 @@ type CoreRepository interface {
 	GetUserByID(ctx context.Context, id uuid.UUID) (*User, error)
 	GetUserByAccountNumber(ctx context.Context, accountNumber string) (*User, error)
 	GetUserByRFID(ctx context.Context, rfidTag string) (*User, error)
+	UpdateUserProfile(ctx context.Context, user *User) error
 	UpdatePublicKey(ctx context.Context, userID uuid.UUID, publicKey string) error
 	GetUserRoleName(ctx context.Context, userID uuid.UUID) (string, error)
 	GetUserPermissions(ctx context.Context, userID uuid.UUID) ([]string, error)
+	CheckSpmbCompleted(ctx context.Context, parentID uuid.UUID) (bool, error)
 }
 
 // CoreUsecase defines the business logic interface for Tenants and RBAC

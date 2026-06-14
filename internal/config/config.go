@@ -17,11 +17,12 @@ type Config struct {
 }
 
 type AppConfig struct {
-	Port          string
-	Env           string
+	Port string
+	Env  string
 	// EncryptionKey must be exactly 32 characters; used for AES-256-GCM encryption of S3 URLs, chats, journals etc.
-	EncryptionKey string
-	CacheDriver   string // "redis" or "database"
+	EncryptionKey  string
+	CacheDriver    string // "redis" or "database"
+	GoogleClientID string
 }
 
 type JWTConfig struct {
@@ -29,9 +30,9 @@ type JWTConfig struct {
 }
 
 type DBConfig struct {
-	Driver   string
-	Host     string
-	Port     string
+	Driver     string
+	Host       string
+	Port       string
 	User       string
 	Password   string
 	DBName     string
@@ -56,8 +57,8 @@ type AWSConfig struct {
 }
 
 type GeminiConfig struct {
-	APIKey           string
-	Model            string
+	APIKey            string
+	Model             string
 	DefaultTokenLimit int64
 }
 
@@ -95,6 +96,10 @@ func LoadConfig() (*Config, error) {
 	cfg.App.CacheDriver = viper.GetString("CACHE_DRIVER")
 	if cfg.App.CacheDriver == "" {
 		cfg.App.CacheDriver = "database"
+	}
+	cfg.App.GoogleClientID = viper.GetString("GOOGLE_CLIENT_ID")
+	if cfg.App.GoogleClientID == "" {
+		cfg.App.GoogleClientID = "224990005515-44rfo04eoc816ibjrp4br2u7si5pnd6m.apps.googleusercontent.com"
 	}
 
 	cfg.JWT.Secret = viper.GetString("JWT_SECRET")
