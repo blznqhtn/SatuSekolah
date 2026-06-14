@@ -29,11 +29,11 @@ import (
 	attendanceHttp "neuracakrawira.asia/satu-sekolah-backend/internal/modules/attendance/delivery/http"
 	attendanceRepo "neuracakrawira.asia/satu-sekolah-backend/internal/modules/attendance/repository"
 	attendanceUc "neuracakrawira.asia/satu-sekolah-backend/internal/modules/attendance/usecase"
-	
+
 	careerHttp "neuracakrawira.asia/satu-sekolah-backend/internal/modules/career/delivery/http"
 	careerRepo "neuracakrawira.asia/satu-sekolah-backend/internal/modules/career/repository"
 	careerUsecase "neuracakrawira.asia/satu-sekolah-backend/internal/modules/career/usecase"
-	
+
 	// Communication Module
 	commHttp "neuracakrawira.asia/satu-sekolah-backend/internal/modules/communication/delivery/http"
 	commWs "neuracakrawira.asia/satu-sekolah-backend/internal/modules/communication/delivery/ws"
@@ -44,6 +44,7 @@ import (
 	violationHttp "neuracakrawira.asia/satu-sekolah-backend/internal/modules/violations/delivery/http"
 	violationRepo "neuracakrawira.asia/satu-sekolah-backend/internal/modules/violations/repository"
 	violationUc "neuracakrawira.asia/satu-sekolah-backend/internal/modules/violations/usecase"
+
 	// Health (UKS & Cycles) Module
 	healthHttp "neuracakrawira.asia/satu-sekolah-backend/internal/modules/health/delivery/http"
 	healthRepo "neuracakrawira.asia/satu-sekolah-backend/internal/modules/health/repository"
@@ -51,11 +52,12 @@ import (
 	inventoryHttp "neuracakrawira.asia/satu-sekolah-backend/internal/modules/inventory/delivery/http"
 	inventoryRepo "neuracakrawira.asia/satu-sekolah-backend/internal/modules/inventory/repository"
 	inventoryUsecase "neuracakrawira.asia/satu-sekolah-backend/internal/modules/inventory/usecase"
+
 	// Library
 	libraryHttp "neuracakrawira.asia/satu-sekolah-backend/internal/modules/library/delivery/http"
 	libraryRepo "neuracakrawira.asia/satu-sekolah-backend/internal/modules/library/repository"
 	libraryUc "neuracakrawira.asia/satu-sekolah-backend/internal/modules/library/usecase"
-	
+
 	// Performance (PKL)
 	performanceHttp "neuracakrawira.asia/satu-sekolah-backend/internal/modules/performance/delivery/http"
 	performanceDomain "neuracakrawira.asia/satu-sekolah-backend/internal/modules/performance/domain"
@@ -185,7 +187,7 @@ func SetupRouter(db *sql.DB, cfg *config.Config) *fiber.App {
 	// Communication Module (WebSocket)
 	commRepository := commRepo.NewCommunicationRepository(db)
 	commUc := commUsecase.NewCommunicationUsecase(commRepository) // No encryption key — backend is a pure courier
-	wsHub := commWs.NewHub(cfg.JWT.Secret, commUc)               // JWT secret now lives inside Hub for payload auth
+	wsHub := commWs.NewHub(cfg.JWT.Secret, commUc)                // JWT secret now lives inside Hub for payload auth
 	go wsHub.Run()
 	commWsHandler := commWs.NewCommunicationHandler(commUc, wsHub)
 
@@ -231,7 +233,7 @@ func SetupRouter(db *sql.DB, cfg *config.Config) *fiber.App {
 	// Finance (Web3 Ledger & Billing)
 	financeRepository := financeRepo.NewLedgerRepository(db)
 	billingRepository := financeRepo.NewBillingRepository(db)
-	
+
 	financeUc := financeUsecase.NewLedgerUsecase(financeRepository, coreRepository, canteenRepository, billingRepository, cfg.Ledger.HMACSecret)
 	financeHandler := financeHttp.NewLedgerHandler(financeUc, cfg)
 
@@ -246,7 +248,7 @@ func SetupRouter(db *sql.DB, cfg *config.Config) *fiber.App {
 	attendanceRepository := attendanceRepo.NewAttendanceRepository(db)
 	attendanceUsecase := attendanceUc.NewAttendanceUsecase(attendanceRepository, rekognitionClient)
 	attendanceHandler := attendanceHttp.NewAttendanceHandler(attendanceUsecase)
-	
+
 	// Violations (Student & Staff violation point tracking)
 	violationRepository := violationRepo.NewViolationRepository(db)
 	violationUsecase := violationUc.NewViolationUsecase(violationRepository)
@@ -255,12 +257,12 @@ func SetupRouter(db *sql.DB, cfg *config.Config) *fiber.App {
 	libraryRepository := libraryRepo.NewLibraryRepository(db)
 	libraryUsecase := libraryUc.NewLibraryUsecase(libraryRepository, coreRepository, financeUc)
 	libraryHandler := libraryHttp.NewLibraryHandler(libraryUsecase)
-	
+
 	pklRepository := performanceRepo.NewPklRepository(db)
 	// pklUsecase depends on libraryUc and pkgUc (wired below after those are created)
 	// Temporarily define vars here; assigned after dependencies are ready.
 	var pklUsecase performanceDomain.PklUsecase
-	
+
 	// inventoryHandler wired below after pkgUc is ready
 	var inventoryHandler *inventoryHttp.InventoryHandler
 
@@ -322,7 +324,7 @@ func SetupRouter(db *sql.DB, cfg *config.Config) *fiber.App {
 
 	// Career (BKK)
 	careerRepoImpl := careerRepo.NewCareerRepository(db)
-	
+
 	// Portfolio (LinkedIn Style)
 	portfolioRepoImpl := portfolioRepo.NewPortfolioRepository(db)
 	portfolioUc := portfolioUsecase.NewPortfolioUsecase(portfolioRepoImpl, aiModuleUc)
@@ -378,7 +380,7 @@ func SetupRouter(db *sql.DB, cfg *config.Config) *fiber.App {
 
 	// Tenant Registration (called by web main — internal, ideally protected by API key)
 	apiV1.Post("/tenants/register", coreHandler.RegisterTenant)
-	
+
 	// SPMB Public (Orphan Parents viewing schools)
 	apiV1.Get("/public/schools", spmbHandler.GetPublicSchools)
 
@@ -393,7 +395,7 @@ func SetupRouter(db *sql.DB, cfg *config.Config) *fiber.App {
 
 	// Tenant profile
 	apiV1.Get("/tenants/:id", jwtAuth, coreHandler.GetTenantProfile)
-	
+
 	// Roles & Permissions
 	apiV1.Get("/permissions", jwtAuth, coreHandler.GetPermissions)
 
@@ -404,13 +406,13 @@ func SetupRouter(db *sql.DB, cfg *config.Config) *fiber.App {
 	financeGroup.Get("/ledger/history", financeHandler.GetTransactionHistory)
 	financeGroup.Get("/midtrans/client-key", financeHandler.GetMidtransClientKey)
 	// Finance - Tagihan & Pembayaran
-	financeGroup.Post("/fees/generate", billingHandler.GenerateMassInvoices)     // Keuangan: buat tagihan massal
-	financeGroup.Get("/invoices", billingHandler.GetMyInvoices)                  // Semua: lihat tagihan (siswa/ortu)
-	financeGroup.Get("/invoices/va/:va", billingHandler.GetInvoiceByVA)          // Siswa/Ortu: auto-fetch tagihan via VA 15 digit
-	financeGroup.Post("/invoices/pay-va", billingHandler.PayInvoiceVA)           // Siswa/Ortu: bayar tagihan via VA 15 digit
+	financeGroup.Post("/fees/generate", billingHandler.GenerateMassInvoices)          // Keuangan: buat tagihan massal
+	financeGroup.Get("/invoices", billingHandler.GetMyInvoices)                       // Semua: lihat tagihan (siswa/ortu)
+	financeGroup.Get("/invoices/va/:va", billingHandler.GetInvoiceByVA)               // Siswa/Ortu: auto-fetch tagihan via VA 15 digit
+	financeGroup.Post("/invoices/pay-va", billingHandler.PayInvoiceVA)                // Siswa/Ortu: bayar tagihan via VA 15 digit
 	financeGroup.Post("/invoices/pay-dynamic-qr", billingHandler.PayInvoiceDynamicQR) // Siswa/Ortu: bayar via QR
 	financeGroup.Post("/invoices/:id/pay-cash", billingHandler.InitiateCashPayment)   // Keuangan: bayar tunai Midtrans
-	financeGroup.Get("/reports/invoices", billingHandler.GetFinanceReport)        // Keuangan: laporan rekap tagihan
+	financeGroup.Get("/reports/invoices", billingHandler.GetFinanceReport)            // Keuangan: laporan rekap tagihan
 
 	// Violations
 	violationGroup := apiV1.Group("/violations", jwtAuth)
@@ -438,7 +440,7 @@ func SetupRouter(db *sql.DB, cfg *config.Config) *fiber.App {
 	academicGroup.Get("/submissions", academicHandler.GetSubmissions)
 	academicGroup.Post("/submissions/:id/grade", academicHandler.GradeSubmission)
 	academicGroup.Post("/assign-target", academicHandler.AssignTarget)
-	
+
 	academicGroup.Get("/report-cards/template", reportCardHandler.GetTemplate)
 	academicGroup.Post("/report-cards/upload", reportCardHandler.UploadGrades)
 	academicGroup.Get("/report-cards/leaderboard", reportCardHandler.GetLeaderboard)
@@ -451,10 +453,10 @@ func SetupRouter(db *sql.DB, cfg *config.Config) *fiber.App {
 
 	// Folder management (MANAGE_CBA required)
 	cbaGroup.Post("/folders", manageCBA, cbaHandler.CreateFolder)
-	cbaGroup.Get("/folders", cbaHandler.GetFolders)                           // All authenticated users
+	cbaGroup.Get("/folders", cbaHandler.GetFolders)                                // All authenticated users
 	cbaGroup.Put("/folders/:id/refresh-token", manageCBA, cbaHandler.RefreshToken) // Teacher/Admin refreshes token
-	cbaGroup.Post("/folders/:id/verify-token", cbaHandler.VerifyToken)         // Student submits token
-	cbaGroup.Get("/folders/:id/exams", cbaHandler.GetTodayExams)               // Today's exams in folder
+	cbaGroup.Post("/folders/:id/verify-token", cbaHandler.VerifyToken)             // Student submits token
+	cbaGroup.Get("/folders/:id/exams", cbaHandler.GetTodayExams)                   // Today's exams in folder
 
 	// Exam management (MANAGE_CBA required)
 	cbaGroup.Post("/exams", manageCBA, cbaHandler.CreateExam)
@@ -462,11 +464,11 @@ func SetupRouter(db *sql.DB, cfg *config.Config) *fiber.App {
 	cbaGroup.Post("/exam-options", manageCBA, cbaHandler.AddCBAOption)
 
 	// Student exam flow
-	cbaGroup.Post("/exams/:id/join", cbaHandler.JoinWaitingRoom)       // Enter waiting room + read T&C
-	cbaGroup.Post("/exams/:id/start", cbaHandler.StartExam)            // Start exam (server-time gated)
-	cbaGroup.Get("/exams/:id/questions", cbaHandler.GetExamQuestions)  // Get questions + navigation state
-	cbaGroup.Post("/exams/:id/answers", cbaHandler.SaveAnswer)         // Save/update one answer
-	cbaGroup.Post("/exams/:id/submit", cbaHandler.SubmitExam)          // Manual submit
+	cbaGroup.Post("/exams/:id/join", cbaHandler.JoinWaitingRoom)      // Enter waiting room + read T&C
+	cbaGroup.Post("/exams/:id/start", cbaHandler.StartExam)           // Start exam (server-time gated)
+	cbaGroup.Get("/exams/:id/questions", cbaHandler.GetExamQuestions) // Get questions + navigation state
+	cbaGroup.Post("/exams/:id/answers", cbaHandler.SaveAnswer)        // Save/update one answer
+	cbaGroup.Post("/exams/:id/submit", cbaHandler.SubmitExam)         // Manual submit
 
 	// Legacy LMS Quizzes (lightweight)
 	cbaGroup.Post("/quizzes", manageCBA, cbaHandler.CreateQuiz)
@@ -481,7 +483,7 @@ func SetupRouter(db *sql.DB, cfg *config.Config) *fiber.App {
 	pkgGroup := apiV1.Group("/pkg", jwtAuth)
 	pkgGroup.Post("/submissions", pkgHandler.SubmitDocument)
 	pkgGroup.Get("/submissions", pkgHandler.GetMySubmissions)
-	
+
 	// Reports
 	reportsGroup := apiV1.Group("/reports", jwtAuth)
 	reportsGroup.Get("/attendance", reportHandler.GetAttendanceReport)
@@ -526,12 +528,12 @@ func SetupRouter(db *sql.DB, cfg *config.Config) *fiber.App {
 
 	// Career (BKK - Bursa Kerja Khusus)
 	careerGroup := apiV1.Group("/career", jwtAuth)
-	careerGroup.Get("/vacancies/public", careerHandler.GetPublicJobs) // Semua (lintas sekolah)
-	careerGroup.Get("/vacancies/local", careerHandler.GetLocalJobs)   // Hanya tenant ini
-	careerGroup.Post("/vacancies", careerHandler.CreateJobVacancy)    // Admin/BKK buat lowongan
-	careerGroup.Post("/vacancies/:id/apply", careerHandler.ApplyJob)  // User melamar
-	careerGroup.Get("/applications/my", careerHandler.GetMyApplications)           // User lihat lamaran sendiri
-	careerGroup.Get("/vacancies/:id/applications", careerHandler.GetJobApplications) // BKK lihat pelamar
+	careerGroup.Get("/vacancies/public", careerHandler.GetPublicJobs)                 // Semua (lintas sekolah)
+	careerGroup.Get("/vacancies/local", careerHandler.GetLocalJobs)                   // Hanya tenant ini
+	careerGroup.Post("/vacancies", careerHandler.CreateJobVacancy)                    // Admin/BKK buat lowongan
+	careerGroup.Post("/vacancies/:id/apply", careerHandler.ApplyJob)                  // User melamar
+	careerGroup.Get("/applications/my", careerHandler.GetMyApplications)              // User lihat lamaran sendiri
+	careerGroup.Get("/vacancies/:id/applications", careerHandler.GetJobApplications)  // BKK lihat pelamar
 	careerGroup.Patch("/applications/:appId/review", careerHandler.ReviewApplication) // BKK review lamaran
 
 	// Performance & PKL
@@ -561,9 +563,9 @@ func SetupRouter(db *sql.DB, cfg *config.Config) *fiber.App {
 
 	// Portfolio (LinkedIn Style)
 	portfolioGroup := apiV1.Group("/portfolio", jwtAuth)
-	portfolioGroup.Get("/", portfolioHandler.GetMyPortfolio)                  // Semua User
-	portfolioGroup.Put("/", portfolioHandler.UpdateSummary)                   // Update summary/CV
-	portfolioGroup.Post("/experiences", portfolioHandler.AddExperience)       // Tambah pengalaman
+	portfolioGroup.Get("/", portfolioHandler.GetMyPortfolio)                    // Semua User
+	portfolioGroup.Put("/", portfolioHandler.UpdateSummary)                     // Update summary/CV
+	portfolioGroup.Post("/experiences", portfolioHandler.AddExperience)         // Tambah pengalaman
 	portfolioGroup.Post("/import/linkedin", portfolioHandler.ImportLinkedInPDF) // Import dari PDF LinkedIn
 
 	// SPMB (old batch route merged here)
@@ -579,29 +581,29 @@ func SetupRouter(db *sql.DB, cfg *config.Config) *fiber.App {
 	// CANTEEN ROUTES (JWT required)
 	// ==========================================
 	canteenGroup := apiV1.Group("/canteen", jwtAuth)
-	canteenGroup.Post("/shop", canteenHandler.CreateShop)              // Owner: create shop
-	canteenGroup.Post("/items", canteenHandler.AddItem)                // Owner: add menu item
-	canteenGroup.Post("/discounts", canteenHandler.AddDiscount)        // Owner: add discount
-	canteenGroup.Post("/cart", canteenHandler.AddToCart)               // Buyer: add to cart
-	canteenGroup.Post("/checkout", canteenHandler.Checkout)            // Buyer: checkout cart (PIN)
-	canteenGroup.Post("/pos/order", canteenHandler.CreatePOSOrder)     // Owner: POS create order
+	canteenGroup.Post("/shop", canteenHandler.CreateShop)                                    // Owner: create shop
+	canteenGroup.Post("/items", canteenHandler.AddItem)                                      // Owner: add menu item
+	canteenGroup.Post("/discounts", canteenHandler.AddDiscount)                              // Owner: add discount
+	canteenGroup.Post("/cart", canteenHandler.AddToCart)                                     // Buyer: add to cart
+	canteenGroup.Post("/checkout", canteenHandler.Checkout)                                  // Buyer: checkout cart (PIN)
+	canteenGroup.Post("/pos/order", canteenHandler.CreatePOSOrder)                           // Owner: POS create order
 	canteenGroup.Patch("/pos/orders/:id/payment-method", canteenHandler.SwitchPaymentMethod) // Owner: ganti metode bayar
-	canteenGroup.Post("/pay-dynamic-qr", canteenHandler.PayViaDynamicQR) // Buyer: POS scan QR (PIN)
-	canteenGroup.Get("/order/va/:va", canteenHandler.GetOrderForVA)      // Buyer: auto-fetch order via VA 15 digit
-	canteenGroup.Post("/pay-va", canteenHandler.PayViaVA)                // Buyer: pay via VA 15 digit (PIN)
-	canteenGroup.Patch("/orders/:id/status", canteenHandler.UpdateOrderStatus) // Owner: update status
-	canteenGroup.Get("/reports/financial", canteenHandler.GetFinancialReport) // Owner: financial report
-	canteenGroup.Get("/reports/insight", canteenHandler.GetAIInsight)         // Owner: AI business insight
+	canteenGroup.Post("/pay-dynamic-qr", canteenHandler.PayViaDynamicQR)                     // Buyer: POS scan QR (PIN)
+	canteenGroup.Get("/order/va/:va", canteenHandler.GetOrderForVA)                          // Buyer: auto-fetch order via VA 15 digit
+	canteenGroup.Post("/pay-va", canteenHandler.PayViaVA)                                    // Buyer: pay via VA 15 digit (PIN)
+	canteenGroup.Patch("/orders/:id/status", canteenHandler.UpdateOrderStatus)               // Owner: update status
+	canteenGroup.Get("/reports/financial", canteenHandler.GetFinancialReport)                // Owner: financial report
+	canteenGroup.Get("/reports/insight", canteenHandler.GetAIInsight)                        // Owner: AI business insight
 
 	// ==========================================
 	// GATE PASS ROUTES (JWT required)
 	// ==========================================
 	gatepassGroup := apiV1.Group("/gatepass", jwtAuth)
-	gatepassGroup.Post("/request", gatepassHandler.SubmitRequest)        // Student: request exit
-	gatepassGroup.Post("/:id/approve", gatepassHandler.ProcessApproval)  // Approver: approve/reject
-	gatepassGroup.Post("/scan-exit", gatepassHandler.ScanExitQR)         // Guard: scan exit QR
-	gatepassGroup.Post("/scan-return", gatepassHandler.ScanReturnQR)     // Guard: scan return QR
-	
+	gatepassGroup.Post("/request", gatepassHandler.SubmitRequest)       // Student: request exit
+	gatepassGroup.Post("/:id/approve", gatepassHandler.ProcessApproval) // Approver: approve/reject
+	gatepassGroup.Post("/scan-exit", gatepassHandler.ScanExitQR)        // Guard: scan exit QR
+	gatepassGroup.Post("/scan-return", gatepassHandler.ScanReturnQR)    // Guard: scan return QR
+
 	// Admin Gate Pass Config
 	gatepassGroup.Post("/settings", adminOnly, gatepassHandler.ConfigureSetting)
 	gatepassGroup.Get("/settings", adminOnly, gatepassHandler.GetSetting)
@@ -609,7 +611,7 @@ func SetupRouter(db *sql.DB, cfg *config.Config) *fiber.App {
 	// ==========================================
 	// COMMUNICATION (WEBSOCKET CHAT) ROUTES
 	// ==========================================
-	
+
 	// REST route for Chat History
 	// Returns raw ciphertext — client must decrypt with their private key.
 	apiV1.Get("/chat/:room_id/history", middleware.JWTAuth(cfg.JWT.Secret), commWsHandler.GetChatHistory)
@@ -621,7 +623,6 @@ func SetupRouter(db *sql.DB, cfg *config.Config) *fiber.App {
 	wsGroup := app.Group("/ws")
 	wsGroup.Use(commWs.WebsocketUpgradeMiddleware()) // Only allows WS upgrade, no auth check here
 	wsGroup.Get("/chat/:room_id", websocket.New(commWsHandler.HandleChatRoom))
-
 
 	// ==========================================
 	// ADMIN-ONLY ROUTES (JWT + Role=Admin)
@@ -652,8 +653,8 @@ func SetupRouter(db *sql.DB, cfg *config.Config) *fiber.App {
 	// Accessible by: Admin OR any role with MANAGE_AI permission
 	// ==========================================
 	aiModuleGroup := apiV1.Group("/admin/ai", jwtAuth, manageAI)
-	aiModuleGroup.Get("/modules", aiModuleHandler.ListModules)                // List all modules & stats
-	aiModuleGroup.Put("/modules/:module", aiModuleHandler.UpdateModule)       // Toggle + set limits
+	aiModuleGroup.Get("/modules", aiModuleHandler.ListModules)                      // List all modules & stats
+	aiModuleGroup.Put("/modules/:module", aiModuleHandler.UpdateModule)             // Toggle + set limits
 	aiModuleGroup.Get("/modules/:module/status", aiModuleHandler.CheckModuleStatus) // Check current status
 
 	// ==========================================
@@ -672,9 +673,19 @@ func SetupRouter(db *sql.DB, cfg *config.Config) *fiber.App {
 	// GET  /api/v1/media/torrent?path=... — return info_hash + magnet_link for a given file
 	mediaGroup.Get("/torrent", torrentHandler.GetTorrentMeta)
 
-	// Health Check
+	// Health Check & Root Routes
+	app.Get("/", func(c *fiber.Ctx) error {
+		return c.JSON(fiber.Map{"status": "ok", "message": "Satu Sekolah API is ready 🚀"})
+	})
+	apiV1.Get("/", func(c *fiber.Ctx) error {
+		return c.JSON(fiber.Map{"status": "ok", "message": "Satu Sekolah API v1 is ready 🚀"})
+	})
+
 	app.Get("/health", func(c *fiber.Ctx) error {
-		return c.SendString("Satu Sekolah API is running healthy 🚀")
+		return c.JSON(fiber.Map{"status": "ok", "message": "Satu Sekolah API is running healthy 🚀"})
+	})
+	apiV1.Get("/health", func(c *fiber.Ctx) error {
+		return c.JSON(fiber.Map{"status": "ok", "message": "Satu Sekolah API v1 is running healthy 🚀"})
 	})
 
 	// ==========================================

@@ -85,20 +85,19 @@ func (r *coreRepository) CreateTenant(ctx context.Context, tenant *domain.Tenant
 	// Auto-generate a unique 3-digit bank code for this school
 	tenant.BankCode = generateBankCode()
 
+	// Generate UUID first
+	tenant.ID = uuid.New()
+
 	query := `
-		INSERT INTO tenants (name, bank_code, npsn, domain, address, phone, email, logo_url)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO tenants (id, name, bank_code, npsn, domain, address, phone, email, logo_url)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
-	result, err := r.exec(ctx, query,
-		tenant.Name, tenant.BankCode, tenant.NPSN, tenant.Domain, tenant.Address, tenant.Phone, tenant.Email, tenant.LogoURL,
+	_, err := r.exec(ctx, query,
+		tenant.ID, tenant.Name, tenant.BankCode, tenant.NPSN, tenant.Domain, tenant.Address, tenant.Phone, tenant.Email, tenant.LogoURL,
 	)
 	if err != nil {
 		return err
 	}
-	// MySQL uses LastInsertId for auto-increment; for UUID we set it before insert
-	// Since our PK is a UUID string we generate it here
-	tenant.ID = uuid.New()
-	_ = result
 	return nil
 }
 
@@ -148,6 +147,7 @@ func (r *coreRepository) GetTenantByDomain(ctx context.Context, domainStr string
 	return &tenant, nil
 }
 
+<<<<<<< HEAD
 func (r *coreRepository) GetFirstTenant(ctx context.Context) (*domain.Tenant, error) {
 	query := `
 		SELECT id, name, bank_code, npsn, domain, address, phone, email, logo_url, created_at, updated_at, deleted_at
@@ -293,7 +293,11 @@ func (r *coreRepository) CreateUser(ctx context.Context, user *domain.User) erro
 
 func (r *coreRepository) AssignRoleToUser(ctx context.Context, userID, roleID uuid.UUID) error {
 	query := `
+<<<<<<< HEAD
 		INSERT IGNORE INTO user_roles (user_id, role_id)
+=======
+		INSERT INTO user_roles (user_id, role_id)
+>>>>>>> e5857863b27c56e35ac480429ef1f9bfdbfee615
 		VALUES (?, ?)
 	`
 	_, err := r.exec(ctx, query, userID, roleID)
@@ -305,8 +309,9 @@ func (r *coreRepository) AssignRoleToUser(ctx context.Context, userID, roleID uu
 	return nil
 }
 
-func (r *coreRepository) GetUserByEmail(ctx context.Context, email string) (*domain.User, error) {
+func (r *coreRepository) GetUserByLoginIdentifier(ctx context.Context, identifier string) (*domain.User, error) {
 	query := `
+<<<<<<< HEAD
 		SELECT id, tenant_id, category, name, email, phone, address, avatar_url, password_hash, created_at
 		FROM users WHERE email = ? AND deleted_at IS NULL
 		LIMIT 1
@@ -314,6 +319,16 @@ func (r *coreRepository) GetUserByEmail(ctx context.Context, email string) (*dom
 	var user domain.User
 	err := r.db.QueryRowContext(ctx, query, email).Scan(
 		&user.ID, &user.TenantID, &user.Category, &user.Name, &user.Email, &user.Phone, &user.Address, &user.AvatarURL, &user.Password, &user.CreatedAt,
+=======
+		SELECT id, tenant_id, category, name, email, password_hash, created_at
+		FROM users 
+		WHERE (email = ? OR username = ? OR nisn = ? OR npk = ?) AND deleted_at IS NULL
+		LIMIT 1
+	`
+	var user domain.User
+	err := r.db.QueryRowContext(ctx, query, identifier, identifier, identifier, identifier).Scan(
+		&user.ID, &user.TenantID, &user.Category, &user.Name, &user.Email, &user.Password, &user.CreatedAt,
+>>>>>>> e5857863b27c56e35ac480429ef1f9bfdbfee615
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -508,7 +523,7 @@ func incrementVersion(ver string) string {
 // UpdatePublicKey stores a user's E2EE public key for client-side encryption.
 // Called on first login on a new device after key generation.
 func (r *coreRepository) UpdatePublicKey(ctx context.Context, userID uuid.UUID, publicKey string) error {
-	query := `UPDATE users SET public_key = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`
+	query := `UPDATE users SET public_key = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`
 	_, err := r.db.ExecContext(ctx, query, publicKey, userID)
 	return err
 }

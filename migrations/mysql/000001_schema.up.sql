@@ -47,11 +47,18 @@ INSERT INTO permissions (id, name) VALUES
 ('p-004', 'MANAGE_LIBRARY'),
 ('p-005', 'MANAGE_CBA'),
 ('p-006', 'MANAGE_HEALTH'),
-('p-007', 'MANAGE_INVENTORY'),
-('p-008', 'MANAGE_SPMB'),
-('p-009', 'MANAGE_ROLES_PERMISSIONS'),
-('p-010', 'MANAGE_USERS'),
-('p-011', 'MANAGE_VIOLATIONS');
+('p-019', 'MANAGE_MENTOR');
+
+-- ==========================================
+-- 2.5 CACHE STORE (For Database Cache Driver)
+-- ==========================================
+CREATE TABLE cache_store (
+    `key` VARCHAR(255) PRIMARY KEY,
+    `value` TEXT NOT NULL,
+    `expires_at` TIMESTAMP
+);
+
+CREATE INDEX idx_cache_store_expires_at ON cache_store(expires_at);
 
 -- ==========================================
 -- 3. MAJORS & CLASSES (referenced early by users)
@@ -89,7 +96,9 @@ CREATE TABLE users (
     phone VARCHAR(50),
     password_hash VARCHAR(255),
     pin_hash VARCHAR(255),
-    identifier VARCHAR(100),
+    username VARCHAR(100) UNIQUE,
+    nisn VARCHAR(50) UNIQUE,
+    npk VARCHAR(50) UNIQUE,
     rfid_tag VARCHAR(100) UNIQUE,
     face_encoding TEXT,
     wallet_balance DECIMAL(15,2) DEFAULT 0,
@@ -101,7 +110,7 @@ CREATE TABLE users (
     UNIQUE (tenant_id, email)
 );
 
-CREATE INDEX idx_users_tenant_identifier ON users(tenant_id, identifier);
+CREATE INDEX idx_users_tenant_username ON users(tenant_id, username);
 CREATE INDEX idx_users_tenant_class ON users(tenant_id, class_id);
 
 CREATE TABLE user_roles (
@@ -1200,7 +1209,7 @@ SELECT
     sa.term_id,
     sa.student_id,
     u.name AS student_name,
-    u.identifier AS nisn,
+    u.nisn,
     c.id AS class_id,
     c.name AS class_name,
     m.id AS major_id,

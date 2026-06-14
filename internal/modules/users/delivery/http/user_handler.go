@@ -32,8 +32,8 @@ type RegisterParentRequest struct {
 
 // LoginRequest is the request body for POST /users/login.
 type LoginRequest struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
+	Identifier string `json:"identifier"`
+	Password   string `json:"password"`
 }
 
 // RegisterParent registers a new parent account.
@@ -93,23 +93,23 @@ func (h *UserHandler) Login(c *fiber.Ctx) error {
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
 	}
-	if req.Email == "" || req.Password == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "email and password are required"})
+	if req.Identifier == "" || req.Password == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "identifier and password are required"})
 	}
 
-	// 1. Fetch user from DB by email
-	user, err := h.repo.GetUserByEmail(c.Context(), req.Email)
+	// 1. Fetch user from DB by identifier
+	user, err := h.repo.GetUserByLoginIdentifier(c.Context(), req.Identifier)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "internal server error"})
 	}
 	if user == nil {
 		// Generic message to avoid user enumeration
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "invalid email or password"})
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Identitas atau kata sandi salah"})
 	}
 
 	// 2. Compare bcrypt hash
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password)); err != nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "invalid email or password"})
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Identitas atau kata sandi salah"})
 	}
 
 	// 3. Fetch the user's role
@@ -149,6 +149,7 @@ func (h *UserHandler) Login(c *fiber.Ctx) error {
 			"name":        user.Name,
 			"email":       user.Email,
 			"role":        roleName,
+			"category":    user.Category,
 			"permissions": permissions,
 			"tenant_id":   user.TenantID,
 		},

@@ -108,7 +108,9 @@ CREATE TABLE users (
     phone VARCHAR(50),
     password_hash VARCHAR(255),
     pin_hash VARCHAR(255),
-    identifier VARCHAR(100),
+    username VARCHAR(100) UNIQUE,
+    nisn VARCHAR(50) UNIQUE,
+    npk VARCHAR(50) UNIQUE,
     rfid_tag VARCHAR(100) UNIQUE,
     face_encoding TEXT,
     wallet_balance DECIMAL(15,2) DEFAULT 0,
@@ -145,7 +147,7 @@ CREATE TABLE student_invoices (
       updated_by VARCHAR(36) REFERENCES users(id)
   );
 
-CREATE INDEX idx_users_tenant_identifier ON users(tenant_id, identifier);
+CREATE INDEX idx_users_tenant_username ON users(tenant_id, username);
 CREATE INDEX idx_users_tenant_class ON users(tenant_id, class_id);
 
 CREATE TABLE user_roles (
@@ -1470,7 +1472,7 @@ SELECT
     sa.term_id,
     sa.student_id,
     u.name AS student_name,
-    u.identifier AS nisn,
+    u.nisn,
     c.id AS class_id,
     c.name AS class_name,
     m.id AS major_id,
