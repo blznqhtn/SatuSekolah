@@ -186,3 +186,124 @@ func (r *academicRepository) GetTargetsForSource(ctx context.Context, sourceType
 	}
 	return targets, nil
 }
+
+// ==========================================
+// SCHEDULES
+// ==========================================
+
+func (r *academicRepository) GetSchedulesByClassAndDay(ctx context.Context, tenantID, classID uuid.UUID, dayOfWeek int) ([]*domain.ScheduleResponseDTO, error) {
+	q := `
+		SELECT 
+			s.id, s.day_of_week, s.start_time, s.end_time, s.room, 
+			COALESCE(s.activity_type, 'SUBJECT'), COALESCE(s.activity_name, ''), 
+			COALESCE(c.name, ''), COALESCE(u.name, ''), COALESCE(s.description, ''), COALESCE(s.link, '')
+		FROM class_schedules s
+		LEFT JOIN courses c ON s.course_id = c.id
+		LEFT JOIN users u ON s.staff_id = u.id
+		WHERE s.tenant_id = ? AND s.class_id = ? AND s.day_of_week = ?
+		ORDER BY s.start_time ASC
+	`
+	rows, err := r.query(ctx, q, tenantID, classID, dayOfWeek)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var schedules []*domain.ScheduleResponseDTO
+	for rows.Next() {
+		var dto domain.ScheduleResponseDTO
+		var activityTypeStr sql.NullString
+		if err := rows.Scan(
+			&dto.ScheduleID, &dto.DayOfWeek, &dto.StartTime, &dto.EndTime, &dto.Room,
+			&activityTypeStr, &dto.ActivityName, &dto.CourseName, &dto.StaffName, &dto.Description, &dto.Link,
+		); err != nil {
+			return nil, err
+		}
+		if activityTypeStr.Valid {
+			dto.ActivityType = domain.ActivityType(activityTypeStr.String)
+		} else {
+			dto.ActivityType = domain.ActivitySubject
+		}
+		// Formatting times from DB time objects which might be returned as string "15:04:05"
+		if len(dto.StartTime) >= 5 {
+			dto.StartTime = dto.StartTime[:5]
+		}
+		if len(dto.EndTime) >= 5 {
+			dto.EndTime = dto.EndTime[:5]
+		}
+		dto.OriginalStaff = dto.StaffName
+		schedules = append(schedules, &dto)
+	}
+	return schedules, nil
+}
+
+func (r *academicRepository) GetScheduleChangesByDate(ctx context.Context, tenantID, classID uuid.UUID, date time.Time) ([]*domain.ScheduleChange, error) {
+	// join with class_schedules to only get changes for schedules belonging to the given class
+	q := `
+		SELECT 
+			sc.id, sc.tenant_id, sc.schedule_id, sc.change_date, 
+			sc.new_staff_id, sc.new_start_time, sc.new_end_time, sc.new_room, sc.notes
+		FROM schedule_changes sc
+		JOIN class_schedules s ON sc.schedule_id = s.id
+		WHERE sc.tenant_id = ? AND s.class_id = ? AND sc.change_date = DATE(?)
+	`
+	rows, err := r.query(ctx, q, tenantID, classID, date)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var changes []*domain.ScheduleChange
+	for rows.Next() {
+		var c domain.ScheduleChange
+		var newStaff sql.NullString
+		var newStart, newEnd, newRoom, notes sql.NullString
+		
+		if err := rows.Scan(
+			&c.ID, &c.TenantID, &c.ScheduleID, &c.ChangeDate,
+			&newStaff, &newStart, &newEnd, &newRoom, &notes,
+		); err != nil {
+			return nil, err
+		}
+
+		if newStaff.Valid {
+			uid, _ := uuid.Parse(newStaff.String)
+			c.NewStaffID = &uid
+		}
+		if newStart.Valid {
+			c.NewStartTime = newStart.String
+		}
+		if newEnd.Valid {
+			c.NewEndTime = newEnd.String
+		}
+		if newRoom.Valid {
+			c.NewRoom = newRoom.String
+		}
+		if notes.Valid {
+			c.Notes = notes.String
+		}
+
+		changes = append(changes, &c)
+	}
+	return changes, nil
+}
+
+func (r *academicRepository) GetClassIDByStudentID(ctx context.Context, studentID uuid.UUID) (*uuid.UUID, error) {
+	var classIDStr sql.NullString
+	err := r.db.QueryRowContext(ctx, "SELECT class_id FROM users WHERE id = ?", studentID).Scan(&classIDStr)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	if !classIDStr.Valid {
+		return nil, nil
+	}
+	cid, err := uuid.Parse(classIDStr.String)
+	if err != nil {
+		return nil, err
+	}
+	return &cid, nil
+}
+

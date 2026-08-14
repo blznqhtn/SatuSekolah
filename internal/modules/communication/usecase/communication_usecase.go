@@ -1,27 +1,3 @@
-// Package usecase implements the business logic for the communication module.
-//
-// ============================================================
-//  TRUE END-TO-END ENCRYPTION (E2EE) ARCHITECTURE
-// ============================================================
-// This backend is a PURE MESSAGE COURIER. It does NOT encrypt
-// or decrypt any chat messages. The responsibility is entirely
-// on the Frontend/Mobile client.
-//
-// HOW IT WORKS (WhatsApp/Signal model):
-//   1. On first login on a new device, the client generates an
-//      RSA or X25519 key-pair locally on the device.
-//   2. The client uploads its PUBLIC KEY to the server via:
-//         PUT /api/v1/users/profile/public-key
-//   3. When a user opens a contact list (GET /communication/contacts),
-//      the server returns each contact's public_key.
-//   4. Before sending a message, the SENDER (client) encrypts
-//      the message content using the RECIPIENT'S public key.
-//   5. The resulting ciphertext is sent to the server via WebSocket.
-//   6. The server stores the ciphertext as-is and broadcasts it.
-//   7. Only the recipient (who holds the private key on their device)
-//      can decrypt the message.
-//   8. The server, even if compromised, sees ONLY opaque ciphertext.
-// ============================================================
 package usecase
 
 import (
@@ -35,62 +11,84 @@ type communicationUsecase struct {
 	repo domain.CommunicationRepository
 }
 
-func NewCommunicationUsecase(repo domain.CommunicationRepository) *communicationUsecase {
+func NewCommunicationUsecase(repo domain.CommunicationRepository) domain.CommunicationUsecase {
 	return &communicationUsecase{repo: repo}
 }
 
-func (u *communicationUsecase) CreateRoom(ctx context.Context, room *domain.ChatRoom) error {
-	return u.repo.CreateRoom(ctx, room)
+func (u *communicationUsecase) InitiateDirectChat(ctx context.Context, tenantID, senderID, receiverID uuid.UUID) (*domain.RoomSummary, error) {
+	// 1. Check if room exists
+	room, err := u.repo.GetDirectRoom(ctx, senderID, receiverID)
+	if err != nil {
+		return nil, err
+	}
+
+	// 2. Create if not exists
+	if room == nil {
+		newRoom := &domain.ChatRoom{
+			TenantID: tenantID,
+			Type:     "DIRECT",
+		}
+		if err := u.repo.CreateRoom(ctx, newRoom); err != nil {
+			return nil, err
+		}
+		room = newRoom
+		
+		// Add participants
+		if err := u.repo.AddParticipant(ctx, room.ID, senderID); err != nil {
+			return nil, err
+		}
+		if err := u.repo.AddParticipant(ctx, room.ID, receiverID); err != nil {
+			return nil, err
+		}
+	}
+
+	// 3. Return summary (we could fetch from DB, but since we just initiated, we can mock or fetch it properly)
+	summaries, err := u.repo.GetRoomSummaries(ctx, tenantID, senderID)
+	if err != nil {
+		return nil, err
+	}
+	
+	for _, s := range summaries {
+		if s.RoomID == room.ID {
+			return s, nil
+		}
+	}
+	
+	// If no message has been sent, GetRoomSummaries won't return it because of the HAVING clause, so construct it manually
+	return &domain.RoomSummary{
+		RoomID: room.ID,
+		ParticipantID: receiverID,
+	}, nil
 }
 
-func (u *communicationUsecase) GetRoomByID(ctx context.Context, roomID uuid.UUID) (*domain.ChatRoom, error) {
-	return u.repo.GetRoomByID(ctx, roomID)
+func (u *communicationUsecase) GetRoomSummaries(ctx context.Context, tenantID, userID uuid.UUID) ([]*domain.RoomSummary, error) {
+	return u.repo.GetRoomSummaries(ctx, tenantID, userID)
 }
 
-func (u *communicationUsecase) GetRoomsByUserID(ctx context.Context, userID uuid.UUID) ([]*domain.ChatRoom, error) {
-	return u.repo.GetRoomsByUserID(ctx, userID)
-}
-
-// SaveMessage stores the client-encrypted ciphertext verbatim.
-// The backend does NOT encrypt, decrypt, or inspect message content.
 func (u *communicationUsecase) SaveMessage(ctx context.Context, roomID, senderID uuid.UUID, ciphertext string) (*domain.ChatMessage, error) {
 	msg := &domain.ChatMessage{
 		RoomID:     roomID,
 		SenderID:   senderID,
-		Ciphertext: ciphertext, // Stored as-is; encrypted by sender on their device
+		Ciphertext: ciphertext,
 	}
 	err := u.repo.SaveMessage(ctx, msg)
 	return msg, err
 }
 
-// GetMessages returns raw (client-encrypted) ciphertext messages.
-// The frontend client is responsible for decrypting using its private key.
-func (u *communicationUsecase) GetMessages(ctx context.Context, roomID uuid.UUID) ([]*domain.ChatMessage, error) {
+func (u *communicationUsecase) GetMessagesByRoomID(ctx context.Context, roomID uuid.UUID) ([]*domain.ChatMessage, error) {
 	return u.repo.GetMessagesByRoomID(ctx, roomID)
 }
 
-func (u *communicationUsecase) GetContacts(ctx context.Context, tenantID, userID uuid.UUID, category string) (*domain.ContactListResponse, error) {
-	rawContacts, err := u.repo.GetContacts(ctx, tenantID, userID, category)
-	if err != nil {
-		return nil, err
+func (u *communicationUsecase) GetContacts(ctx context.Context, tenantID, userID uuid.UUID, role string) (*domain.ContactListResponse, error) {
+	// For this app, role is always "parent"
+	if role == "parent" {
+		return u.repo.GetContactsForParent(ctx, tenantID, userID)
 	}
-
-	response := &domain.ContactListResponse{
+	
+	// Fallback empty response
+	return &domain.ContactListResponse{
 		Students: make([]*domain.ChatContact, 0),
 		Parents:  make([]*domain.ChatContact, 0),
 		Staff:    make([]*domain.ChatContact, 0),
-	}
-
-	for _, c := range rawContacts {
-		switch c.Category {
-		case "student":
-			response.Students = append(response.Students, c)
-		case "parent":
-			response.Parents = append(response.Parents, c)
-		case "staff", "admin":
-			response.Staff = append(response.Staff, c)
-		}
-	}
-
-	return response, nil
+	}, nil
 }

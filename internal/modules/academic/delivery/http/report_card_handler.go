@@ -126,3 +126,150 @@ func (h *ReportCardHandler) GetLeaderboard(c *fiber.Ctx) error {
 		"data":    leaderboard,
 	})
 }
+
+// GET /api/v1/academic/report-cards/student/:studentId
+func (h *ReportCardHandler) GetStudentReportCard(c *fiber.Ctx) error {
+	claims := c.Locals("claims").(*middleware.Claims)
+	tenantID, _ := uuid.Parse(claims.TenantID)
+	studentIDStr := c.Params("studentId")
+	studentID, err := uuid.Parse(studentIDStr)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid student_id"})
+	}
+
+	var termID uuid.UUID
+	termIDStr := c.Query("term_id")
+	if termIDStr != "" {
+		parsedTermID, err := uuid.Parse(termIDStr)
+		if err == nil {
+			termID = parsedTermID
+		}
+	}
+
+	reportCard, err := h.uc.GetStudentReportCard(c.Context(), tenantID, studentID, termID)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"message": "success",
+		"data":    reportCard,
+	})
+}
+
+// GET /api/v1/academic/grades/student/:studentId/subject/:courseId
+func (h *ReportCardHandler) GetStudentDetailedGrades(c *fiber.Ctx) error {
+	claims := c.Locals("claims").(*middleware.Claims)
+	tenantID, _ := uuid.Parse(claims.TenantID)
+	
+	studentIDStr := c.Params("studentId")
+	studentID, err := uuid.Parse(studentIDStr)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid student_id"})
+	}
+
+	courseIDStr := c.Params("courseId")
+	courseID, err := uuid.Parse(courseIDStr)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid course_id"})
+	}
+
+	var termID uuid.UUID
+	termIDStr := c.Query("term_id")
+	if termIDStr != "" {
+		parsedTermID, err := uuid.Parse(termIDStr)
+		if err == nil {
+			termID = parsedTermID
+		}
+	}
+
+	detailedGrades, err := h.uc.GetStudentDetailedGrades(c.Context(), tenantID, studentID, termID, courseID)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"message": "success",
+		"data":    detailedGrades,
+	})
+}
+
+// GET /api/v1/academic/report-cards/student/:studentId/semesters
+func (h *ReportCardHandler) GetStudentSemesters(c *fiber.Ctx) error {
+	claims := c.Locals("claims").(*middleware.Claims)
+	tenantID, _ := uuid.Parse(claims.TenantID)
+	
+	studentIDStr := c.Params("studentId")
+	studentID, err := uuid.Parse(studentIDStr)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid student_id"})
+	}
+
+	semesters, err := h.uc.GetStudentSemesters(c.Context(), tenantID, studentID)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"message": "success",
+		"data":    semesters,
+	})
+}
+
+// PUT /api/v1/academic/report-cards/:id/notes
+func (h *ReportCardHandler) UpdateReportCardNotes(c *fiber.Ctx) error {
+	claims := c.Locals("claims").(*middleware.Claims)
+	tenantID, _ := uuid.Parse(claims.TenantID)
+	updatedBy, _ := uuid.Parse(claims.UserID)
+	
+	reportCardIDStr := c.Params("id")
+	reportCardID, err := uuid.Parse(reportCardIDStr)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid report_card_id"})
+	}
+
+	var req struct {
+		Notes []domain.ReportCardNoteDTO `json:"notes"`
+	}
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
+	}
+
+	if err := h.uc.UpdateReportCardNotes(c.Context(), tenantID, reportCardID, updatedBy, req.Notes); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"message": "notes updated successfully",
+	})
+}
+
+// GET /api/v1/academic/report-cards/student/:studentId/pdf
+func (h *ReportCardHandler) GenerateReportCardPDF(c *fiber.Ctx) error {
+	claims := c.Locals("claims").(*middleware.Claims)
+	tenantID, _ := uuid.Parse(claims.TenantID)
+	
+	studentIDStr := c.Params("studentId")
+	studentID, err := uuid.Parse(studentIDStr)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid student_id"})
+	}
+
+	var termID uuid.UUID
+	termIDStr := c.Query("term_id")
+	if termIDStr != "" {
+		parsedTermID, err := uuid.Parse(termIDStr)
+		if err == nil {
+			termID = parsedTermID
+		}
+	}
+
+	pdfBytes, err := h.uc.GenerateReportCardPDF(c.Context(), tenantID, studentID, termID)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	c.Set("Content-Type", "application/pdf")
+	c.Set("Content-Disposition", fmt.Sprintf("attachment; filename=Rapor_Akademik_%s.pdf", studentIDStr))
+	return c.Send(pdfBytes)
+}

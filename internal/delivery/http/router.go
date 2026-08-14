@@ -35,15 +35,38 @@ import (
 	careerUsecase "neuracakrawira.asia/satu-sekolah-backend/internal/modules/career/usecase"
 
 	// Communication Module
+	// Communication Module
 	commHttp "neuracakrawira.asia/satu-sekolah-backend/internal/modules/communication/delivery/http"
 	commWs "neuracakrawira.asia/satu-sekolah-backend/internal/modules/communication/delivery/ws"
 	commRepo "neuracakrawira.asia/satu-sekolah-backend/internal/modules/communication/repository"
 	commUsecase "neuracakrawira.asia/satu-sekolah-backend/internal/modules/communication/usecase"
-
-	// Violations Module
+	evaluationHttp "neuracakrawira.asia/satu-sekolah-backend/internal/modules/evaluation/delivery/http"
+	evaluationRepo "neuracakrawira.asia/satu-sekolah-backend/internal/modules/evaluation/repository"
+	evaluationUsecase "neuracakrawira.asia/satu-sekolah-backend/internal/modules/evaluation/usecase"
 	violationHttp "neuracakrawira.asia/satu-sekolah-backend/internal/modules/violations/delivery/http"
 	violationRepo "neuracakrawira.asia/satu-sekolah-backend/internal/modules/violations/repository"
 	violationUc "neuracakrawira.asia/satu-sekolah-backend/internal/modules/violations/usecase"
+
+	calendarHttp "neuracakrawira.asia/satu-sekolah-backend/internal/modules/calendar/delivery/http"
+
+	calendarRepo "neuracakrawira.asia/satu-sekolah-backend/internal/modules/calendar/repository"
+	calendarUsecase "neuracakrawira.asia/satu-sekolah-backend/internal/modules/calendar/usecase"
+
+	presenceHttp "neuracakrawira.asia/satu-sekolah-backend/internal/modules/presence/delivery/http"
+	presenceRepo "neuracakrawira.asia/satu-sekolah-backend/internal/modules/presence/repository"
+	presenceUsecase "neuracakrawira.asia/satu-sekolah-backend/internal/modules/presence/usecase"
+
+	paymentHttp "neuracakrawira.asia/satu-sekolah-backend/internal/modules/payment/delivery/http"
+	paymentRepo "neuracakrawira.asia/satu-sekolah-backend/internal/modules/payment/repository"
+	paymentUsecase "neuracakrawira.asia/satu-sekolah-backend/internal/modules/payment/usecase"
+
+	dashboardHttp "neuracakrawira.asia/satu-sekolah-backend/internal/modules/dashboard/delivery/http"
+	dashboardRepo "neuracakrawira.asia/satu-sekolah-backend/internal/modules/dashboard/repository"
+	dashboardUsecase "neuracakrawira.asia/satu-sekolah-backend/internal/modules/dashboard/usecase"
+
+	notificationHttp "neuracakrawira.asia/satu-sekolah-backend/internal/modules/notifications/delivery/http"
+	notificationRepo "neuracakrawira.asia/satu-sekolah-backend/internal/modules/notifications/repository"
+	notificationUsecase "neuracakrawira.asia/satu-sekolah-backend/internal/modules/notifications/usecase"
 
 	// Health (UKS & Cycles) Module
 	healthHttp "neuracakrawira.asia/satu-sekolah-backend/internal/modules/health/delivery/http"
@@ -184,15 +207,13 @@ func SetupRouter(db *sql.DB, cfg *config.Config) *fiber.App {
 		},
 	}))
 
-	// Communication Module (WebSocket)
+	// Communication Module (WebSocket & REST)
 	commRepository := commRepo.NewCommunicationRepository(db)
-	commUc := commUsecase.NewCommunicationUsecase(commRepository) // No encryption key — backend is a pure courier
-	wsHub := commWs.NewHub(cfg.JWT.Secret, commUc)                // JWT secret now lives inside Hub for payload auth
+	commUc := commUsecase.NewCommunicationUsecase(commRepository)
+	wsHub := commWs.NewHub(cfg.JWT.Secret, commUc)
 	go wsHub.Run()
-	commWsHandler := commWs.NewCommunicationHandler(commUc, wsHub)
-
-	// Communication Module (REST)
-	commHttpHandler := commHttp.NewCommunicationHandler()
+	commWsHandler := commWs.NewCommunicationWsHandler(commUc, wsHub)
+	commHandler := commHttp.NewCommunicationHandler(commUc)
 
 	// ==========================================
 	// CACHE WIRING
@@ -249,10 +270,35 @@ func SetupRouter(db *sql.DB, cfg *config.Config) *fiber.App {
 	attendanceUsecase := attendanceUc.NewAttendanceUsecase(attendanceRepository, rekognitionClient)
 	attendanceHandler := attendanceHttp.NewAttendanceHandler(attendanceUsecase)
 
+	// Presence Module (Mobile App read operations)
+	presenceRepository := presenceRepo.NewPresenceRepository(db)
+	presenceUc := presenceUsecase.NewPresenceUsecase(presenceRepository)
+	presenceHandler := presenceHttp.NewPresenceHandler(presenceUc)
+
 	// Violations (Student & Staff violation point tracking)
 	violationRepository := violationRepo.NewViolationRepository(db)
 	violationUsecase := violationUc.NewViolationUsecase(violationRepository)
 	violationHandler := violationHttp.NewViolationHandler(violationUsecase)
+
+	// Calendar Module
+	calendarRepository := calendarRepo.NewCalendarRepository(db)
+	calendarUc := calendarUsecase.NewCalendarUsecase(calendarRepository)
+	calendarHandler := calendarHttp.NewCalendarHandler(calendarUc)
+
+	// Payment Module
+	paymentRepository := paymentRepo.NewPaymentRepository(db)
+	paymentUc := paymentUsecase.NewPaymentUsecase(paymentRepository)
+	paymentHandler := paymentHttp.NewPaymentHandler(paymentUc)
+
+	// Dashboard Module
+	dashboardRepository := dashboardRepo.NewDashboardRepository(db)
+	dashboardUc := dashboardUsecase.NewDashboardUsecase(dashboardRepository)
+	dashboardHandler := dashboardHttp.NewDashboardHandler(dashboardUc)
+
+	// Notifications Module
+	notificationRepository := notificationRepo.NewNotificationRepository(db)
+	notificationUc := notificationUsecase.NewNotificationUsecase(notificationRepository)
+	notificationHandler := notificationHttp.NewNotificationHandler(notificationUc)
 
 	libraryRepository := libraryRepo.NewLibraryRepository(db)
 	libraryUsecase := libraryUc.NewLibraryUsecase(libraryRepository, coreRepository, financeUc)
@@ -333,6 +379,10 @@ func SetupRouter(db *sql.DB, cfg *config.Config) *fiber.App {
 	// Inject portfolio repo to career so it can load applicant portfolios
 	careerUc := careerUsecase.NewCareerUsecase(careerRepoImpl, portfolioRepoImpl)
 	careerHandler := careerHttp.NewCareerHandler(careerUc)
+	// Evaluation Module
+	evaluationRepository := evaluationRepo.NewEvaluationRepository(db)
+	evaluationUc := evaluationUsecase.NewEvaluationUsecase(evaluationRepository)
+	evaluationHandler := evaluationHttp.NewEvaluationHandler(evaluationUc)
 
 	// SPMB Module
 	spmbRepository := spmbRepo.NewSpmbRepository(db)
@@ -376,7 +426,14 @@ func SetupRouter(db *sql.DB, cfg *config.Config) *fiber.App {
 	apiV1.Post("/users/auth/google", usersHandler.GoogleLogin)
 	apiV1.Get("/users/profile", jwtAuth, usersHandler.GetProfile)
 	apiV1.Put("/users/profile", jwtAuth, usersHandler.UpdateProfile)
-	apiV1.Put("/users/profile/public-key", jwtAuth, usersHandler.UploadPublicKey)
+	userGroup := apiV1.Group("/users", jwtAuth)
+	userGroup.Put("/public-key", usersHandler.UploadPublicKey)
+	userGroup.Get("/children", usersHandler.GetChildren)
+	apiV1.Get("/users/notification-settings", jwtAuth, usersHandler.GetNotificationSettings)
+	apiV1.Put("/users/notification-settings", jwtAuth, usersHandler.UpdateNotificationSettings)
+	apiV1.Put("/users/password", jwtAuth, usersHandler.ChangePassword)
+
+	apiV1.Get("/faqs", coreHandler.GetFaqs)
 
 	// Tenant Registration (called by web main — internal, ideally protected by API key)
 	apiV1.Post("/tenants/register", coreHandler.RegisterTenant)
@@ -414,18 +471,50 @@ func SetupRouter(db *sql.DB, cfg *config.Config) *fiber.App {
 	financeGroup.Post("/invoices/:id/pay-cash", billingHandler.InitiateCashPayment)   // Keuangan: bayar tunai Midtrans
 	financeGroup.Get("/reports/invoices", billingHandler.GetFinanceReport)            // Keuangan: laporan rekap tagihan
 
-	// Violations
-	violationGroup := apiV1.Group("/violations", jwtAuth)
-	violationGroup.Get("/types", violationHandler.GetViolationTypes)
-	violationGroup.Post("/types", violationHandler.CreateViolationType)
-	violationGroup.Patch("/types/:id/toggle", violationHandler.ToggleViolationType)
-	violationGroup.Delete("/types/:id", violationHandler.DeleteViolationType)
-	violationGroup.Post("/record", violationHandler.RecordViolation)
-	violationGroup.Get("/users/:user_id", violationHandler.GetUserViolationHistory)
+	// Presence / Attendance (Mobile App views)
+	attendanceGroup := apiV1.Group("/attendance", jwtAuth)
+	attendanceGroup.Get("/summary", presenceHandler.GetSummary)
+	attendanceGroup.Get("/weekly", presenceHandler.GetWeekly)
+	attendanceGroup.Get("/history", presenceHandler.GetHistory)
+
+	// Violations (Mobile App views & Staff management)
+	violationsGroup := apiV1.Group("/violations", jwtAuth)
+	violationsGroup.Get("/history", violationHandler.GetUserViolationHistory) // Use the updated handler for mobile
+	violationsGroup.Get("/types", violationHandler.GetViolationTypes)
+	violationsGroup.Post("/types", adminOnly, violationHandler.CreateViolationType)
+	violationsGroup.Patch("/types/:id/toggle", violationHandler.ToggleViolationType)
+	violationsGroup.Delete("/types/:id", violationHandler.DeleteViolationType)
+	violationsGroup.Post("/record", violationHandler.RecordViolation)
+	violationsGroup.Get("/users/:user_id", violationHandler.GetUserViolationHistory)
+
+	// Calendar (Admin for modifying, others for reading)
+	calendarGroup := apiV1.Group("/calendar", jwtAuth)
+	calendarGroup.Get("/month/:year/:month", calendarHandler.GetEventsByMonth)
+	calendarGroup.Post("/events", adminOnly, calendarHandler.CreateEvent)
+	calendarGroup.Put("/events/:id", adminOnly, calendarHandler.UpdateEvent)
+	calendarGroup.Delete("/events/:id", adminOnly, calendarHandler.DeleteEvent)
+
+	// Dashboard
+	dashboardGroup := apiV1.Group("/dashboard", jwtAuth)
+	dashboardGroup.Get("/summary", dashboardHandler.GetSummary)
+	dashboardGroup.Get("/activities", dashboardHandler.GetActivities)
+
+	// Notifications
+	notifGroup := apiV1.Group("/notifications", jwtAuth)
+	notifGroup.Get("/", notificationHandler.GetNotifications)
+	notifGroup.Put("/:id/read", notificationHandler.MarkAsRead)
+	notifGroup.Delete("/:id", notificationHandler.DeleteNotification)
+
+	// Payment Module
+	paymentGroup := apiV1.Group("/payments", jwtAuth)
+	paymentGroup.Get("/active", paymentHandler.GetActiveBills)
+	paymentGroup.Get("/history", paymentHandler.GetTransactions)
+	paymentGroup.Post("/pay", paymentHandler.PayBill)
 
 	// SPMB (Authenticated, some for parents, some for staff)
 	spmbGroup := apiV1.Group("/spmb", jwtAuth)
 	spmbGroup.Post("/register", spmbHandler.RegisterSpmb)
+	spmbGroup.Get("/my-applications", spmbHandler.GetMyApplications)
 	spmbGroup.Patch("/registrations/:id/approve", spmbHandler.ApproveRegistration)
 	spmbGroup.Post("/registrations/:id/reregister", spmbHandler.ReRegister)
 	spmbGroup.Post("/registrations/:id/pay", spmbHandler.SimulatePayment)
@@ -441,9 +530,19 @@ func SetupRouter(db *sql.DB, cfg *config.Config) *fiber.App {
 	academicGroup.Post("/submissions/:id/grade", academicHandler.GradeSubmission)
 	academicGroup.Post("/assign-target", academicHandler.AssignTarget)
 
+	// Schedules
+	academicGroup.Get("/schedules/student/day/:dayOfWeek", academicHandler.GetStudentSchedules)
+
 	academicGroup.Get("/report-cards/template", reportCardHandler.GetTemplate)
 	academicGroup.Post("/report-cards/upload", reportCardHandler.UploadGrades)
 	academicGroup.Get("/report-cards/leaderboard", reportCardHandler.GetLeaderboard)
+
+	// New Student Rapor Endpoints
+	academicGroup.Get("/report-cards/student/:studentId", reportCardHandler.GetStudentReportCard)
+	academicGroup.Get("/report-cards/student/:studentId/semesters", reportCardHandler.GetStudentSemesters)
+	academicGroup.Get("/grades/student/:studentId/subject/:courseId", reportCardHandler.GetStudentDetailedGrades)
+	academicGroup.Put("/report-cards/:id/notes", reportCardHandler.UpdateReportCardNotes)
+	academicGroup.Get("/report-cards/student/:studentId/pdf", reportCardHandler.GenerateReportCardPDF)
 
 	// CBA (Computer Based Assessment — UTBK-Style)
 	cbaGroup := apiV1.Group("/cba", jwtAuth)
@@ -484,6 +583,14 @@ func SetupRouter(db *sql.DB, cfg *config.Config) *fiber.App {
 	pkgGroup.Post("/submissions", pkgHandler.SubmitDocument)
 	pkgGroup.Get("/submissions", pkgHandler.GetMySubmissions)
 
+	// Teacher Evaluations
+	evaluationGroup := apiV1.Group("/evaluations", jwtAuth)
+	evaluationGroup.Get("/categories", evaluationHandler.GetCategories)
+	evaluationGroup.Get("/active-period", evaluationHandler.GetActivePeriod)
+	evaluationGroup.Get("/teachers/eligible", evaluationHandler.GetEligibleTeachers)
+	evaluationGroup.Post("/submit", evaluationHandler.SubmitEvaluation)
+	evaluationGroup.Get("/results/:teacherId", evaluationHandler.GetTeacherResults)
+
 	// Reports
 	reportsGroup := apiV1.Group("/reports", jwtAuth)
 	reportsGroup.Get("/attendance", reportHandler.GetAttendanceReport)
@@ -491,7 +598,6 @@ func SetupRouter(db *sql.DB, cfg *config.Config) *fiber.App {
 	reportsGroup.Get("/academic", reportHandler.GetAcademicReport)
 
 	// Attendance
-	attendanceGroup := apiV1.Group("/attendance", jwtAuth)
 	attendanceGroup.Post("/face/register", attendanceHandler.RegisterFace)
 
 	// IoT Universal Endpoint (Could be protected by API Key middleware in the future instead of JWT)
@@ -513,6 +619,13 @@ func SetupRouter(db *sql.DB, cfg *config.Config) *fiber.App {
 	healthGroup.Post("/ribbons/borrow", healthHandler.BorrowRibbon)
 	healthGroup.Get("/watchlist", healthHandler.GetOverdueWatchlist)
 	healthGroup.Post("/force-stop", healthHandler.ForceStopCycle)
+
+	// UKS Health Endpoints
+	healthGroup.Get("/student/:studentId/summary", healthHandler.GetStudentHealthSummary)
+	healthGroup.Get("/student/:studentId/checkups", healthHandler.GetStudentCheckups)
+	healthGroup.Post("/checkups", healthHandler.AddHealthCheckup)
+	healthGroup.Get("/student/:studentId/history", healthHandler.GetStudentMedicalHistory)
+	healthGroup.Put("/student/:studentId/history", healthHandler.UpdateMedicalHistory)
 
 	// Library (Books, Borrowing, Digital, Journals)
 	libraryGroup := apiV1.Group("/library", jwtAuth)
@@ -556,10 +669,12 @@ func SetupRouter(db *sql.DB, cfg *config.Config) *fiber.App {
 	// Hubin Monitoring (E-Kinerja)
 	performanceGroup.Post("/pkl/monitoring", performanceHandler.ReportHubinMonitoring)
 
-	// Communication
-	commRoutes := apiV1.Group("/communication")
-	commRoutes.Get("/announcements", middleware.RequireRole("superadmin", "admin", "teacher", "student", "parent", "tenant_admin"), commHttpHandler.GetAnnouncements)
-	commRoutes.Get("/contacts", middleware.JWTAuth(cfg.JWT.Secret), commWsHandler.GetContacts)
+	// Communication Module
+	commGroup := apiV1.Group("/communication", jwtAuth)
+	commGroup.Get("/contacts", commHandler.GetContacts)
+	commGroup.Get("/rooms", commHandler.GetRoomSummaries)
+	commGroup.Post("/rooms/initiate", commHandler.InitiateRoom)
+	commGroup.Get("/rooms/:roomId/messages", commHandler.GetMessages)
 
 	// Portfolio (LinkedIn Style)
 	portfolioGroup := apiV1.Group("/portfolio", jwtAuth)
@@ -611,11 +726,6 @@ func SetupRouter(db *sql.DB, cfg *config.Config) *fiber.App {
 	// ==========================================
 	// COMMUNICATION (WEBSOCKET CHAT) ROUTES
 	// ==========================================
-
-	// REST route for Chat History
-	// Returns raw ciphertext — client must decrypt with their private key.
-	apiV1.Get("/chat/:room_id/history", middleware.JWTAuth(cfg.JWT.Secret), commWsHandler.GetChatHistory)
-
 	// WebSocket route for real-time chat
 	// Auth is done inside the WS connection via the FIRST message payload:
 	// { "type": "auth", "token": "<JWT>" }

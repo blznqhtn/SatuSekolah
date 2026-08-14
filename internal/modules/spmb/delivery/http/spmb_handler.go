@@ -18,7 +18,20 @@ func NewSpmbHandler(usecase domain.SpmbUsecase) *SpmbHandler {
 }
 
 func (h *SpmbHandler) GetBatches(c *fiber.Ctx) error {
-	return c.JSON(fiber.Map{"message": "GetBatches endpoint stub"})
+	schools, err := h.usecase.GetPublicSchools(c.Context())
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	var results []fiber.Map
+	for _, s := range schools {
+		results = append(results, fiber.Map{
+			"id":     s.ID.String(),
+			"name":   s.Name,
+			"status": "Pendaftaran Buka",
+		})
+	}
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{"data": results})
 }
 
 func (h *SpmbHandler) GetPublicSchools(c *fiber.Ctx) error {
@@ -42,7 +55,7 @@ func (h *SpmbHandler) RegisterSpmb(c *fiber.Ctx) error {
 
 	req.ID = uuid.New()
 	req.ParentID = uuid.MustParse(claims.UserID)
-	req.TenantID = uuid.MustParse(claims.TenantID)
+	// TenantID is already populated by BodyParser from the request payload
 	req.RegistrationStatus = "PENDING"
 	req.CreatedAt = time.Now()
 
@@ -78,4 +91,23 @@ func (h *SpmbHandler) ApproveRegistration(c *fiber.Ctx) error {
 
 func (h *SpmbHandler) ReRegister(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusNotImplemented).JSON(fiber.Map{"message": "ReRegister endpoint stub"})
+}
+
+func (h *SpmbHandler) GetMyApplications(c *fiber.Ctx) error {
+	claims, ok := c.Locals("claims").(*middleware.Claims)
+	if !ok || claims == nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "unauthorized"})
+	}
+
+	parentID, err := uuid.Parse(claims.UserID)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid user ID"})
+	}
+
+	apps, err := h.usecase.GetMyApplications(c.Context(), parentID)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{"data": apps})
 }

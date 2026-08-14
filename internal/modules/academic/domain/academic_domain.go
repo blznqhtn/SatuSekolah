@@ -88,6 +88,13 @@ type AcademicRepository interface {
 	// Assignment Targets
 	CreateAssignmentTarget(ctx context.Context, target *AssignmentTarget) error
 	GetTargetsForSource(ctx context.Context, sourceType SourceType, sourceID uuid.UUID) ([]*AssignmentTarget, error)
+
+	// Users/Core Helper
+	GetClassIDByStudentID(ctx context.Context, studentID uuid.UUID) (*uuid.UUID, error)
+
+	// Schedules
+	GetSchedulesByClassAndDay(ctx context.Context, tenantID, classID uuid.UUID, dayOfWeek int) ([]*ScheduleResponseDTO, error)
+	GetScheduleChangesByDate(ctx context.Context, tenantID, classID uuid.UUID, date time.Time) ([]*ScheduleChange, error)
 }
 
 type AcademicUsecase interface {
@@ -103,4 +110,70 @@ type AcademicUsecase interface {
 
 	AssignTarget(ctx context.Context, target *AssignmentTarget) error
 	GetTargetsForSource(ctx context.Context, sourceType SourceType, sourceID uuid.UUID) ([]*AssignmentTarget, error)
+
+	// Schedules
+	GetStudentSchedules(ctx context.Context, tenantID, studentID uuid.UUID, dayOfWeek int) ([]*ScheduleResponseDTO, error)
 }
+
+// ==========================================
+// SCHEDULES
+// ==========================================
+
+type ActivityType string
+
+const (
+	ActivitySubject         ActivityType = "SUBJECT"
+	ActivityCeremony        ActivityType = "CEREMONY"
+	ActivityBreak           ActivityType = "BREAK"
+	ActivityExtracurricular ActivityType = "EXTRACURRICULAR"
+	ActivityExam            ActivityType = "EXAM"
+	ActivityEvent           ActivityType = "EVENT"
+)
+
+type ClassSchedule struct {
+	ID           uuid.UUID    `json:"id"`
+	TenantID     uuid.UUID    `json:"tenant_id"`
+	ClassID      uuid.UUID    `json:"class_id"`
+	CourseID     *uuid.UUID   `json:"course_id,omitempty"`
+	StaffID      *uuid.UUID   `json:"staff_id,omitempty"`
+	DayOfWeek    int          `json:"day_of_week"`
+	StartTime    string       `json:"start_time"`
+	EndTime      string       `json:"end_time"`
+	Room         string       `json:"room"`
+	ActivityType ActivityType `json:"activity_type"`
+	ActivityName string       `json:"activity_name"`
+	Description  string       `json:"description"`
+	Link         string       `json:"link"`
+	CreatedAt    time.Time    `json:"created_at"`
+	UpdatedAt    time.Time    `json:"updated_at"`
+}
+
+type ScheduleChange struct {
+	ID           uuid.UUID  `json:"id"`
+	TenantID     uuid.UUID  `json:"tenant_id"`
+	ScheduleID   uuid.UUID  `json:"schedule_id"`
+	ChangeDate   time.Time  `json:"change_date"`
+	NewStaffID   *uuid.UUID `json:"new_staff_id,omitempty"`
+	NewStartTime string     `json:"new_start_time,omitempty"`
+	NewEndTime   string     `json:"new_end_time,omitempty"`
+	NewRoom      string     `json:"new_room,omitempty"`
+	Notes        string     `json:"notes,omitempty"`
+}
+
+type ScheduleResponseDTO struct {
+	ScheduleID    uuid.UUID    `json:"schedule_id"`
+	DayOfWeek     int          `json:"day_of_week"`
+	StartTime     string       `json:"start_time"`
+	EndTime       string       `json:"end_time"`
+	Room          string       `json:"room"`
+	ActivityType  ActivityType `json:"activity_type"`
+	ActivityName  string       `json:"activity_name"`
+	CourseName    string       `json:"course_name,omitempty"`
+	StaffName     string       `json:"staff_name,omitempty"`
+	Description   string       `json:"description,omitempty"`
+	Link          string       `json:"link,omitempty"`
+	IsChanged     bool         `json:"is_changed"`
+	ChangeNotes   string       `json:"change_notes,omitempty"`
+	OriginalStaff string       `json:"original_staff,omitempty"`
+}
+

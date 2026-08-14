@@ -166,3 +166,80 @@ func (u *healthUsecase) ForceStopCycleAndRibbon(ctx context.Context, cycleID uui
 
 	return nil
 }
+
+// ==========================================
+// UKS Health Endpoints
+// ==========================================
+
+func (u *healthUsecase) AddHealthCheckup(ctx context.Context, req *healthDomain.HealthCheckup) error {
+	req.Date = time.Now()
+	return u.repo.CreateHealthCheckup(ctx, req)
+}
+
+func (u *healthUsecase) GetStudentCheckups(ctx context.Context, tenantID, studentID uuid.UUID) ([]*healthDomain.HealthCheckup, error) {
+	return u.repo.GetStudentCheckups(ctx, tenantID, studentID)
+}
+
+func (u *healthUsecase) GetStudentHealthSummary(ctx context.Context, tenantID, studentID uuid.UUID) (*healthDomain.HealthSummaryDTO, error) {
+	latest, err := u.repo.GetLatestCheckup(ctx, tenantID, studentID)
+	if err != nil {
+		return nil, err
+	}
+
+	summary := &healthDomain.HealthSummaryDTO{
+		Trends: []healthDomain.HealthTrendPoint{},
+	}
+
+	if latest != nil {
+		summary.LatestCheckupDate = &latest.Date
+		summary.Weight = latest.Weight
+		summary.Height = latest.Height
+		summary.Temperature = latest.Temperature
+		summary.BloodPressure = latest.BloodPressure
+
+		if latest.Height > 0 {
+			heightInMeters := latest.Height / 100.0
+			summary.BMI = latest.Weight / (heightInMeters * heightInMeters)
+			
+			if summary.BMI < 18.5 {
+				summary.StatusGizi = healthDomain.NutritionUnderweight
+			} else if summary.BMI >= 18.5 && summary.BMI <= 24.9 {
+				summary.StatusGizi = healthDomain.NutritionNormal
+			} else if summary.BMI >= 25.0 && summary.BMI <= 29.9 {
+				summary.StatusGizi = healthDomain.NutritionOverweight
+			} else {
+				summary.StatusGizi = healthDomain.NutritionObese
+			}
+		} else {
+			summary.StatusGizi = healthDomain.NutritionNormal // Default fallback
+		}
+	} else {
+		// Fallback empty data
+		summary.StatusGizi = healthDomain.NutritionNormal
+	}
+
+	// Fetch trends (we can fetch all checkups and map them to trends)
+	allCheckups, err := u.repo.GetStudentCheckups(ctx, tenantID, studentID)
+	if err == nil {
+		// To show trends chronologically, we reverse the array since it comes DESC
+		for i := len(allCheckups) - 1; i >= 0; i-- {
+			c := allCheckups[i]
+			summary.Trends = append(summary.Trends, healthDomain.HealthTrendPoint{
+				Date:   c.Date.Format("2006-01-02"),
+				Weight: c.Weight,
+				Height: c.Height,
+			})
+		}
+	}
+
+	return summary, nil
+}
+
+func (u *healthUsecase) GetStudentMedicalHistory(ctx context.Context, tenantID, studentID uuid.UUID) (*healthDomain.MedicalHistory, error) {
+	return u.repo.GetMedicalHistory(ctx, tenantID, studentID)
+}
+
+func (u *healthUsecase) UpdateMedicalHistory(ctx context.Context, history *healthDomain.MedicalHistory) error {
+	return u.repo.UpsertMedicalHistory(ctx, history)
+}
+

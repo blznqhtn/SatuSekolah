@@ -134,3 +134,25 @@ func (h *AcademicHandler) AssignTarget(c *fiber.Ctx) error {
 	}
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{"message": "target assigned", "data": target})
 }
+
+// ==========================================
+// SCHEDULES
+// ==========================================
+
+// GET /api/v1/academic/schedules/student/day/:dayOfWeek — Student: view their schedules
+func (h *AcademicHandler) GetStudentSchedules(c *fiber.Ctx) error {
+	claims := c.Locals("claims").(*middleware.Claims)
+	studentID, _ := uuid.Parse(claims.UserID)
+	tenantID, _ := uuid.Parse(claims.TenantID)
+
+	dayOfWeek, err := c.ParamsInt("dayOfWeek")
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid dayOfWeek param"})
+	}
+
+	schedules, err := h.uc.GetStudentSchedules(c.Context(), tenantID, studentID, dayOfWeek)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{"data": schedules})
+}

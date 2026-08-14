@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/google/uuid"
 	"neuracakrawira.asia/satu-sekolah-backend/internal/modules/academic/domain"
@@ -65,4 +66,73 @@ func (u *academicUsecase) AssignTarget(ctx context.Context, target *domain.Assig
 
 func (u *academicUsecase) GetTargetsForSource(ctx context.Context, sourceType domain.SourceType, sourceID uuid.UUID) ([]*domain.AssignmentTarget, error) {
 	return u.repo.GetTargetsForSource(ctx, sourceType, sourceID)
+}
+
+func (u *academicUsecase) GetStudentSchedules(ctx context.Context, tenantID, studentID uuid.UUID, dayOfWeek int) ([]*domain.ScheduleResponseDTO, error) {
+	// 1. Get Class ID for student
+	classIDPtr, err := u.repo.GetClassIDByStudentID(ctx, studentID)
+	if err != nil {
+		return nil, err
+	}
+	if classIDPtr == nil {
+		return nil, errors.New("student does not have a class assigned")
+	}
+
+	// 2. Get base schedules
+	schedules, err := u.repo.GetSchedulesByClassAndDay(ctx, tenantID, *classIDPtr, dayOfWeek)
+	if err != nil {
+		return nil, err
+	}
+
+	// 3. Get schedule changes for the upcoming date that matches dayOfWeek
+	// For simplicity, let's just find the next date that corresponds to dayOfWeek
+	now := time.Now()
+	daysUntilTarget := (dayOfWeek - int(now.Weekday())) % 7
+	if daysUntilTarget < 0 {
+		daysUntilTarget += 7
+	}
+	// If today is the target day, we check today's changes
+	targetDate := now.AddDate(0, 0, daysUntilTarget)
+
+	changes, err := u.repo.GetScheduleChangesByDate(ctx, tenantID, *classIDPtr, targetDate)
+	if err != nil {
+		// Log error, but don't fail the whole request
+		return schedules, nil
+	}
+
+	// 4. Apply changes to schedules
+	changeMap := make(map[uuid.UUID]*domain.ScheduleChange)
+	for _, ch := range changes {
+		changeMap[ch.ScheduleID] = ch
+	}
+
+	for _, s := range schedules {
+		if ch, exists := changeMap[s.ScheduleID]; exists {
+			s.IsChanged = true
+			if ch.NewStartTime != "" {
+				s.StartTime = ch.NewStartTime
+				if len(s.StartTime) > 5 {
+					s.StartTime = s.StartTime[:5]
+				}
+			}
+			if ch.NewEndTime != "" {
+				s.EndTime = ch.NewEndTime
+				if len(s.EndTime) > 5 {
+					s.EndTime = s.EndTime[:5]
+				}
+			}
+			if ch.NewRoom != "" {
+				s.Room = ch.NewRoom
+			}
+			if ch.Notes != "" {
+				s.ChangeNotes = ch.Notes
+			}
+			if ch.NewStaffID != nil {
+				// We'd ideally join users to get the new staff name, but for now we'll just indicate it changed
+				s.StaffName = "Guru Pengganti" 
+			}
+		}
+	}
+
+	return schedules, nil
 }

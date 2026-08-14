@@ -56,7 +56,7 @@ func (r *ledgerRepository) GetLatestLedger(ctx context.Context, tenantID, userID
 	query := `
 		SELECT id, tenant_id, user_id, transaction_type, amount, fee, reference_type, reference_id, previous_hash, current_hash, created_at
 		FROM wallet_ledgers 
-		WHERE tenant_id = $1 AND user_id = $2
+		WHERE tenant_id = ? AND user_id = ?
 		ORDER BY created_at DESC 
 		LIMIT 1
 	`
@@ -84,7 +84,7 @@ func (r *ledgerRepository) AppendLedger(ctx context.Context, ledger *domain.Wall
 		INSERT INTO wallet_ledgers (
 			tenant_id, user_id, transaction_type, amount, fee, reference_type, reference_id, previous_hash, current_hash
 		) VALUES (
-			$1, $2, $3, $4, $5, $6, $7, $8, $9
+			?, ?, ?, ?, ?, ?, ?, ?, ?
 		) RETURNING id, created_at
 	`
 	err := r.queryRow(ctx, query,
@@ -96,7 +96,7 @@ func (r *ledgerRepository) AppendLedger(ctx context.Context, ledger *domain.Wall
 }
 
 func (r *ledgerRepository) UpdateCachedBalance(ctx context.Context, userID uuid.UUID, newBalance float64) error {
-	query := `UPDATE users SET wallet_balance = $1 WHERE id = $2`
+	query := `UPDATE users SET wallet_balance = ? WHERE id = ?`
 	_, err := r.exec(ctx, query, newBalance, userID)
 	return err
 }
@@ -107,7 +107,7 @@ func (r *ledgerRepository) GetAggregatedBalance(ctx context.Context, userID uuid
 			COALESCE(SUM(CASE WHEN transaction_type = 'CREDIT' THEN amount ELSE 0 END), 0) -
 			COALESCE(SUM(CASE WHEN transaction_type = 'DEBIT' THEN amount ELSE 0 END), 0) AS actual_balance
 		FROM wallet_ledgers
-		WHERE user_id = $1
+		WHERE user_id = ?
 	`
 	var balance float64
 	err := r.queryRow(ctx, query, userID).Scan(&balance)
@@ -118,7 +118,7 @@ func (r *ledgerRepository) GetTransactionHistory(ctx context.Context, tenantID, 
 	query := `
 		SELECT id, tenant_id, user_id, transaction_type, amount, fee, reference_type, reference_id, previous_hash, current_hash, created_at
 		FROM wallet_ledgers
-		WHERE tenant_id = $1 AND user_id = $2
+		WHERE tenant_id = ? AND user_id = ?
 		ORDER BY created_at DESC
 	`
 	rows, err := r.db.QueryContext(ctx, query, tenantID, userID)

@@ -103,10 +103,13 @@ func (h *ViolationHandler) GetUserViolationHistory(c *fiber.Ctx) error {
 	claims := c.Locals("claims").(*middleware.Claims)
 	tenantID, _ := uuid.Parse(claims.TenantID)
 
-	userIDStr := c.Params("user_id")
-	userID, err := uuid.Parse(userIDStr)
-	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid user_id"})
+	userID, _ := uuid.Parse(claims.UserID)
+
+	studentIDStr := c.Query("child_id")
+	if studentIDStr != "" {
+		if parsed, err := uuid.Parse(studentIDStr); err == nil {
+			userID = parsed
+		}
 	}
 
 	violations, totalPoints, err := h.uc.GetUserViolationHistory(c.Context(), tenantID, userID)

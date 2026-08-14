@@ -33,6 +33,60 @@ type LeaderboardRow struct {
 	Rank        int       `json:"rank"`
 }
 
+// ==========================================
+// REPORT CARD RESPONSES (API DTOs)
+// ==========================================
+
+type ReportCardSummaryDTO struct {
+	AverageScore    float64 `json:"average_score"`
+	ClassRank       int     `json:"class_rank"`
+	HomeroomTeacher string  `json:"homeroom_teacher"`
+	ActiveSemester  string  `json:"active_semester"`
+	AcademicYear    string  `json:"academic_year"`
+	HomeroomNotes   string  `json:"homeroom_notes"`
+}
+
+type SubjectGradeDTO struct {
+	CourseID              uuid.UUID `json:"course_id"`
+	CourseName            string    `json:"course_name"`
+	FinalScore            float64   `json:"final_score"`
+	Predicate             string    `json:"predicate"`
+	KKM                   float64   `json:"kkm"`
+	IsPassed              bool      `json:"is_passed"`
+	AchievementPercentage float64   `json:"achievement_percentage"`
+}
+
+type ReportCardNoteDTO struct {
+	Category string `json:"category"`
+	Notes    string `json:"notes"`
+}
+
+type ReportCardResponseDTO struct {
+	Summary     ReportCardSummaryDTO `json:"summary"`
+	Subjects    []SubjectGradeDTO    `json:"subjects"`
+	ReportNotes []ReportCardNoteDTO  `json:"report_notes"`
+}
+
+type DetailedGradeComponentDTO struct {
+	ComponentName string  `json:"component_name"`
+	Score         float64 `json:"score"`
+	Weight        float64 `json:"weight"`
+}
+
+type DetailedSubjectGradeResponseDTO struct {
+	CourseName string                      `json:"course_name"`
+	Components []DetailedGradeComponentDTO `json:"components"`
+	FinalScore float64                     `json:"final_score"`
+	TeacherNotes string                    `json:"teacher_notes"`
+}
+
+type SemesterHistoryDTO struct {
+	TermID         uuid.UUID `json:"term_id"`
+	TermName       string    `json:"term_name"`
+	AcademicYear   string    `json:"academic_year"`
+	IsActive       bool      `json:"is_active"`
+}
+
 type ReportCardRepository interface {
 	// Transactions
 	ExecTx(ctx context.Context, fn func(repo ReportCardRepository) error) error
@@ -45,6 +99,12 @@ type ReportCardRepository interface {
 	// Leaderboard DB Ops
 	// Calculate and get the ranking dynamically
 	GetLeaderboard(ctx context.Context, tenantID uuid.UUID, termID uuid.UUID, filter LeaderboardFilter, filterID *uuid.UUID) ([]*LeaderboardRow, error)
+
+	// New Student Report Card Ops
+	GetStudentReportCardSummary(ctx context.Context, tenantID, studentID, termID uuid.UUID) (*ReportCardResponseDTO, error)
+	GetStudentDetailedGrades(ctx context.Context, tenantID, studentID, termID, courseID uuid.UUID) (*DetailedSubjectGradeResponseDTO, error)
+	GetStudentSemesters(ctx context.Context, tenantID, studentID uuid.UUID) ([]SemesterHistoryDTO, error)
+	UpdateReportCardNotes(ctx context.Context, tenantID, reportCardID, updatedBy uuid.UUID, notes []ReportCardNoteDTO) error
 
 	// Utils
 	GetCourseByName(ctx context.Context, tenantID uuid.UUID, courseName string) (*Course, error)
@@ -65,4 +125,11 @@ type ReportCardUsecase interface {
 
 	// Leaderboard Retrieval
 	GetLeaderboard(ctx context.Context, tenantID uuid.UUID, termID uuid.UUID, filter LeaderboardFilter, filterID string) ([]*LeaderboardRow, error)
+
+	// New endpoints for student
+	GetStudentReportCard(ctx context.Context, tenantID, studentID, termID uuid.UUID) (*ReportCardResponseDTO, error)
+	GetStudentDetailedGrades(ctx context.Context, tenantID, studentID, termID, courseID uuid.UUID) (*DetailedSubjectGradeResponseDTO, error)
+	GetStudentSemesters(ctx context.Context, tenantID, studentID uuid.UUID) ([]SemesterHistoryDTO, error)
+	UpdateReportCardNotes(ctx context.Context, tenantID, reportCardID, updatedBy uuid.UUID, notes []ReportCardNoteDTO) error
+	GenerateReportCardPDF(ctx context.Context, tenantID, studentID, termID uuid.UUID) ([]byte, error)
 }

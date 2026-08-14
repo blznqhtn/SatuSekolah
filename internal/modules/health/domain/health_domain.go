@@ -98,6 +98,13 @@ type HealthRepository interface {
 	UpdateRibbon(ctx context.Context, ribbon *RibbonBorrowing) error
 	
 	GetOverdueCyclesAndRibbons(ctx context.Context, tenantID uuid.UUID) ([]*MenstrualCycle, []*RibbonBorrowing, error)
+
+	// UKS Health Endpoints
+	CreateHealthCheckup(ctx context.Context, checkup *HealthCheckup) error
+	GetStudentCheckups(ctx context.Context, tenantID, studentID uuid.UUID) ([]*HealthCheckup, error)
+	GetLatestCheckup(ctx context.Context, tenantID, studentID uuid.UUID) (*HealthCheckup, error)
+	GetMedicalHistory(ctx context.Context, tenantID, studentID uuid.UUID) (*MedicalHistory, error)
+	UpsertMedicalHistory(ctx context.Context, history *MedicalHistory) error
 }
 
 type HealthUsecase interface {
@@ -115,4 +122,71 @@ type HealthUsecase interface {
 	// Admin overrides
 	GetOverdueWatchlist(ctx context.Context, tenantID, adminID uuid.UUID) ([]*MenstrualCycle, []*RibbonBorrowing, error)
 	ForceStopCycleAndRibbon(ctx context.Context, cycleID uuid.UUID, adminID uuid.UUID, sanctionNotes string) error
+
+	// UKS Health Endpoints
+	AddHealthCheckup(ctx context.Context, req *HealthCheckup) error
+	GetStudentCheckups(ctx context.Context, tenantID, studentID uuid.UUID) ([]*HealthCheckup, error)
+	GetStudentHealthSummary(ctx context.Context, tenantID, studentID uuid.UUID) (*HealthSummaryDTO, error)
+	GetStudentMedicalHistory(ctx context.Context, tenantID, studentID uuid.UUID) (*MedicalHistory, error)
+	UpdateMedicalHistory(ctx context.Context, history *MedicalHistory) error
+}
+
+// ==========================================
+// UKS DOMAIN & MODELS
+// ==========================================
+
+type HealthCheckup struct {
+	ID             uuid.UUID `json:"id"`
+	TenantID       uuid.UUID `json:"tenant_id"`
+	StudentID      uuid.UUID `json:"student_id"`
+	ExaminerID     uuid.UUID `json:"examiner_id"`
+	ExaminerName   string    `json:"examiner_name,omitempty"`
+	Date           time.Time `json:"date"`
+	Temperature    float64   `json:"temperature"`
+	BloodPressure  string    `json:"blood_pressure"`
+	Weight         float64   `json:"weight"`
+	Height         float64   `json:"height"`
+	Complaint      string    `json:"complaint"`
+	Diagnosis      string    `json:"diagnosis"`
+	Treatment      string    `json:"treatment"`
+	Notes          string    `json:"notes"`
+	CreatedAt      time.Time `json:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
+}
+
+type MedicalHistory struct {
+	ID                uuid.UUID `json:"id"`
+	TenantID          uuid.UUID `json:"tenant_id"`
+	StudentID         uuid.UUID `json:"student_id"`
+	BloodType         string    `json:"blood_type"`
+	Allergies         string    `json:"allergies"`
+	ChronicDiseases   string    `json:"chronic_diseases"`
+	SpecialConditions string    `json:"special_conditions"`
+	UpdatedAt         time.Time `json:"updated_at"`
+}
+
+type NutritionStatus string
+
+const (
+	NutritionUnderweight NutritionStatus = "Kurang Gizi"
+	NutritionNormal      NutritionStatus = "Normal"
+	NutritionOverweight  NutritionStatus = "Kelebihan Berat Badan"
+	NutritionObese       NutritionStatus = "Obesitas"
+)
+
+type HealthTrendPoint struct {
+	Date   string  `json:"date"`
+	Weight float64 `json:"weight"`
+	Height float64 `json:"height"`
+}
+
+type HealthSummaryDTO struct {
+	LatestCheckupDate *time.Time         `json:"latest_checkup_date"`
+	Weight            float64            `json:"weight"`
+	Height            float64            `json:"height"`
+	Temperature       float64            `json:"temperature"`
+	BloodPressure     string             `json:"blood_pressure"`
+	BMI               float64            `json:"bmi"`
+	StatusGizi        NutritionStatus    `json:"status_gizi"`
+	Trends            []HealthTrendPoint `json:"trends"`
 }

@@ -175,3 +175,123 @@ func (r *healthRepository) GetOverdueCyclesAndRibbons(ctx context.Context, tenan
 
 	return cycles, ribbons, nil
 }
+
+// ==========================================
+// UKS Health Endpoints
+// ==========================================
+
+func (r *healthRepository) CreateHealthCheckup(ctx context.Context, checkup *domain.HealthCheckup) error {
+	if checkup.ID == uuid.Nil {
+		checkup.ID = uuid.New()
+	}
+	_, err := r.db.ExecContext(ctx, `
+		INSERT INTO health_checkups 
+		(id, tenant_id, student_id, examiner_id, date, temperature, blood_pressure, weight, height, complaint, diagnosis, treatment, notes)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, checkup.ID, checkup.TenantID, checkup.StudentID, checkup.ExaminerID, checkup.Date, checkup.Temperature, checkup.BloodPressure, checkup.Weight, checkup.Height, checkup.Complaint, checkup.Diagnosis, checkup.Treatment, checkup.Notes)
+	return err
+}
+
+func (r *healthRepository) GetStudentCheckups(ctx context.Context, tenantID, studentID uuid.UUID) ([]*domain.HealthCheckup, error) {
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT 
+			c.id, c.tenant_id, c.student_id, c.examiner_id, c.date, c.temperature, 
+			c.blood_pressure, c.weight, c.height, c.complaint, c.diagnosis, 
+			c.treatment, c.notes, c.created_at, c.updated_at,
+			COALESCE(u.name, 'Petugas UKS') as examiner_name
+		FROM health_checkups c
+		LEFT JOIN users u ON c.examiner_id = u.id
+		WHERE c.tenant_id = ? AND c.student_id = ?
+		ORDER BY c.date DESC
+	`, tenantID, studentID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var list []*domain.HealthCheckup
+	for rows.Next() {
+		var c domain.HealthCheckup
+		var examinerName sql.NullString
+		var updated sql.NullTime
+		if err := rows.Scan(&c.ID, &c.TenantID, &c.StudentID, &c.ExaminerID, &c.Date, &c.Temperature, &c.BloodPressure, &c.Weight, &c.Height, &c.Complaint, &c.Diagnosis, &c.Treatment, &c.Notes, &c.CreatedAt, &updated, &examinerName); err != nil {
+			return nil, err
+		}
+		if updated.Valid {
+			c.UpdatedAt = updated.Time
+		}
+		if examinerName.Valid {
+			c.ExaminerName = examinerName.String
+		}
+		list = append(list, &c)
+	}
+	return list, nil
+}
+
+func (r *healthRepository) GetLatestCheckup(ctx context.Context, tenantID, studentID uuid.UUID) (*domain.HealthCheckup, error) {
+	var c domain.HealthCheckup
+	var examinerName sql.NullString
+	var updated sql.NullTime
+	err := r.db.QueryRowContext(ctx, `
+		SELECT 
+			c.id, c.tenant_id, c.student_id, c.examiner_id, c.date, c.temperature, 
+			c.blood_pressure, c.weight, c.height, c.complaint, c.diagnosis, 
+			c.treatment, c.notes, c.created_at, c.updated_at,
+			COALESCE(u.name, 'Petugas UKS') as examiner_name
+		FROM health_checkups c
+		LEFT JOIN users u ON c.examiner_id = u.id
+		WHERE c.tenant_id = ? AND c.student_id = ?
+		ORDER BY c.date DESC LIMIT 1
+	`, tenantID, studentID).Scan(&c.ID, &c.TenantID, &c.StudentID, &c.ExaminerID, &c.Date, &c.Temperature, &c.BloodPressure, &c.Weight, &c.Height, &c.Complaint, &c.Diagnosis, &c.Treatment, &c.Notes, &c.CreatedAt, &updated, &examinerName)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	if updated.Valid {
+		c.UpdatedAt = updated.Time
+	}
+	if examinerName.Valid {
+		c.ExaminerName = examinerName.String
+	}
+	return &c, nil
+}
+
+func (r *healthRepository) GetMedicalHistory(ctx context.Context, tenantID, studentID uuid.UUID) (*domain.MedicalHistory, error) {
+	var h domain.MedicalHistory
+	var updated sql.NullTime
+	err := r.db.QueryRowContext(ctx, `
+		SELECT id, tenant_id, student_id, blood_type, allergies, chronic_diseases, special_conditions, updated_at
+		FROM health_medical_history
+		WHERE tenant_id = ? AND student_id = ?
+	`, tenantID, studentID).Scan(&h.ID, &h.TenantID, &h.StudentID, &h.BloodType, &h.Allergies, &h.ChronicDiseases, &h.SpecialConditions, &updated)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	if updated.Valid {
+		h.UpdatedAt = updated.Time
+	}
+	return &h, nil
+}
+
+func (r *healthRepository) UpsertMedicalHistory(ctx context.Context, history *domain.MedicalHistory) error {
+	if history.ID == uuid.Nil {
+		history.ID = uuid.New()
+	}
+	_, err := r.db.ExecContext(ctx, `
+		INSERT INTO health_medical_history 
+		(id, tenant_id, student_id, blood_type, allergies, chronic_diseases, special_conditions, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
+		ON DUPLICATE KEY UPDATE 
+			blood_type = VALUES(blood_type),
+			allergies = VALUES(allergies),
+			chronic_diseases = VALUES(chronic_diseases),
+			special_conditions = VALUES(special_conditions),
+			updated_at = NOW()
+	`, history.ID, history.TenantID, history.StudentID, history.BloodType, history.Allergies, history.ChronicDiseases, history.SpecialConditions)
+	return err
+}

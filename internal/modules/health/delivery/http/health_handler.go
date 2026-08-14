@@ -145,3 +145,104 @@ func (h *HealthHandler) ForceStopCycle(c *fiber.Ctx) error {
 	}
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{"message": "cycle and ribbon force-stopped"})
 }
+
+// ==========================================
+// UKS Health Endpoints
+// ==========================================
+
+// GET /api/v1/health/student/:studentId/summary
+func (h *HealthHandler) GetStudentHealthSummary(c *fiber.Ctx) error {
+	claims := c.Locals("claims").(*middleware.Claims)
+	tenantID, _ := uuid.Parse(claims.TenantID)
+	studentIDStr := c.Params("studentId")
+	studentID, err := uuid.Parse(studentIDStr)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid student_id"})
+	}
+
+	summary, err := h.uc.GetStudentHealthSummary(c.Context(), tenantID, studentID)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{"message": "success", "data": summary})
+}
+
+// GET /api/v1/health/student/:studentId/checkups
+func (h *HealthHandler) GetStudentCheckups(c *fiber.Ctx) error {
+	claims := c.Locals("claims").(*middleware.Claims)
+	tenantID, _ := uuid.Parse(claims.TenantID)
+	studentIDStr := c.Params("studentId")
+	studentID, err := uuid.Parse(studentIDStr)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid student_id"})
+	}
+
+	checkups, err := h.uc.GetStudentCheckups(c.Context(), tenantID, studentID)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{"message": "success", "data": checkups})
+}
+
+// POST /api/v1/health/checkups
+func (h *HealthHandler) AddHealthCheckup(c *fiber.Ctx) error {
+	claims := c.Locals("claims").(*middleware.Claims)
+	tenantID, _ := uuid.Parse(claims.TenantID)
+	examinerID, _ := uuid.Parse(claims.UserID)
+
+	var req domain.HealthCheckup
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
+	}
+	req.TenantID = tenantID
+	req.ExaminerID = examinerID
+
+	if err := h.uc.AddHealthCheckup(c.Context(), &req); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+	return c.Status(fiber.StatusCreated).JSON(fiber.Map{"message": "checkup added successfully", "data": req})
+}
+
+// GET /api/v1/health/student/:studentId/history
+func (h *HealthHandler) GetStudentMedicalHistory(c *fiber.Ctx) error {
+	claims := c.Locals("claims").(*middleware.Claims)
+	tenantID, _ := uuid.Parse(claims.TenantID)
+	studentIDStr := c.Params("studentId")
+	studentID, err := uuid.Parse(studentIDStr)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid student_id"})
+	}
+
+	history, err := h.uc.GetStudentMedicalHistory(c.Context(), tenantID, studentID)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+	// return empty struct instead of null if empty
+	if history == nil {
+		history = &domain.MedicalHistory{StudentID: studentID, TenantID: tenantID}
+	}
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{"message": "success", "data": history})
+}
+
+// PUT /api/v1/health/student/:studentId/history
+func (h *HealthHandler) UpdateMedicalHistory(c *fiber.Ctx) error {
+	claims := c.Locals("claims").(*middleware.Claims)
+	tenantID, _ := uuid.Parse(claims.TenantID)
+	studentIDStr := c.Params("studentId")
+	studentID, err := uuid.Parse(studentIDStr)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid student_id"})
+	}
+
+	var req domain.MedicalHistory
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
+	}
+	req.TenantID = tenantID
+	req.StudentID = studentID
+
+	if err := h.uc.UpdateMedicalHistory(c.Context(), &req); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{"message": "medical history updated successfully"})
+}

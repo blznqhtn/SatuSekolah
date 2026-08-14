@@ -56,3 +56,11 @@ func (h *TenantHandler) GetPermissions(c *fiber.Ctx) error {
 	}
 	return c.Status(fiber.StatusOK).JSON(perms)
 }
+
+func (h *TenantHandler) GetFaqs(c *fiber.Ctx) error {
+	faqs, err := h.usecase.GetFaqs(c.Context())
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{"data": faqs})
+}

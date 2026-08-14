@@ -147,7 +147,7 @@ func (r *coreRepository) GetTenantByDomain(ctx context.Context, domainStr string
 	return &tenant, nil
 }
 
-<<<<<<< HEAD
+
 func (r *coreRepository) GetFirstTenant(ctx context.Context) (*domain.Tenant, error) {
 	query := `
 		SELECT id, name, bank_code, npsn, domain, address, phone, email, logo_url, created_at, updated_at, deleted_at
@@ -293,11 +293,7 @@ func (r *coreRepository) CreateUser(ctx context.Context, user *domain.User) erro
 
 func (r *coreRepository) AssignRoleToUser(ctx context.Context, userID, roleID uuid.UUID) error {
 	query := `
-<<<<<<< HEAD
 		INSERT IGNORE INTO user_roles (user_id, role_id)
-=======
-		INSERT INTO user_roles (user_id, role_id)
->>>>>>> e5857863b27c56e35ac480429ef1f9bfdbfee615
 		VALUES (?, ?)
 	`
 	_, err := r.exec(ctx, query, userID, roleID)
@@ -311,24 +307,14 @@ func (r *coreRepository) AssignRoleToUser(ctx context.Context, userID, roleID uu
 
 func (r *coreRepository) GetUserByLoginIdentifier(ctx context.Context, identifier string) (*domain.User, error) {
 	query := `
-<<<<<<< HEAD
 		SELECT id, tenant_id, category, name, email, phone, address, avatar_url, password_hash, created_at
-		FROM users WHERE email = ? AND deleted_at IS NULL
-		LIMIT 1
-	`
-	var user domain.User
-	err := r.db.QueryRowContext(ctx, query, email).Scan(
-		&user.ID, &user.TenantID, &user.Category, &user.Name, &user.Email, &user.Phone, &user.Address, &user.AvatarURL, &user.Password, &user.CreatedAt,
-=======
-		SELECT id, tenant_id, category, name, email, password_hash, created_at
 		FROM users 
 		WHERE (email = ? OR username = ? OR nisn = ? OR npk = ?) AND deleted_at IS NULL
 		LIMIT 1
 	`
 	var user domain.User
 	err := r.db.QueryRowContext(ctx, query, identifier, identifier, identifier, identifier).Scan(
-		&user.ID, &user.TenantID, &user.Category, &user.Name, &user.Email, &user.Password, &user.CreatedAt,
->>>>>>> e5857863b27c56e35ac480429ef1f9bfdbfee615
+		&user.ID, &user.TenantID, &user.Category, &user.Name, &user.Email, &user.Phone, &user.Address, &user.AvatarURL, &user.Password, &user.CreatedAt,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -536,4 +522,87 @@ func (r *coreRepository) CheckSpmbCompleted(ctx context.Context, parentID uuid.U
 		return false, err
 	}
 	return count > 0, nil
+}
+
+func (r *coreRepository) UpdateUserPassword(ctx context.Context, userID uuid.UUID, newPassword string) error {
+	hashed, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+	query := `UPDATE users SET password_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`
+	_, err = r.db.ExecContext(ctx, query, string(hashed), userID)
+	return err
+}
+
+func (r *coreRepository) GetNotificationSettings(ctx context.Context, userID uuid.UUID) (map[string]bool, error) {
+	query := `SELECT email_notif, push_notif, sms_notif FROM user_notification_settings WHERE user_id = ?`
+	var email, push, sms bool
+	err := r.db.QueryRowContext(ctx, query, userID).Scan(&email, &push, &sms)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			// default settings
+			return map[string]bool{"email_notif": true, "push_notif": true, "sms_notif": false}, nil
+		}
+		return nil, err
+	}
+	return map[string]bool{"email_notif": email, "push_notif": push, "sms_notif": sms}, nil
+}
+
+func (r *coreRepository) UpdateNotificationSettings(ctx context.Context, userID uuid.UUID, settings map[string]bool) error {
+	query := `
+		INSERT INTO user_notification_settings (user_id, email_notif, push_notif, sms_notif)
+		VALUES (?, ?, ?, ?)
+		ON DUPLICATE KEY UPDATE 
+			email_notif = VALUES(email_notif), 
+			push_notif = VALUES(push_notif), 
+			sms_notif = VALUES(sms_notif)
+	`
+	_, err := r.db.ExecContext(ctx, query, userID, settings["email_notif"], settings["push_notif"], settings["sms_notif"])
+	return err
+}
+
+func (r *coreRepository) GetFaqs(ctx context.Context) ([]*domain.Faq, error) {
+	query := `SELECT id, question, answer, category, created_at FROM faqs ORDER BY created_at DESC`
+	rows, err := r.db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var faqs []*domain.Faq
+	for rows.Next() {
+		var f domain.Faq
+		if err := rows.Scan(&f.ID, &f.Question, &f.Answer, &f.Category, &f.CreatedAt); err != nil {
+			return nil, err
+		}
+		faqs = append(faqs, &f)
+	}
+	return faqs, nil
+}
+
+func (r *coreRepository) GetChildrenByParentID(ctx context.Context, parentID uuid.UUID) ([]*domain.User, error) {
+	query := `
+		SELECT id, name, COALESCE(avatar_url, ''), COALESCE(nisn, ''), 'student' as category
+		FROM users
+		WHERE parent_id = ? AND category = 'student'
+		UNION ALL
+		SELECT id, student_name as name, COALESCE(photo_url, ''), COALESCE(nisn, ''), 'spmb' as category
+		FROM spmb_registrations
+		WHERE parent_id = ? AND registration_status != 'DITERIMA'
+	`
+	rows, err := r.db.QueryContext(ctx, query, parentID, parentID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var children []*domain.User
+	for rows.Next() {
+		var u domain.User
+		if err := rows.Scan(&u.ID, &u.Name, &u.AvatarURL, &u.Nisn, &u.Category); err != nil {
+			return nil, err
+		}
+		children = append(children, &u)
+	}
+	return children, nil
 }

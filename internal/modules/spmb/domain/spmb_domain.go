@@ -78,10 +78,12 @@ type SpmbRepository interface {
 	GetPublicSchools(ctx context.Context) ([]*PublicSchoolInfo, error)
 	CreateRegistration(ctx context.Context, reg *SpmbRegistration) error
 	UpdateRegistrationStatus(ctx context.Context, id uuid.UUID, status string) error
+	GetMyApplications(ctx context.Context, parentID uuid.UUID) ([]*SpmbRegistration, error)
 }
 
 type SpmbUsecase interface {
 	GetPublicSchools(ctx context.Context) ([]*PublicSchoolInfo, error)
 	RegisterSpmb(ctx context.Context, reg *SpmbRegistration) error
 	UpdateRegistrationStatus(ctx context.Context, id uuid.UUID, status string) error
+	GetMyApplications(ctx context.Context, parentID uuid.UUID) ([]*SpmbRegistration, error)
 }

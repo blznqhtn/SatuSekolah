@@ -1,0 +1,53 @@
+CREATE TABLE IF NOT EXISTS payment_categories (
+    id CHAR(36) PRIMARY KEY,
+    tenant_id CHAR(36) NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS payment_bills (
+    id CHAR(36) PRIMARY KEY,
+    tenant_id CHAR(36) NOT NULL,
+    student_id CHAR(36) NOT NULL,
+    category_id CHAR(36) NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    total_amount DECIMAL(15,2) NOT NULL DEFAULT 0,
+    paid_amount DECIMAL(15,2) NOT NULL DEFAULT 0,
+    status VARCHAR(50) NOT NULL DEFAULT 'PENDING', -- PENDING, PAID, CANCELLED, EXPIRED
+    due_date DATE NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE,
+    FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (category_id) REFERENCES payment_categories(id) ON DELETE CASCADE,
+    INDEX idx_bill_student (student_id, status)
+);
+
+CREATE TABLE IF NOT EXISTS payment_bill_details (
+    id CHAR(36) PRIMARY KEY,
+    bill_id CHAR(36) NOT NULL,
+    item_name VARCHAR(255) NOT NULL,
+    amount DECIMAL(15,2) NOT NULL,
+    is_deduction BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (bill_id) REFERENCES payment_bills(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS payment_transactions (
+    id CHAR(36) PRIMARY KEY,
+    tenant_id CHAR(36) NOT NULL,
+    bill_id CHAR(36) NOT NULL,
+    student_id CHAR(36) NOT NULL,
+    amount DECIMAL(15,2) NOT NULL,
+    payment_method VARCHAR(100) NOT NULL, -- e.g., 'IN_APP_WALLET', 'VA_BCA', 'MANUAL'
+    reference_no VARCHAR(100),
+    status VARCHAR(50) NOT NULL DEFAULT 'SUCCESS', -- PENDING, SUCCESS, FAILED
+    paid_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE,
+    FOREIGN KEY (bill_id) REFERENCES payment_bills(id) ON DELETE CASCADE,
+    FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE
+);

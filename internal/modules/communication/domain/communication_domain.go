@@ -9,12 +9,10 @@ import (
 
 // ChatRoom represents a communication channel between two or more users.
 type ChatRoom struct {
-	ID             uuid.UUID `json:"id"`
-	TenantID       uuid.UUID `json:"tenant_id"`
-	Type           string    `json:"type"` // DIRECT, GROUP
-	ParticipantIDs string    `json:"participant_ids"` // JSON array string of user IDs
-	CreatedAt      time.Time `json:"created_at"`
-	UpdatedAt      time.Time `json:"updated_at"`
+	ID        uuid.UUID `json:"id"`
+	TenantID  uuid.UUID `json:"tenant_id"`
+	Type      string    `json:"type"` // DIRECT, GROUP
+	CreatedAt time.Time `json:"created_at"`
 }
 
 // ChatMessage represents an encrypted message in a chat room.
@@ -22,17 +20,21 @@ type ChatMessage struct {
 	ID         uuid.UUID `json:"id"`
 	RoomID     uuid.UUID `json:"room_id"`
 	SenderID   uuid.UUID `json:"sender_id"`
-	Ciphertext string    `json:"ciphertext"` // AES-256-GCM encrypted
-	CreatedAt  time.Time `json:"created_at"`
+	Ciphertext string    `json:"ciphertext"` // Encrypted with recipient's public key
+	SentAt     time.Time `json:"sent_at"`
 }
 
-// DecryptedMessage represents a message returned to the client.
-type DecryptedMessage struct {
-	ID        uuid.UUID `json:"id"`
-	RoomID    uuid.UUID `json:"room_id"`
-	SenderID  uuid.UUID `json:"sender_id"`
-	Content   string    `json:"content"` // Decrypted plain text
-	CreatedAt time.Time `json:"created_at"`
+// RoomSummary represents a chat room in the list of conversations.
+type RoomSummary struct {
+	RoomID          uuid.UUID `json:"room_id"`
+	ParticipantName string    `json:"participant_name"`
+	ParticipantID   uuid.UUID `json:"participant_id"`
+	Role            string    `json:"role"`
+	IsOnline        bool      `json:"is_online"`
+	LastMessage     string    `json:"last_message"`
+	LastMessageAt   time.Time `json:"last_message_at"`
+	UnreadCount     int       `json:"unread_count"`
+	PublicKey       string    `json:"public_key"`
 }
 
 // ChatContact represents a user that can be messaged.
@@ -53,11 +55,22 @@ type ContactListResponse struct {
 
 type CommunicationRepository interface {
 	CreateRoom(ctx context.Context, room *ChatRoom) error
-	GetRoomByID(ctx context.Context, roomID uuid.UUID) (*ChatRoom, error)
-	GetRoomsByUserID(ctx context.Context, userID uuid.UUID) ([]*ChatRoom, error)
+	AddParticipant(ctx context.Context, roomID, userID uuid.UUID) error
+	GetDirectRoom(ctx context.Context, user1, user2 uuid.UUID) (*ChatRoom, error)
+	GetRoomSummaries(ctx context.Context, tenantID, userID uuid.UUID) ([]*RoomSummary, error)
 	
 	SaveMessage(ctx context.Context, msg *ChatMessage) error
 	GetMessagesByRoomID(ctx context.Context, roomID uuid.UUID) ([]*ChatMessage, error)
 
-	GetContacts(ctx context.Context, tenantID, userID uuid.UUID, category string) ([]*ChatContact, error)
+	GetContactsForParent(ctx context.Context, tenantID, parentID uuid.UUID) (*ContactListResponse, error)
+	
+	UpdatePresence(ctx context.Context, userID uuid.UUID, isOnline bool) error
+}
+
+type CommunicationUsecase interface {
+	InitiateDirectChat(ctx context.Context, tenantID, senderID, receiverID uuid.UUID) (*RoomSummary, error)
+	GetRoomSummaries(ctx context.Context, tenantID, userID uuid.UUID) ([]*RoomSummary, error)
+	GetMessagesByRoomID(ctx context.Context, roomID uuid.UUID) ([]*ChatMessage, error)
+	GetContacts(ctx context.Context, tenantID, userID uuid.UUID, role string) (*ContactListResponse, error)
+	SaveMessage(ctx context.Context, roomID, senderID uuid.UUID, ciphertext string) (*ChatMessage, error)
 }

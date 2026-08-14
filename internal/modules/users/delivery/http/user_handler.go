@@ -48,7 +48,7 @@ func (h *UserHandler) RegisterParent(c *fiber.Ctx) error {
 	}
 
 	// Check if email already exists
-	existingUser, _ := h.repo.GetUserByEmail(c.Context(), req.Email)
+	existingUser, _ := h.repo.GetUserByLoginIdentifier(c.Context(), req.Email)
 	if existingUser != nil {
 		return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": "email already registered"})
 	}
@@ -322,7 +322,7 @@ func (h *UserHandler) GoogleLogin(c *fiber.Ctx) error {
 	}
 
 	// Check if user exists
-	user, err := h.repo.GetUserByEmail(c.Context(), email)
+	user, err := h.repo.GetUserByLoginIdentifier(c.Context(), email)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "database error"})
 	}
@@ -377,4 +377,111 @@ func (h *UserHandler) GoogleLogin(c *fiber.Ctx) error {
 			"permissions": permissions,
 		},
 	})
+}
+
+// GetNotificationSettings returns the authenticated user's notification settings
+// GET /api/v1/users/notification-settings (requires JWT)
+func (h *UserHandler) GetNotificationSettings(c *fiber.Ctx) error {
+	claims, ok := c.Locals("claims").(*middleware.Claims)
+	if !ok || claims == nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "unauthorized"})
+	}
+
+	userID, err := uuid.Parse(claims.UserID)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid user id"})
+	}
+
+	settings, err := h.repo.GetNotificationSettings(c.Context(), userID)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "could not fetch settings"})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{"data": settings})
+}
+
+// UpdateNotificationSettings updates the authenticated user's notification settings
+// PUT /api/v1/users/notification-settings (requires JWT)
+func (h *UserHandler) UpdateNotificationSettings(c *fiber.Ctx) error {
+	claims, ok := c.Locals("claims").(*middleware.Claims)
+	if !ok || claims == nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "unauthorized"})
+	}
+
+	userID, err := uuid.Parse(claims.UserID)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid user id"})
+	}
+
+	var req map[string]bool
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
+	}
+
+	if err := h.repo.UpdateNotificationSettings(c.Context(), userID, req); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "could not update settings"})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{"message": "settings updated successfully"})
+}
+
+// ChangePassword updates the authenticated user's password
+// PUT /api/v1/users/password (requires JWT)
+func (h *UserHandler) ChangePassword(c *fiber.Ctx) error {
+	claims, ok := c.Locals("claims").(*middleware.Claims)
+	if !ok || claims == nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "unauthorized"})
+	}
+
+	userID, err := uuid.Parse(claims.UserID)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid user id"})
+	}
+
+	var req struct {
+		OldPassword string `json:"old_password"`
+		NewPassword string `json:"new_password"`
+	}
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
+	}
+	if req.OldPassword == "" || req.NewPassword == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "old_password and new_password are required"})
+	}
+
+	user, err := h.repo.GetUserByID(c.Context(), userID)
+	if err != nil || user == nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "user not found"})
+	}
+
+	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.OldPassword)); err != nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "password lama tidak sesuai"})
+	}
+
+	if err := h.repo.UpdateUserPassword(c.Context(), userID, req.NewPassword); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "could not update password"})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{"message": "password updated successfully"})
+}
+
+// GetChildren returns the list of children for the authenticated parent
+// GET /api/v1/users/children (requires JWT)
+func (h *UserHandler) GetChildren(c *fiber.Ctx) error {
+	claims, ok := c.Locals("claims").(*middleware.Claims)
+	if !ok || claims == nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "unauthorized"})
+	}
+
+	userID, err := uuid.Parse(claims.UserID)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid user id"})
+	}
+
+	children, err := h.repo.GetChildrenByParentID(c.Context(), userID)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "could not fetch children"})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{"data": children})
 }

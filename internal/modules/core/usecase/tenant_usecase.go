@@ -99,3 +99,7 @@ func (uc *coreUsecase) CreateRole(ctx context.Context, tenantID uuid.UUID, name 
 func (uc *coreUsecase) GetSystemPermissions(ctx context.Context) ([]*domain.Permission, error) {
 	return uc.repo.GetSystemPermissions(ctx)
 }
+
+func (uc *coreUsecase) GetFaqs(ctx context.Context) ([]*domain.Faq, error) {
+	return uc.repo.GetFaqs(ctx)
+}

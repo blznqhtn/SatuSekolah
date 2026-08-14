@@ -233,4 +233,202 @@ func (r *reportCardRepository) GetStudentsByClass(ctx context.Context, tenantID,
 	return result, nil
 }
 
+func (r *reportCardRepository) GetStudentReportCardSummary(ctx context.Context, tenantID, studentID, termID uuid.UUID) (*domain.ReportCardResponseDTO, error) {
+	// First get the summary info
+	qSummary := `
+		SELECT 
+			rc.id, rc.class_rank, rc.homeroom_notes,
+			at.name as term_name, ay.name as year_name,
+			COALESCE(ht.name, 'Belum Ditentukan') as homeroom_teacher
+		FROM report_cards rc
+		JOIN academic_terms at ON rc.term_id = at.id
+		JOIN academic_years ay ON at.academic_year_id = ay.id
+		JOIN users u ON rc.student_id = u.id
+		LEFT JOIN classes c ON u.class_id = c.id
+		LEFT JOIN users ht ON c.staff_id = ht.id
+		WHERE rc.tenant_id = $1 AND rc.student_id = $2 AND rc.term_id = $3
+	`
+	var rcID uuid.UUID
+	var summary domain.ReportCardSummaryDTO
+	var hNotes sql.NullString
+	var classRank sql.NullInt32
 
+	err := r.queryRow(ctx, qSummary, tenantID, studentID, termID).Scan(
+		&rcID, &classRank, &hNotes, &summary.ActiveSemester, &summary.AcademicYear, &summary.HomeroomTeacher,
+	)
+	if err == sql.ErrNoRows {
+		return nil, fmt.Errorf("report card not found for this semester")
+	} else if err != nil {
+		return nil, err
+	}
+
+	summary.ClassRank = int(classRank.Int32)
+	summary.HomeroomNotes = hNotes.String
+
+	// Now get subjects
+	qSubjects := `
+		SELECT 
+			c.id, c.name, rg.score, rg.predicate
+		FROM report_card_grades rg
+		JOIN courses c ON rg.course_id = c.id
+		WHERE rg.report_card_id = $1
+	`
+	rows, err := r.query(ctx, qSubjects, rcID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var subjects []domain.SubjectGradeDTO
+	var totalScore float64
+	var count int
+
+	for rows.Next() {
+		var s domain.SubjectGradeDTO
+		err := rows.Scan(&s.CourseID, &s.CourseName, &s.FinalScore, &s.Predicate)
+		if err != nil {
+			return nil, err
+		}
+		s.KKM = 75.0 // Default KKM
+		s.IsPassed = s.FinalScore >= s.KKM
+		s.AchievementPercentage = (s.FinalScore / 100.0) * 100
+		
+		totalScore += s.FinalScore
+		count++
+		subjects = append(subjects, s)
+	}
+	
+	if count > 0 {
+		summary.AverageScore = totalScore / float64(count)
+	}
+
+	// Now get report notes
+	qNotes := `SELECT category, notes FROM report_card_notes WHERE report_card_id = $1`
+	rowsNotes, err := r.query(ctx, qNotes, rcID)
+	if err != nil {
+		return nil, err
+	}
+	defer rowsNotes.Close()
+
+	var notes []domain.ReportCardNoteDTO
+	for rowsNotes.Next() {
+		var n domain.ReportCardNoteDTO
+		if err := rowsNotes.Scan(&n.Category, &n.Notes); err != nil {
+			return nil, err
+		}
+		notes = append(notes, n)
+	}
+
+	return &domain.ReportCardResponseDTO{
+		Summary:     summary,
+		Subjects:    subjects,
+		ReportNotes: notes,
+	}, nil
+}
+
+func (r *reportCardRepository) GetStudentDetailedGrades(ctx context.Context, tenantID, studentID, termID, courseID uuid.UUID) (*domain.DetailedSubjectGradeResponseDTO, error) {
+	qCourse := `SELECT name FROM courses WHERE id = $1 AND tenant_id = $2`
+	var courseName string
+	if err := r.queryRow(ctx, qCourse, courseID, tenantID).Scan(&courseName); err != nil {
+		return nil, err
+	}
+
+	// Get components
+	qComps := `
+		SELECT gc.name, sg.score, gc.weight, sg.teacher_notes
+		FROM student_grades sg
+		JOIN grade_components gc ON sg.grade_component_id = gc.id
+		WHERE sg.tenant_id = $1 AND sg.student_id = $2 AND sg.term_id = $3 AND gc.course_id = $4
+	`
+	rows, err := r.query(ctx, qComps, tenantID, studentID, termID, courseID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var components []domain.DetailedGradeComponentDTO
+	var teacherNotes sql.NullString
+	var totalWeight float64
+	var totalScore float64
+
+	for rows.Next() {
+		var c domain.DetailedGradeComponentDTO
+		var notes sql.NullString
+		if err := rows.Scan(&c.ComponentName, &c.Score, &c.Weight, &notes); err != nil {
+			return nil, err
+		}
+		components = append(components, c)
+		if notes.Valid && notes.String != "" {
+			teacherNotes = notes
+		}
+		totalWeight += c.Weight
+		totalScore += c.Score * c.Weight
+	}
+
+	finalScore := 0.0
+	if totalWeight > 0 {
+		finalScore = totalScore / totalWeight
+	}
+
+	return &domain.DetailedSubjectGradeResponseDTO{
+		CourseName:   courseName,
+		Components:   components,
+		FinalScore:   finalScore,
+		TeacherNotes: teacherNotes.String,
+	}, nil
+}
+
+func (r *reportCardRepository) GetStudentSemesters(ctx context.Context, tenantID, studentID uuid.UUID) ([]domain.SemesterHistoryDTO, error) {
+	q := `
+		SELECT DISTINCT t.id, t.name, ay.name, t.is_active
+		FROM academic_terms t
+		JOIN academic_years ay ON t.academic_year_id = ay.id
+		JOIN report_cards rc ON rc.term_id = t.id
+		WHERE t.tenant_id = $1 AND rc.student_id = $2
+		ORDER BY ay.name DESC, t.name DESC
+	`
+	rows, err := r.query(ctx, q, tenantID, studentID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var terms []domain.SemesterHistoryDTO
+	for rows.Next() {
+		var t domain.SemesterHistoryDTO
+		if err := rows.Scan(&t.TermID, &t.TermName, &t.AcademicYear, &t.IsActive); err != nil {
+			return nil, err
+		}
+		terms = append(terms, t)
+	}
+	return terms, nil
+}
+
+func (r *reportCardRepository) UpdateReportCardNotes(ctx context.Context, tenantID, reportCardID, updatedBy uuid.UUID, notes []domain.ReportCardNoteDTO) error {
+	return r.ExecTx(ctx, func(txRepo domain.ReportCardRepository) error {
+		repo := txRepo.(*reportCardRepository)
+		
+		// Delete existing notes for the report card
+		delQ := `DELETE FROM report_card_notes WHERE report_card_id = $1`
+		if _, err := repo.exec(ctx, delQ, reportCardID); err != nil {
+			return err
+		}
+
+		// Insert new notes
+		insQ := `INSERT INTO report_card_notes (id, report_card_id, category, notes, updated_by) VALUES ($1, $2, $3, $4, $5)`
+		for _, n := range notes {
+			id := uuid.New()
+			if _, err := repo.exec(ctx, insQ, id, reportCardID, n.Category, n.Notes, updatedBy); err != nil {
+				return err
+			}
+		}
+
+		// Update report_cards updated_at
+		updQ := `UPDATE report_cards SET updated_at = NOW(), updated_by = $1 WHERE id = $2`
+		if _, err := repo.exec(ctx, updQ, updatedBy, reportCardID); err != nil {
+			return err
+		}
+
+		return nil
+	})
+}

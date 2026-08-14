@@ -58,6 +58,14 @@ type Permission struct {
 	Name string `json:"name"`
 }
 
+type Faq struct {
+	ID       string    `json:"id"`
+	Question string    `json:"question"`
+	Answer   string    `json:"answer"`
+	Category string    `json:"category"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
 // RegisterTenantRequest is the payload from the web frontend
 type RegisterTenantRequest struct {
 	TenantName    string `json:"tenant_name"`
@@ -95,6 +103,11 @@ type CoreRepository interface {
 	GetUserRoleName(ctx context.Context, userID uuid.UUID) (string, error)
 	GetUserPermissions(ctx context.Context, userID uuid.UUID) ([]string, error)
 	CheckSpmbCompleted(ctx context.Context, parentID uuid.UUID) (bool, error)
+	UpdateUserPassword(ctx context.Context, userID uuid.UUID, newPassword string) error
+	GetNotificationSettings(ctx context.Context, userID uuid.UUID) (map[string]bool, error)
+	UpdateNotificationSettings(ctx context.Context, userID uuid.UUID, settings map[string]bool) error
+	GetFaqs(ctx context.Context) ([]*Faq, error)
+	GetChildrenByParentID(ctx context.Context, parentID uuid.UUID) ([]*User, error)
 }
 
 // CoreUsecase defines the business logic interface for Tenants and RBAC
@@ -104,4 +117,5 @@ type CoreUsecase interface {
 	// CreateRole is called by the admin dashboard to add roles (Staff, Student, etc.)
 	CreateRole(ctx context.Context, tenantID uuid.UUID, name string) error
 	GetSystemPermissions(ctx context.Context) ([]*Permission, error)
+	GetFaqs(ctx context.Context) ([]*Faq, error)
 }
