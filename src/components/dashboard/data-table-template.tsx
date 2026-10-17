@@ -20,13 +20,20 @@ export interface TabDef {
   value: string
 }
 
-interface DataTableTemplateProps {
+export interface DataTableTemplateProps {
   moduleName: string
-  endpoint: string
+  endpoint?: string
   description?: string
   columns?: ColumnDef[]
   tabs?: TabDef[]
   categoryKey?: string
+  onAddClick?: () => void
+  addLabel?: string
+  hideAddButton?: boolean
+  headerActions?: React.ReactNode
+  refreshTrigger?: number
+  customData?: any[]
+  onRefresh?: () => void
 }
 
 export function DataTableTemplate({
@@ -36,9 +43,16 @@ export function DataTableTemplate({
   columns = [],
   tabs = [],
   categoryKey = "category",
+  onAddClick,
+  addLabel = "Tambah Data",
+  hideAddButton = false,
+  headerActions,
+  refreshTrigger,
+  customData,
+  onRefresh,
 }: DataTableTemplateProps) {
-  const [data, setData] = useState<any[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+  const [data, setData] = useState<any[]>(customData || [])
+  const [isLoading, setIsLoading] = useState(!customData && !!endpoint)
   const [error, setError] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
   const [isFilterOpen, setIsFilterOpen] = useState(false)
@@ -46,6 +60,18 @@ export function DataTableTemplate({
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: "asc" | "desc" } | null>(null)
 
   const loadData = async () => {
+    if (onRefresh) {
+      onRefresh()
+    }
+    if (customData) {
+      setData(customData)
+      setIsLoading(false)
+      return
+    }
+    if (!endpoint) {
+      setIsLoading(false)
+      return
+    }
     setIsLoading(true)
     setError(null)
     try {
@@ -59,7 +85,14 @@ export function DataTableTemplate({
     }
   }
 
-  useEffect(() => { loadData() }, [endpoint])
+  useEffect(() => {
+    if (customData) {
+      setData(customData)
+      setIsLoading(false)
+    } else {
+      loadData()
+    }
+  }, [endpoint, refreshTrigger, customData])
 
   const handleSort = (key: string) => {
     let direction: "asc" | "desc" = "asc"
@@ -494,6 +527,7 @@ export function DataTableTemplate({
             </p>
           </div>
           <div className="dt-actions">
+            {headerActions}
             <button
               className="dt-btn-icon"
               onClick={loadData}
@@ -502,10 +536,12 @@ export function DataTableTemplate({
             >
               <RefreshCw className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`} />
             </button>
-            <button className="dt-btn-primary">
-              <Plus className="w-3.5 h-3.5" />
-              Tambah Data
-            </button>
+            {!hideAddButton && onAddClick && (
+              <button className="dt-btn-primary" onClick={onAddClick}>
+                <Plus className="w-3.5 h-3.5" />
+                {addLabel}
+              </button>
+            )}
           </div>
         </div>
 
