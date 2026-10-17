@@ -17,19 +17,69 @@
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:aplikasi_mobile_siswa/features/auth/screens/login_screen.dart';
+import 'package:aplikasi_mobile_siswa/features/auth/controllers/auth_controller.dart';
+import 'package:aplikasi_mobile_siswa/features/dashboard/controllers/dashboard_controller.dart';
+import 'package:aplikasi_mobile_siswa/features/violation/controllers/violation_controller.dart';
+import '../controllers/profile_controller.dart';
 
 // Sub-screens untuk profil
-class EditProfileScreen extends StatelessWidget {
+class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({Key? key}) : super(key: key);
+
+  @override
+  State<EditProfileScreen> createState() => _EditProfileScreenState();
+}
+
+class _EditProfileScreenState extends State<EditProfileScreen> {
+  final ProfileController _profileCtrl = Get.isRegistered<ProfileController>()
+      ? Get.find<ProfileController>()
+      : Get.put(ProfileController());
+  final AuthController _authCtrl = Get.isRegistered<AuthController>()
+      ? Get.find<AuthController>()
+      : Get.put(AuthController());
+
+  late final TextEditingController _nameCtrl;
+  late final TextEditingController _phoneCtrl;
+  late final TextEditingController _addressCtrl;
+
+  @override
+  void initState() {
+    super.initState();
+    final p = _profileCtrl.profile.value;
+    final u = _authCtrl.currentUser.value;
+    _nameCtrl = TextEditingController(text: p?.name ?? u?.name ?? '');
+    _phoneCtrl = TextEditingController(text: p?.phone ?? u?.phone ?? '');
+    _addressCtrl = TextEditingController(text: u?.address ?? 'Jl. Pendidikan No. 45, Bandung');
+  }
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    _phoneCtrl.dispose();
+    _addressCtrl.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
+    final p = _profileCtrl.profile.value;
+    final u = _authCtrl.currentUser.value;
+    final name = p?.name ?? u?.name ?? 'Siswa';
+    final nisn = p?.nisn ?? u?.nisn ?? '0012345678';
+    final email = p?.email ?? u?.email ?? 'siswa@sekolah.id';
+    final photoUrl = (p?.photoUrl != null && p!.photoUrl!.isNotEmpty)
+        ? p.photoUrl!
+        : 'https://ui-avatars.com/api/?name=${Uri.encodeComponent(name)}&background=055D97&color=fff&size=200&bold=true';
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        leading: IconButton(icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20, color: Color(0xFF0F172A)), onPressed: () => Get.back()),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20, color: Color(0xFF0F172A)),
+          onPressed: () => Get.back(),
+        ),
         title: const Text('Edit Profil', style: TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.bold, fontSize: 18)),
       ),
       body: SingleChildScrollView(
@@ -39,7 +89,7 @@ class EditProfileScreen extends StatelessWidget {
             Stack(
               alignment: Alignment.bottomRight,
               children: [
-                CircleAvatar(radius: 55, backgroundImage: const NetworkImage('https://ui-avatars.com/api/?name=Siswa+Bintang&background=055D97&color=fff&size=200&bold=true')),
+                CircleAvatar(radius: 55, backgroundImage: NetworkImage(photoUrl)),
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: const BoxDecoration(color: Color(0xFF055D97), shape: BoxShape.circle),
@@ -48,27 +98,49 @@ class EditProfileScreen extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 28),
-            _buildField('Nama Lengkap', 'Siswa Bintang'),
-            _buildField('NISN', '0041234567', enabled: false),
-            _buildField('Email', 'siswa@sekolah.sch.id'),
-            _buildField('No. HP', '0812-xxxx-xxxx'),
-            _buildField('Alamat', 'Jl. Contoh No. 10, Bandung'),
+            _buildField('Nama Lengkap', _nameCtrl),
+            _buildField('NISN', TextEditingController(text: nisn), enabled: false),
+            _buildField('Email', TextEditingController(text: email), enabled: false),
+            _buildField('No. HP', _phoneCtrl),
+            _buildField('Alamat', _addressCtrl, enabled: false),
             const SizedBox(height: 32),
-            SizedBox(
+            Obx(() => SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: () { Get.back(); Get.snackbar('Berhasil', 'Profil berhasil diperbarui', backgroundColor: Colors.white); },
-                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF055D97), padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), foregroundColor: Colors.white),
-                child: const Text('Simpan Perubahan', style: TextStyle(fontWeight: FontWeight.bold)),
+                onPressed: _profileCtrl.isUpdating.value
+                    ? null
+                    : () async {
+                        final ok = await _profileCtrl.updateProfile(
+                          name: _nameCtrl.text.trim(),
+                          phone: _phoneCtrl.text.trim(),
+                        );
+                        if (ok) {
+                          Get.back();
+                          Get.snackbar('Berhasil', 'Profil berhasil diperbarui',
+                              backgroundColor: Colors.white, colorText: const Color(0xFF0F172A));
+                        } else if (_profileCtrl.errorMessage.isNotEmpty) {
+                          Get.snackbar('Gagal', _profileCtrl.errorMessage.value,
+                              backgroundColor: Colors.red.shade50, colorText: Colors.red);
+                        }
+                      },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF055D97),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  foregroundColor: Colors.white,
+                ),
+                child: _profileCtrl.isUpdating.value
+                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                    : const Text('Simpan Perubahan', style: TextStyle(fontWeight: FontWeight.bold)),
               ),
-            ),
+            )),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildField(String label, String value, {bool enabled = true}) {
+  Widget _buildField(String label, TextEditingController controller, {bool enabled = true}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Column(
@@ -78,7 +150,7 @@ class EditProfileScreen extends StatelessWidget {
           const SizedBox(height: 6),
           TextField(
             enabled: enabled,
-            controller: TextEditingController(text: value),
+            controller: controller,
             decoration: InputDecoration(
               filled: true,
               fillColor: enabled ? const Color(0xFFF8FAFC) : const Color(0xFFF1F5F9),
@@ -100,7 +172,22 @@ class ChangePasswordScreen extends StatefulWidget {
 }
 
 class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
+  final ProfileController _profileCtrl = Get.isRegistered<ProfileController>()
+      ? Get.find<ProfileController>()
+      : Get.put(ProfileController());
+  final _oldPassCtrl = TextEditingController();
+  final _newPassCtrl = TextEditingController();
+  final _confirmPassCtrl = TextEditingController();
   bool _showOld = false, _showNew = false, _showConfirm = false;
+
+  @override
+  void dispose() {
+    _oldPassCtrl.dispose();
+    _newPassCtrl.dispose();
+    _confirmPassCtrl.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -126,25 +213,52 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
               ]),
             ),
             const SizedBox(height: 24),
-            _buildPasswordField('Kata Sandi Lama', _showOld, () => setState(() => _showOld = !_showOld)),
-            _buildPasswordField('Kata Sandi Baru', _showNew, () => setState(() => _showNew = !_showNew)),
-            _buildPasswordField('Konfirmasi Kata Sandi', _showConfirm, () => setState(() => _showConfirm = !_showConfirm)),
+            _buildPasswordField('Kata Sandi Lama', _oldPassCtrl, _showOld, () => setState(() => _showOld = !_showOld)),
+            _buildPasswordField('Kata Sandi Baru', _newPassCtrl, _showNew, () => setState(() => _showNew = !_showNew)),
+            _buildPasswordField('Konfirmasi Kata Sandi', _confirmPassCtrl, _showConfirm, () => setState(() => _showConfirm = !_showConfirm)),
             const SizedBox(height: 32),
-            SizedBox(
+            Obx(() => SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: () { Get.back(); Get.snackbar('Berhasil', 'Kata sandi berhasil diubah', backgroundColor: Colors.white); },
+                onPressed: _profileCtrl.isUpdating.value
+                    ? null
+                    : () async {
+                        if (_newPassCtrl.text.isEmpty || _oldPassCtrl.text.isEmpty) {
+                          Get.snackbar('Peringatan', 'Harap isi semua kolom kata sandi',
+                              backgroundColor: Colors.orange.shade50, colorText: Colors.deepOrange);
+                          return;
+                        }
+                        if (_newPassCtrl.text != _confirmPassCtrl.text) {
+                          Get.snackbar('Peringatan', 'Konfirmasi kata sandi tidak cocok',
+                              backgroundColor: Colors.red.shade50, colorText: Colors.red);
+                          return;
+                        }
+                        final ok = await _profileCtrl.changePassword(
+                          oldPassword: _oldPassCtrl.text,
+                          newPassword: _newPassCtrl.text,
+                        );
+                        if (ok) {
+                          Get.back();
+                          Get.snackbar('Berhasil', 'Kata sandi berhasil diubah',
+                              backgroundColor: Colors.white, colorText: const Color(0xFF0F172A));
+                        } else if (_profileCtrl.errorMessage.isNotEmpty) {
+                          Get.snackbar('Gagal', _profileCtrl.errorMessage.value,
+                              backgroundColor: Colors.red.shade50, colorText: Colors.red);
+                        }
+                      },
                 style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF055D97), padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), foregroundColor: Colors.white),
-                child: const Text('Ubah Kata Sandi', style: TextStyle(fontWeight: FontWeight.bold)),
+                child: _profileCtrl.isUpdating.value
+                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                    : const Text('Ubah Kata Sandi', style: TextStyle(fontWeight: FontWeight.bold)),
               ),
-            ),
+            )),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildPasswordField(String label, bool show, VoidCallback toggle) {
+  Widget _buildPasswordField(String label, TextEditingController controller, bool show, VoidCallback toggle) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Column(
@@ -153,6 +267,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
           Text(label, style: const TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF475569), fontSize: 13)),
           const SizedBox(height: 6),
           TextField(
+            controller: controller,
             obscureText: !show,
             decoration: InputDecoration(
               filled: true, fillColor: const Color(0xFFF8FAFC),
@@ -331,6 +446,19 @@ class ProfileScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final authCtrl = Get.isRegistered<AuthController>()
+        ? Get.find<AuthController>()
+        : Get.put(AuthController());
+    final profileCtrl = Get.isRegistered<ProfileController>()
+        ? Get.find<ProfileController>()
+        : Get.put(ProfileController());
+    final dashCtrl = Get.isRegistered<DashboardController>()
+        ? Get.find<DashboardController>()
+        : Get.put(DashboardController());
+    final violationCtrl = Get.isRegistered<ViolationController>()
+        ? Get.find<ViolationController>()
+        : Get.put(ViolationController());
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
@@ -339,72 +467,101 @@ class ProfileScreen extends StatelessWidget {
         centerTitle: true,
         title: const Text('Profil Saya', style: TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.w700, fontSize: 18, letterSpacing: -0.5)),
       ),
-      body: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
-        padding: const EdgeInsets.only(left: 20, right: 20, top: 10, bottom: 120),
-        child: Column(
-          children: [
-            Column(
+      body: RefreshIndicator(
+        onRefresh: () async {
+          await Future.wait([
+            profileCtrl.fetchProfile(),
+            dashCtrl.fetchSummary(),
+            violationCtrl.fetchHistory(),
+          ]);
+        },
+        color: const Color(0xFF055D97),
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+          padding: const EdgeInsets.only(left: 20, right: 20, top: 10, bottom: 120),
+          child: Obx(() {
+            final p = profileCtrl.profile.value;
+            final u = authCtrl.currentUser.value;
+            final name = p?.name ?? u?.name ?? 'Siswa';
+            final nisn = p?.nisn ?? u?.nisn ?? '0012345678';
+            final className = p?.className ?? u?.className ?? 'XII RPL 1';
+            final photoUrl = (p?.photoUrl != null && p!.photoUrl!.isNotEmpty)
+                ? p.photoUrl!
+                : (u?.photoUrl != null && u!.photoUrl!.isNotEmpty)
+                    ? u.photoUrl!
+                    : 'https://ui-avatars.com/api/?name=${Uri.encodeComponent(name)}&background=055D97&color=fff&size=200&bold=true';
+
+            final summary = dashCtrl.summary.value;
+            final attendanceRate = (summary != null && summary.attendanceRate > 0)
+                ? '${summary.attendanceRate.toStringAsFixed(0)}%'
+                : '100%';
+            final points = '${violationCtrl.totalPoints.value} Poin';
+
+            return Column(
               children: [
-                Container(
-                  width: 100, height: 100,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 4),
-                    boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 5))],
-                    image: const DecorationImage(image: NetworkImage('https://ui-avatars.com/api/?name=Siswa+Bintang&background=055D97&color=fff&size=200&bold=true'), fit: BoxFit.cover),
+                Column(
+                  children: [
+                    Container(
+                      width: 100, height: 100,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 4),
+                        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 5))],
+                        image: DecorationImage(image: NetworkImage(photoUrl), fit: BoxFit.cover),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(name, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF0F172A), letterSpacing: -0.5)),
+                    const SizedBox(height: 4),
+                    Text('NISN: $nisn • $className', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Color(0xFF64748B))),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                Row(children: [
+                  Expanded(child: _buildStatusCard(title: 'Kehadiran', value: attendanceRate, icon: Icons.check_circle_outline, color: const Color(0xFF10B981))),
+                  const SizedBox(width: 16),
+                  Expanded(child: _buildStatusCard(title: 'Poin Pelanggaran', value: points, icon: Icons.shield_outlined, color: const Color(0xFF055D97))),
+                ]),
+                const SizedBox(height: 32),
+
+                _buildMenuSectionTitle('Akun & Keamanan'),
+                const SizedBox(height: 10),
+                _buildMenuGroup([
+                  _buildMenuItem(Icons.person_outline, 'Edit Profil', onTap: () => Get.to(() => const EditProfileScreen())),
+                  _buildDivider(),
+                  _buildMenuItem(Icons.lock_outline, 'Ganti Kata Sandi', onTap: () => Get.to(() => const ChangePasswordScreen())),
+                ]),
+                const SizedBox(height: 24),
+
+                _buildMenuSectionTitle('Informasi Sekolah'),
+                const SizedBox(height: 10),
+                _buildMenuGroup([
+                  _buildMenuItem(Icons.rule_outlined, 'Tata Tertib & Poin', onTap: () => Get.to(() => const SchoolRulesScreen())),
+                  _buildDivider(),
+                  _buildMenuItem(Icons.support_agent_outlined, 'Kontak Hubin / BK', onTap: () => Get.to(() => const ContactScreen())),
+                  _buildDivider(),
+                  _buildMenuItem(Icons.help_outline, 'Bantuan & FAQ', onTap: () => Get.to(() => const FaqScreen())),
+                ]),
+                const SizedBox(height: 32),
+
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () => authCtrl.logout(),
+                    icon: const Icon(Icons.logout, size: 20),
+                    label: const Text('Keluar Aplikasi', style: TextStyle(fontWeight: FontWeight.w600)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFFEF2F2),
+                      foregroundColor: const Color(0xFFEF4444),
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: const BorderSide(color: Color(0xFFFEE2E8), width: 1.5)),
+                    ),
                   ),
                 ),
-                const SizedBox(height: 16),
-                const Text('Siswa Bintang', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF0F172A), letterSpacing: -0.5)),
-                const SizedBox(height: 4),
-                const Text('NISN: 0041234567 • XII RPL 1', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Color(0xFF64748B))),
               ],
-            ),
-            const SizedBox(height: 24),
-            Row(children: [
-              Expanded(child: _buildStatusCard(title: 'Kehadiran', value: '100%', icon: Icons.check_circle_outline, color: const Color(0xFF10B981))),
-              const SizedBox(width: 16),
-              Expanded(child: _buildStatusCard(title: 'Poin Pelanggaran', value: '0 Poin', icon: Icons.shield_outlined, color: const Color(0xFF055D97))),
-            ]),
-            const SizedBox(height: 32),
-
-            _buildMenuSectionTitle('Akun & Keamanan'),
-            const SizedBox(height: 10),
-            _buildMenuGroup([
-              _buildMenuItem(Icons.person_outline, 'Edit Profil', onTap: () => Get.to(() => const EditProfileScreen())),
-              _buildDivider(),
-              _buildMenuItem(Icons.lock_outline, 'Ganti Kata Sandi', onTap: () => Get.to(() => const ChangePasswordScreen())),
-            ]),
-            const SizedBox(height: 24),
-
-            _buildMenuSectionTitle('Informasi Sekolah'),
-            const SizedBox(height: 10),
-            _buildMenuGroup([
-              _buildMenuItem(Icons.rule_outlined, 'Tata Tertib & Poin', onTap: () => Get.to(() => const SchoolRulesScreen())),
-              _buildDivider(),
-              _buildMenuItem(Icons.support_agent_outlined, 'Kontak Hubin / BK', onTap: () => Get.to(() => const ContactScreen())),
-              _buildDivider(),
-              _buildMenuItem(Icons.help_outline, 'Bantuan & FAQ', onTap: () => Get.to(() => const FaqScreen())),
-            ]),
-            const SizedBox(height: 32),
-
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () => Get.offAll(() => const LoginScreen()),
-                icon: const Icon(Icons.logout, size: 20),
-                label: const Text('Keluar Aplikasi', style: TextStyle(fontWeight: FontWeight.w600)),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFFEF2F2),
-                  foregroundColor: const Color(0xFFEF4444),
-                  elevation: 0,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: const BorderSide(color: Color(0xFFFEE2E2), width: 1.5)),
-                ),
-              ),
-            ),
-          ],
+            );
+          }),
         ),
       ),
     );

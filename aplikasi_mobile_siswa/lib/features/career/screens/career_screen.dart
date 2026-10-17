@@ -17,6 +17,7 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:aplikasi_mobile_siswa/features/career/screens/pkl_requirement_screen.dart';
 import 'package:aplikasi_mobile_siswa/features/career/screens/saved_jobs_screen.dart';
+import '../controllers/career_controller.dart';
 
 class CareerScreen extends StatefulWidget {
   const CareerScreen({Key? key}) : super(key: key);
@@ -26,62 +27,43 @@ class CareerScreen extends StatefulWidget {
 }
 
 class _CareerScreenState extends State<CareerScreen> with SingleTickerProviderStateMixin {
+  late final CareerController _careerCtrl;
   late TabController _tabController;
   final Set<String> _wishlist = {};
   String _searchQuery = '';
   String _selectedLocation = 'Semua';
   String _selectedType = 'Semua';
 
-  final List<Map<String, dynamic>> _allJobs = [
-    {
-      'id': 'pkl_1',
-      'company': 'PT Telkom Indonesia',
-      'role': 'IT Support Intern',
-      'location': 'Bandung',
-      'type': 'Magang / PKL',
-      'logoUrl': 'https://images.unsplash.com/photo-1599305445671-ac291c95aaa9?w=150&h=150&fit=crop',
-    },
-    {
-      'id': 'pkl_2',
-      'company': 'Dicoding Indonesia',
-      'role': 'Mobile Dev Intern',
-      'location': 'Remote',
-      'type': 'Magang / PKL',
-      'logoUrl': 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=150&h=150&fit=crop',
-    },
-    {
-      'id': 'pkl_3',
-      'company': 'Agate Studio',
-      'role': 'Game Programmer Intern',
-      'location': 'Bandung',
-      'type': 'Magang / PKL',
-      'logoUrl': 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=150&h=150&fit=crop',
-    },
-    {
-      'id': 'job_1',
-      'company': 'Gojek Tech',
-      'role': 'Junior Software Engineer',
-      'location': 'Jakarta',
-      'type': 'Full-time',
-      'logoUrl': 'https://images.unsplash.com/photo-1611162616305-c69b3fa7fbe0?w=150&h=150&fit=crop',
-    },
-    {
-      'id': 'job_2',
-      'company': 'Bank Mandiri IT',
-      'role': 'Network Engineer',
-      'location': 'Jakarta',
-      'type': 'Full-time',
-      'logoUrl': 'https://images.unsplash.com/photo-1599305445671-ac291c95aaa9?w=150&h=150&fit=crop',
-    },
-    {
-      'id': 'job_3',
-      'company': 'Ruangguru',
-      'role': 'Backend Developer',
-      'location': 'Hybrid',
-      'type': 'Contract',
-      'logoUrl': 'https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?w=150&h=150&fit=crop',
-    },
-  ];
+  List<Map<String, dynamic>> get _allJobs {
+    final all = [..._careerCtrl.localVacancies, ..._careerCtrl.publicVacancies];
+    final Map<String, Map<String, dynamic>> uniqueMap = {};
+    for (var v in all) {
+      final typeUpper = v.type.toUpperCase();
+      final isPkl = typeUpper == 'PKL' ||
+          typeUpper == 'MAGANG' ||
+          v.title.toLowerCase().contains('intern') ||
+          v.title.toLowerCase().contains('pkl') ||
+          v.title.toLowerCase().contains('magang');
+
+      uniqueMap[v.id] = {
+        'id': v.id,
+        'isPkl': isPkl,
+        'company': v.company.isNotEmpty ? v.company : 'Mitra Industri',
+        'role': v.title,
+        'location': v.location.isNotEmpty ? v.location : 'Indonesia',
+        'type': isPkl
+            ? 'Magang / PKL'
+            : (typeUpper == 'FULL_TIME'
+                ? 'Full-time'
+                : (typeUpper == 'CONTRACT' ? 'Contract' : v.type)),
+        'description': v.description,
+        'logoUrl': (v.logoUrl != null && v.logoUrl!.isNotEmpty)
+            ? v.logoUrl!
+            : 'https://images.unsplash.com/photo-1599305445671-ac291c95aaa9?w=150&h=150&fit=crop',
+      };
+    }
+    return uniqueMap.values.toList();
+  }
 
   void _showFilterBottomSheet() {
     Get.bottomSheet(
@@ -154,6 +136,9 @@ class _CareerScreenState extends State<CareerScreen> with SingleTickerProviderSt
   @override
   void initState() {
     super.initState();
+    _careerCtrl = Get.isRegistered<CareerController>()
+        ? Get.find<CareerController>()
+        : Get.put(CareerController());
     _tabController = TabController(length: 2, vsync: this);
   }
 
@@ -235,31 +220,39 @@ class _CareerScreenState extends State<CareerScreen> with SingleTickerProviderSt
           ),
         ),
       ),
-      body: TabBarView(
-        controller: _tabController,
-        physics: const BouncingScrollPhysics(),
-        children: [
-          _buildPklTab(),
-          _buildCareerTab(),
-        ],
-      ),
+      body: Obx(() {
+        if (_careerCtrl.isLoading.value && _allJobs.isEmpty) {
+          return const Center(child: CircularProgressIndicator(color: Color(0xFF055D97)));
+        }
+        return TabBarView(
+          controller: _tabController,
+          physics: const BouncingScrollPhysics(),
+          children: [
+            _buildPklTab(),
+            _buildCareerTab(),
+          ],
+        );
+      }),
     );
   }
 
   Widget _buildPklTab() {
     final filteredPkls = _allJobs.where((job) {
-      bool isPkl = job['id'].startsWith('pkl');
-      bool matchesSearch = job['role'].toLowerCase().contains(_searchQuery.toLowerCase()) || 
-                           job['company'].toLowerCase().contains(_searchQuery.toLowerCase());
+      bool isPkl = job['isPkl'] == true || job['id'].toString().startsWith('pkl');
+      bool matchesSearch = job['role'].toString().toLowerCase().contains(_searchQuery.toLowerCase()) || 
+                           job['company'].toString().toLowerCase().contains(_searchQuery.toLowerCase());
       bool matchesLocation = _selectedLocation == 'Semua' || job['location'] == _selectedLocation;
       bool matchesType = _selectedType == 'Semua' || job['type'] == _selectedType;
       
       return isPkl && matchesSearch && matchesLocation && matchesType;
     }).toList();
 
-    return SingleChildScrollView(
-      physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.only(left: 20, right: 20, top: 20, bottom: 40),
+    return RefreshIndicator(
+      onRefresh: () => _careerCtrl.fetchAll(),
+      color: const Color(0xFF055D97),
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+        padding: const EdgeInsets.only(left: 20, right: 20, top: 20, bottom: 40),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -376,26 +369,31 @@ class _CareerScreenState extends State<CareerScreen> with SingleTickerProviderSt
             location: job['location'],
             type: job['type'],
             logoUrl: job['logoUrl'],
+            description: job['description'] ?? '',
           )).toList(),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildCareerTab() {
     final filteredJobs = _allJobs.where((job) {
-      bool isJob = job['id'].startsWith('job');
-      bool matchesSearch = job['role'].toLowerCase().contains(_searchQuery.toLowerCase()) || 
-                           job['company'].toLowerCase().contains(_searchQuery.toLowerCase());
+      bool isJob = job['isPkl'] != true && !job['id'].toString().startsWith('pkl');
+      bool matchesSearch = job['role'].toString().toLowerCase().contains(_searchQuery.toLowerCase()) || 
+                           job['company'].toString().toLowerCase().contains(_searchQuery.toLowerCase());
       bool matchesLocation = _selectedLocation == 'Semua' || job['location'] == _selectedLocation;
       bool matchesType = _selectedType == 'Semua' || job['type'] == _selectedType;
 
       return isJob && matchesSearch && matchesLocation && matchesType;
     }).toList();
 
-    return SingleChildScrollView(
-      physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.only(left: 20, right: 20, top: 20, bottom: 40),
+    return RefreshIndicator(
+      onRefresh: () => _careerCtrl.fetchAll(),
+      color: const Color(0xFF055D97),
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+        padding: const EdgeInsets.only(left: 20, right: 20, top: 20, bottom: 40),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -463,11 +461,13 @@ class _CareerScreenState extends State<CareerScreen> with SingleTickerProviderSt
             location: job['location'],
             type: job['type'],
             logoUrl: job['logoUrl'],
+            description: job['description'] ?? '',
           )).toList(),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildJobItem({
     required String id,
@@ -476,6 +476,7 @@ class _CareerScreenState extends State<CareerScreen> with SingleTickerProviderSt
     required String location,
     required String type,
     required String logoUrl,
+    String description = '',
   }) {
     bool isSaved = _wishlist.contains(id);
     return GestureDetector(
@@ -487,6 +488,7 @@ class _CareerScreenState extends State<CareerScreen> with SingleTickerProviderSt
           location: location,
           type: type,
           logoUrl: logoUrl,
+          description: description,
           isSaved: isSaved,
           onToggleWishlist: () => _toggleWishlist(id),
         ));
@@ -604,6 +606,7 @@ class JobDetailScreen extends StatefulWidget {
   final String location;
   final String type;
   final String logoUrl;
+  final String description;
   final bool isSaved;
   final VoidCallback onToggleWishlist;
 
@@ -615,6 +618,7 @@ class JobDetailScreen extends StatefulWidget {
     required this.location,
     required this.type,
     required this.logoUrl,
+    this.description = '',
     required this.isSaved,
     required this.onToggleWishlist,
   }) : super(key: key);
@@ -757,9 +761,11 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
                   ),
                   const SizedBox(height: 12),
-                  const Text(
-                    'Kami mencari kandidat yang termotivasi dan antusias untuk bergabung dengan tim kami. Anda akan dilibatkan dalam berbagai proyek pengembangan yang akan mengasah keterampilan teknis dan soft skill Anda. Kesempatan emas untuk belajar langsung dari profesional berpengalaman.',
-                    style: TextStyle(color: Color(0xFF475569), height: 1.5),
+                  Text(
+                    widget.description.isNotEmpty
+                        ? widget.description
+                        : 'Informasi deskripsi dan detail pekerjaan untuk posisi ini dapat dikonfirmasi langsung saat proses verifikasi berkas.',
+                    style: const TextStyle(color: Color(0xFF475569), height: 1.5),
                   ),
                   const SizedBox(height: 24),
                   const Text(
@@ -767,11 +773,10 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
                   ),
                   const SizedBox(height: 12),
-                  _buildRequirementItem('Siswa aktif kelas XI / Alumni SMK jurusan terkait.'),
-                  _buildRequirementItem('Memahami dasar-dasar pemrograman dan algoritma.'),
-                  _buildRequirementItem('Mampu bekerja sama dalam tim maupun individu.'),
-                  _buildRequirementItem('Memiliki inisiatif tinggi dan kemauan belajar yang kuat.'),
-                  _buildRequirementItem('Berkomitmen mengikuti program hingga selesai.'),
+                  _buildRequirementItem('Siswa aktif atau alumni dari program keahlian terkait.'),
+                  _buildRequirementItem('Memiliki rekam jejak kehadiran dan disiplin yang baik.'),
+                  _buildRequirementItem('Mampu berkomunikasi dan bekerja sama secara profesional.'),
+                  _buildRequirementItem('Berkomitmen menyelesaikan seluruh periode penugasan.'),
                   const SizedBox(height: 40),
                 ],
               ),
@@ -786,7 +791,29 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
           border: Border(top: BorderSide(color: const Color(0xFFE2E8F0))),
         ),
         child: ElevatedButton(
-          onPressed: () {},
+          onPressed: () async {
+            final careerCtrl = Get.find<CareerController>();
+            final success = await careerCtrl.applyJob(widget.id);
+            if (success) {
+              Get.snackbar(
+                'Berhasil Melamar',
+                'Lamaran Anda telah tersimpan ke sistem!',
+                backgroundColor: const Color(0xFF055D97),
+                colorText: Colors.white,
+                snackPosition: SnackPosition.BOTTOM,
+              );
+            } else {
+              Get.snackbar(
+                'Informasi',
+                careerCtrl.errorMessage.value.isNotEmpty
+                    ? careerCtrl.errorMessage.value
+                    : 'Lamaran sudah pernah dikirimkan sebelumnya.',
+                backgroundColor: const Color(0xFFE2E8F0),
+                colorText: const Color(0xFF0F172A),
+                snackPosition: SnackPosition.BOTTOM,
+              );
+            }
+          },
           style: ElevatedButton.styleFrom(
             backgroundColor: const Color(0xFF055D97),
             padding: const EdgeInsets.symmetric(vertical: 16),

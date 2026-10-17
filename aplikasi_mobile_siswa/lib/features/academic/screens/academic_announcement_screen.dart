@@ -1,8 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import 'package:aplikasi_mobile_siswa/features/dashboard/controllers/dashboard_controller.dart';
+
 class AcademicAnnouncementScreen extends StatelessWidget {
   const AcademicAnnouncementScreen({Key? key}) : super(key: key);
+
+  DashboardController get _dashCtrl =>
+      Get.isRegistered<DashboardController>()
+          ? Get.find<DashboardController>()
+          : Get.put(DashboardController());
 
   @override
   Widget build(BuildContext context) {
@@ -20,15 +27,53 @@ class AcademicAnnouncementScreen extends StatelessWidget {
           style: TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.bold, fontSize: 18),
         ),
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(20),
-        physics: const BouncingScrollPhysics(),
-        children: [
-          _buildAnnouncementCard('Jadwal Ujian Tengah Semester (UTS)', '15 Okt 2026', 'Pelaksanaan UTS akan dimulai minggu depan. Pastikan semua tugas telah diselesaikan dan tagihan administrasi sudah lunas.', Icons.assignment_rounded, const Color(0xFFDC2626)),
-          _buildAnnouncementCard('Pendaftaran Ekstrakurikuler Semester Genap', '12 Okt 2026', 'Silakan pilih ekstrakurikuler wajib dan pilihan melalui menu akademik. Batas waktu pendaftaran sampai hari Jumat.', Icons.sports_basketball_rounded, const Color(0xFF055D97)),
-          _buildAnnouncementCard('Kunjungan Industri Kelas XII', '10 Okt 2026', 'Bagi siswa kelas XII, persiapan kunjungan industri ke PT. Telkom Bandung. Kumpul di lapangan utama jam 06:00 WIB.', Icons.directions_bus_rounded, const Color(0xFFD97706)),
-          _buildAnnouncementCard('Libur Nasional & Cuti Bersama', '05 Okt 2026', 'Pemberitahuan libur nasional memperingati hari besar agama. Sekolah akan kembali aktif pada hari Rabu.', Icons.event_available_rounded, const Color(0xFF059669)),
-        ],
+      body: RefreshIndicator(
+        color: const Color(0xFF055D97),
+        onRefresh: () => _dashCtrl.fetchAnnouncements(),
+        child: Obx(() {
+          final announcements = _dashCtrl.announcements;
+          if (announcements.isEmpty) {
+            return const Center(
+              child: Text(
+                'Belum ada pengumuman akademik.',
+                style: TextStyle(color: Color(0xFF64748B), fontSize: 14),
+              ),
+            );
+          }
+
+          final colors = [
+            const Color(0xFFDC2626),
+            const Color(0xFF055D97),
+            const Color(0xFFD97706),
+            const Color(0xFF059669),
+          ];
+
+          final icons = [
+            Icons.assignment_rounded,
+            Icons.sports_basketball_rounded,
+            Icons.directions_bus_rounded,
+            Icons.event_available_rounded,
+          ];
+
+          return ListView.builder(
+            padding: const EdgeInsets.all(20),
+            physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+            itemCount: announcements.length,
+            itemBuilder: (context, index) {
+              final item = announcements[index];
+              final color = colors[index % colors.length];
+              final icon = icons[index % icons.length];
+              final date = item.createdAt.isNotEmpty ? item.createdAt : 'Terbaru';
+              return _buildAnnouncementCard(
+                item.title,
+                date,
+                item.content,
+                icon,
+                color,
+              );
+            },
+          );
+        }),
       ),
     );
   }

@@ -15,179 +15,43 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
-import 'package:intl/intl.dart';
-import 'package:aplikasi_mobile_siswa/features/schedule/screens/schedule_screen.dart';
-import 'package:aplikasi_mobile_siswa/features/report_card/screens/report_card_screen.dart';
-import 'package:aplikasi_mobile_siswa/features/evaluation/screens/evaluation_list_screen.dart';
 import 'package:aplikasi_mobile_siswa/features/academic/screens/academic_calendar_screen.dart';
 import 'package:aplikasi_mobile_siswa/features/academic/screens/extracurricular_screen.dart';
 import 'package:aplikasi_mobile_siswa/features/academic/screens/counseling_screen.dart';
 import 'package:aplikasi_mobile_siswa/features/academic/screens/student_permit_screen.dart';
 import 'package:aplikasi_mobile_siswa/features/dashboard/screens/notification_screen.dart';
 import 'package:aplikasi_mobile_siswa/features/academic/screens/academic_announcement_screen.dart';
+import 'package:aplikasi_mobile_siswa/features/schedule/controllers/schedule_controller.dart';
+import 'package:aplikasi_mobile_siswa/features/dashboard/controllers/dashboard_controller.dart';
 
-// Model untuk data kelas
-class ClassItem {
-  final String subject;
-  final String teacher;
-  final String room;
-  final IconData icon;
-  final Color color;
-  final String startTime; // format "HH:mm"
-  final String endTime;   // format "HH:mm"
-
-  const ClassItem({
-    required this.subject,
-    required this.teacher,
-    required this.room,
-    required this.icon,
-    required this.color,
-    required this.startTime,
-    required this.endTime,
-  });
-
-  TimeOfDay get start {
-    final parts = startTime.split(':');
-    return TimeOfDay(hour: int.parse(parts[0]), minute: int.parse(parts[1]));
-  }
-
-  TimeOfDay get end {
-    final parts = endTime.split(':');
-    return TimeOfDay(hour: int.parse(parts[0]), minute: int.parse(parts[1]));
-  }
+class _NextClassResult {
+  final ScheduleItem? classItem;
+  final bool isOngoing;
+  _NextClassResult(this.classItem, {required this.isOngoing});
 }
 
-class AkademikScreen extends StatefulWidget {
+class AkademikScreen extends StatelessWidget {
   const AkademikScreen({Key? key}) : super(key: key);
 
-  @override
-  State<AkademikScreen> createState() => _AkademikScreenState();
-}
+  ScheduleController get _schedCtrl =>
+      Get.isRegistered<ScheduleController>()
+          ? Get.find<ScheduleController>()
+          : Get.put(ScheduleController());
 
-class _AkademikScreenState extends State<AkademikScreen> {
-  late Timer _timer;
-  late DateTime _now;
-
-  // Semua kelas hari ini
-  static const List<ClassItem> _todayClasses = [
-    ClassItem(
-      subject: 'Matematika',
-      teacher: 'Monica Irawati. R, S.Pd.',
-      room: 'Ruang X RPL 1',
-      icon: Icons.calculate_rounded,
-      color: Color(0xFF2563EB),
-      startTime: '08:00',
-      endTime: '08:40',
-    ),
-    ClassItem(
-      subject: 'Matematika',
-      teacher: 'Monica Irawati. R, S.Pd.',
-      room: 'Ruang X RPL 1',
-      icon: Icons.calculate_rounded,
-      color: Color(0xFF2563EB),
-      startTime: '08:40',
-      endTime: '09:10',
-    ),
-    ClassItem(
-      subject: 'Bahasa Indonesia',
-      teacher: 'Ine Yulianti, S.Pd.',
-      room: 'Ruang X RPL 1',
-      icon: Icons.menu_book_rounded,
-      color: Color(0xFF059669),
-      startTime: '09:40',
-      endTime: '10:10',
-    ),
-    ClassItem(
-      subject: 'Bahasa Indonesia',
-      teacher: 'Ine Yulianti, S.Pd.',
-      room: 'Ruang X RPL 1',
-      icon: Icons.menu_book_rounded,
-      color: Color(0xFF059669),
-      startTime: '10:10',
-      endTime: '10:50',
-    ),
-    ClassItem(
-      subject: 'Pendidikan Agama Islam',
-      teacher: 'Drs. H. Ahmad',
-      room: 'Ruang X RPL 1',
-      icon: Icons.mosque_rounded,
-      color: Color(0xFF055D97),
-      startTime: '10:50',
-      endTime: '11:30',
-    ),
-    ClassItem(
-      subject: 'Pemrograman Web',
-      teacher: 'Budi Santoso, M.Kom.',
-      room: 'Lab Komputer 1',
-      icon: Icons.computer_rounded,
-      color: Color(0xFF7C3AED),
-      startTime: '12:30',
-      endTime: '13:10',
-    ),
-    ClassItem(
-      subject: 'Pemrograman Web',
-      teacher: 'Budi Santoso, M.Kom.',
-      room: 'Lab Komputer 1',
-      icon: Icons.computer_rounded,
-      color: Color(0xFF7C3AED),
-      startTime: '13:10',
-      endTime: '13:50',
-    ),
-    ClassItem(
-      subject: 'Bahasa Inggris',
-      teacher: 'Siti Aminah, M.Pd.',
-      room: 'Ruang X RPL 1',
-      icon: Icons.language_rounded,
-      color: Color(0xFFDC2626),
-      startTime: '13:50',
-      endTime: '14:30',
-    ),
-    ClassItem(
-      subject: 'Basis Data',
-      teacher: 'Rini Astuti, S.T.',
-      room: 'Lab Komputer 2',
-      icon: Icons.storage_rounded,
-      color: Color(0xFF0D9488),
-      startTime: '14:30',
-      endTime: '15:10',
-    ),
-    ClassItem(
-      subject: 'Basis Data',
-      teacher: 'Rini Astuti, S.T.',
-      room: 'Lab Komputer 2',
-      icon: Icons.storage_rounded,
-      color: Color(0xFF0D9488),
-      startTime: '15:10',
-      endTime: '15:50',
-    ),
-  ];
-
-  @override
-  void initState() {
-    super.initState();
-    _now = DateTime.now();
-    _timer = Timer.periodic(const Duration(seconds: 30), (_) {
-      if (mounted) {
-        setState(() {
-          _now = DateTime.now();
-        });
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    _timer.cancel();
-    super.dispose();
-  }
+  DashboardController get _dashCtrl =>
+      Get.isRegistered<DashboardController>()
+          ? Get.find<DashboardController>()
+          : Get.put(DashboardController());
 
   /// Cari kelas yang sedang berlangsung atau kelas berikutnya
-  _NextClassResult _getNextOrCurrentClass() {
-    final now = TimeOfDay(hour: _now.hour, minute: _now.minute);
+  _NextClassResult _getNextOrCurrentClass(List<ScheduleItem> classes) {
+    if (classes.isEmpty) return _NextClassResult(null, isOngoing: false);
+    final nowDt = DateTime.now();
+    final now = TimeOfDay(hour: nowDt.hour, minute: nowDt.minute);
     final nowMinutes = now.hour * 60 + now.minute;
 
     // Cek apakah ada kelas yang sedang berlangsung
-    for (final cls in _todayClasses) {
+    for (final cls in classes) {
       final startMinutes = cls.start.hour * 60 + cls.start.minute;
       final endMinutes = cls.end.hour * 60 + cls.end.minute;
       if (nowMinutes >= startMinutes && nowMinutes < endMinutes) {
@@ -196,7 +60,7 @@ class _AkademikScreenState extends State<AkademikScreen> {
     }
 
     // Cari kelas berikutnya
-    for (final cls in _todayClasses) {
+    for (final cls in classes) {
       final startMinutes = cls.start.hour * 60 + cls.start.minute;
       if (nowMinutes < startMinutes) {
         return _NextClassResult(cls, isOngoing: false);
@@ -212,9 +76,6 @@ class _AkademikScreenState extends State<AkademikScreen> {
       statusBarColor: Colors.transparent,
       statusBarIconBrightness: Brightness.dark,
     ));
-
-    final nextClassResult = _getNextOrCurrentClass();
-    final nextClass = nextClassResult.classItem;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
@@ -240,23 +101,38 @@ class _AkademikScreenState extends State<AkademikScreen> {
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
-        padding: const EdgeInsets.only(left: 20, right: 20, top: 20, bottom: 100),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Next Class Card (Real-time)
-            const Text(
-              'Kelas Selanjutnya',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF0F172A),
+      body: RefreshIndicator(
+        color: const Color(0xFF055D97),
+        onRefresh: () async {
+          await Future.wait([
+            _schedCtrl.fetchTodaySchedules(),
+            _schedCtrl.fetchSchedules(),
+            _dashCtrl.fetchAnnouncements(),
+          ]);
+        },
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+          padding: const EdgeInsets.only(left: 20, right: 20, top: 20, bottom: 100),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Next Class Card (Real-time from Database)
+              const Text(
+                'Kelas Selanjutnya',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF0F172A),
+                ),
               ),
-            ),
-            const SizedBox(height: 12),
-            _buildNextClassCard(nextClass, nextClassResult.isOngoing),
+              const SizedBox(height: 12),
+              Obx(() {
+                final list = _schedCtrl.todaySchedules.isNotEmpty
+                    ? _schedCtrl.todaySchedules
+                    : _schedCtrl.schedules;
+                final nextClassResult = _getNextOrCurrentClass(list);
+                return _buildNextClassCard(nextClassResult.classItem, nextClassResult.isOngoing);
+              }),
 
             const SizedBox(height: 24),
 
@@ -345,29 +221,46 @@ class _AkademikScreenState extends State<AkademikScreen> {
               ],
             ),
             const SizedBox(height: 12),
-            _buildAnnouncementItem(
-              title: 'Jadwal Remedial Semester Ganjil',
-              date: '15 Desember 2025',
-              type: 'Penting',
-              desc: 'Pelaksanaan remedial untuk mata pelajaran Matematika dan Bahasa Indonesia akan dilaksanakan minggu depan. Harap mempersiapkan diri.',
-              icon: Icons.assignment_late_rounded,
-              color: const Color(0xFFDC2626),
-            ),
-            _buildAnnouncementItem(
-              title: 'Pengumpulan Tugas Akhir PKL',
-              date: '20 Desember 2025',
-              type: 'Tugas',
-              desc: 'Seluruh laporan PKL wajib dikumpulkan dalam bentuk digital dan cetak. Keterlambatan akan mempengaruhi nilai akhir semester.',
-              icon: Icons.folder_rounded,
-              color: const Color(0xFFD97706),
-            ),
+            Obx(() {
+              final announcements = _dashCtrl.announcements;
+              if (announcements.isEmpty) {
+                return Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                  ),
+                  child: const Center(
+                    child: Text(
+                      'Belum ada pengumuman akademik terbaru.',
+                      style: TextStyle(color: Color(0xFF64748B), fontSize: 13),
+                    ),
+                  ),
+                );
+              }
+              return Column(
+                children: announcements.take(3).map((item) {
+                  return _buildAnnouncementItem(
+                    title: item.title,
+                    date: item.createdAt.isNotEmpty ? item.createdAt : 'Terbaru',
+                    type: item.type.isNotEmpty ? item.type : 'Pengumuman',
+                    desc: item.content,
+                    icon: Icons.campaign_rounded,
+                    color: const Color(0xFF055D97),
+                  );
+                }).toList(),
+              );
+            }),
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
-  Widget _buildNextClassCard(ClassItem? cls, bool isOngoing) {
+  Widget _buildNextClassCard(ScheduleItem? cls, bool isOngoing) {
     if (cls == null) {
       return Container(
         padding: const EdgeInsets.all(20),
@@ -458,7 +351,7 @@ class _AkademikScreenState extends State<AkademikScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Guru: ${cls.teacher}',
+                  'Guru: ${cls.teacherName}',
                   style: const TextStyle(color: Colors.white70, fontSize: 13),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -632,12 +525,6 @@ class _AkademikScreenState extends State<AkademikScreen> {
       ),
     );
   }
-}
-
-class _NextClassResult {
-  final ClassItem? classItem;
-  final bool isOngoing;
-  _NextClassResult(this.classItem, {required this.isOngoing});
 }
 
 // ========================

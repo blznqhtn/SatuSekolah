@@ -1,37 +1,49 @@
 // =============================================================================
 // main.dart — Entry Point Aplikasi SatuSekolah
 // =============================================================================
-// Tugas file ini:
-//   1. Menginisialisasi plugin (NotificationService) sebelum UI dijalankan
-//   2. Menjalankan GetMaterialApp sebagai root widget
-//   3. Mendaftarkan tema global (warna, font, Material3)
-// =============================================================================
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:get_storage/get_storage.dart';
+import 'package:intl/date_symbol_data_local.dart';
+import 'package:aplikasi_mobile_siswa/features/auth/controllers/auth_controller.dart';
 import 'package:aplikasi_mobile_siswa/features/auth/screens/login_screen.dart';
+import 'package:aplikasi_mobile_siswa/features/dashboard/screens/main_wrapper_screen.dart';
 import 'package:aplikasi_mobile_siswa/core/services/notification_service.dart';
 
-/// Entry point. Wajib `async` karena menginisialisasi plugin native
-/// sebelum UI dijalankan (`WidgetsFlutterBinding.ensureInitialized()`).
 void main() async {
-  // Pastikan binding Flutter siap sebelum memanggil kode native
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Inisialisasi Firebase & GetStorage
-  await Firebase.initializeApp();
+  // Inisialisasi format tanggal bahasa Indonesia
+  try {
+    await initializeDateFormatting('id_ID', null);
+    await initializeDateFormatting('id', null);
+  } catch (e) {
+    debugPrint('Date formatting init error: $e');
+  }
+
+  // Inisialisasi local storage GetStorage
   await GetStorage.init();
 
-  // Inisialisasi push notification (channel Android, minta izin, dll)
-  await NotificationService().initialize();
+  // Inisialisasi Firebase & NotificationService dengan try-catch agar graceful
+  // jika google-services.json belum dikonfigurasi di environment developer
+  try {
+    await Firebase.initializeApp();
+    await NotificationService().initialize();
+  } catch (e) {
+    debugPrint('Firebase/Notification init warning (development mode): $e');
+  }
 
-  runApp(const MyApp());
+  // Daftarkan AuthController secara permanen di memori
+  final authCtrl = Get.put(AuthController(), permanent: true);
+
+  runApp(MyApp(isLoggedIn: authCtrl.isLoggedIn));
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  final bool isLoggedIn;
+  const MyApp({super.key, required this.isLoggedIn});
 
   @override
   Widget build(BuildContext context) {
@@ -39,17 +51,27 @@ class MyApp extends StatelessWidget {
       title: 'SatuSekolah',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        scaffoldBackgroundColor: const Color(0xFFF8FAFC), 
+        scaffoldBackgroundColor: const Color(0xFFF8FAFC),
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF055D97), 
-          background: const Color(0xFFF8FAFC),
+          seedColor: const Color(0xFF055D97),
           surface: Colors.white,
         ),
-        fontFamily: 'Inter', 
+        fontFamily: 'Inter',
         useMaterial3: true,
       ),
-      // Set LoginScreen sebagai halaman pertama saat aplikasi dibuka
-      home: const LoginScreen(),
+      initialRoute: isLoggedIn ? '/home' : '/login',
+      getPages: [
+        GetPage(
+          name: '/login',
+          page: () => const LoginScreen(),
+          transition: Transition.fadeIn,
+        ),
+        GetPage(
+          name: '/home',
+          page: () => const MainWrapperScreen(),
+          transition: Transition.fadeIn,
+        ),
+      ],
     );
   }
 }

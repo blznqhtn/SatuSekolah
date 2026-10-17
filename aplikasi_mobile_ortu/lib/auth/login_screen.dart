@@ -1,9 +1,14 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'package:google_sign_in/google_sign_in.dart';
-import '../main_screen.dart';
+import '../main.dart';
 import 'package:get_storage/get_storage.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../screens/cari_sekolah_screen.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import '../constants/app_colors.dart';
+import '../constants/app_text_styles.dart';
+import '../services/api_client.dart';
+import 'package:dio/dio.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -13,289 +18,304 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  // Controller untuk mengambil teks dari inputan
   final TextEditingController _identifierController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
   bool _isLoading = false;
 
-  // Fungsi Login Biasa
   Future<void> _loginProses() async {
-    if (_identifierController.text.isEmpty ||
-        _passwordController.text.isEmpty) {
+    if (_identifierController.text.isEmpty || _passwordController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-            content: Text('Email/No HP dan Password harus diisi!'),
-            backgroundColor: Colors.red),
+          content: Text('Email/No HP dan Password harus diisi!', style: TextStyle(fontFamily: 'Nunito', fontWeight: FontWeight.bold)),
+          backgroundColor: AppColors.red,
+        ),
       );
       return;
     }
 
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
 
     try {
-      final url = Uri.parse('http://192.168.1.6:8080/api/login/ortu');
-
-      final response = await http.post(
-        url,
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'identifier': _identifierController.text,
+      final response = await ApiClient().dio.post(
+        '/users/login',
+        data: {
+          'identifier': _identifierController.text.trim(),
           'password': _passwordController.text,
-        }),
+        },
       );
 
-      final data = jsonDecode(response.body);
+      final token = response.data['token'];
+      final user = response.data['user'];
 
-      if (response.statusCode == 200 && data['success'] == true) {
-        // --- TAMBAHKAN 3 BARIS INI ---
+      if (token != null) {
+        await ApiClient().secureStorage.write(key: 'jwt_token', value: token);
+        await ApiClient().secureStorage.write(key: 'user_id', value: user['id'].toString());
+
+        // Get Profile to check SPMB Status
+        final profileResponse = await ApiClient().dio.get('/users/profile');
+        final profileData = profileResponse.data['data'];
+        bool spmbCompleted = profileData['spmb_completed'] ?? false;
+
         final box = GetStorage();
         box.write('isLoggedIn', true);
-        box.write('namaOrtu', data['data']['nama']);
-        // -----------------------------
+        box.write('namaOrtu', user['name'] ?? 'Orang Tua');
+        box.write('hasChild', spmbCompleted); // Map spmb_completed to hasChild for now
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Selamat datang kembali, ${user['name']}!', style: const TextStyle(fontFamily: 'Nunito', fontWeight: FontWeight.bold)),
+              backgroundColor: AppColors.teal,
+            ),
+          );
 
+          if (spmbCompleted) {
+            Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const MainShell()));
+          } else {
+            Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const CariSekolahScreen()));
+          }
+        }
+      }
+    } on DioException catch (e) {
+      if (mounted) {
+        String errMsg = 'Terjadi kesalahan saat login';
+        if (e.response != null) {
+          errMsg = e.response?.data['error'] ?? 'Email atau password salah';
+        }
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content: Text('Selamat datang, ${data['data']['nama']}!'),
-              backgroundColor: Colors.green),
-        );
-
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const MainScreen()),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text(data['message'] ?? 'Login Gagal'),
-              backgroundColor: Colors.red),
+            content: Text(errMsg, style: const TextStyle(fontFamily: 'Nunito', fontWeight: FontWeight.bold)),
+            backgroundColor: AppColors.red,
+          ),
         );
       }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text(
-                'Gagal terhubung ke server lokal. Pastikan Go API menyala.'),
-            backgroundColor: Colors.orange),
-      );
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  // Fungsi Login dengan Google
   Future<void> _loginGoogleProses() async {
-    setState(() {
-      _isLoading = true;
-    });
-
+    setState(() => _isLoading = true);
     try {
       final GoogleSignIn googleSignIn = GoogleSignIn(
-        clientId: 'YOUR_CLIENT_ID.apps.googleusercontent.com', // TODO: Ganti dengan Client ID Google Anda
+        serverClientId: '224990005515-44rfo04eoc816ibjrp4br2u7si5pnd6m.apps.googleusercontent.com', // GANTI INI DENGAN WEB CLIENT ID DARI GOOGLE CLOUD CONSOLE
+        scopes: ['email', 'profile'],
       );
-      final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
 
+      // Force sign out to ensure user can choose account
+      await googleSignIn.signOut();
+      
+      final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
+      
       if (googleUser == null) {
-        setState(() {
-          _isLoading = false;
-        });
+        // User canceled the login
+        setState(() => _isLoading = false);
         return;
       }
 
-      final url = Uri.parse('http://192.168.1.6:8080/api/login/google/ortu');
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final idToken = googleAuth.idToken;
 
-      final response = await http.post(
-        url,
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'email': googleUser.email,
-          'google_id': googleUser.id,
-          'nama': googleUser.displayName ?? 'Pengguna Google',
-        }),
+      if (idToken == null) {
+        throw Exception('Tidak bisa mendapatkan id_token dari Google');
+      }
+
+      // Kirim idToken ke Backend Golang
+      final response = await ApiClient().dio.post(
+        '/users/auth/google',
+        data: {'id_token': idToken},
       );
 
-      final data = jsonDecode(response.body);
+      final token = response.data['token'];
+      final user = response.data['user'];
 
-      if (response.statusCode == 200 && data['success'] == true) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text('Selamat datang, ${data['data']['nama']}!'),
-              backgroundColor: Colors.green),
-        );
+      if (token != null) {
+        await ApiClient().secureStorage.write(key: 'jwt_token', value: token);
+        await ApiClient().secureStorage.write(key: 'user_id', value: user['id'].toString());
 
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const MainScreen()),
-        );
-      } else {
-        await googleSignIn.signOut();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text(data['message'] ?? 'Login Gagal'),
-              backgroundColor: Colors.red),
-        );
+        final box = GetStorage();
+        box.write('isLoggedIn', true);
+        box.write('namaOrtu', user['name'] ?? 'Google User');
+        box.write('hasChild', false); // Dummy untuk sementara
+
+        if (mounted) {
+          // Arahkan ke MainShell (bukan CariSekolahScreen) agar alur SPMB berjalan otomatis
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (context) => const MainShell()),
+            (Route<dynamic> route) => false,
+          );
+        }
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content: Text('Error: $e'),
-            backgroundColor: Colors
-                .orange), // <--- Agar kita tahu persis apa error dari Google-nya
-      );
+      if (mounted) {
+        String errMsg = 'Google Login Gagal';
+        if (e is DioException) {
+          errMsg = e.response?.data['error'] ?? 'Koneksi ke server gagal';
+        } else {
+          errMsg = e.toString();
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(errMsg), backgroundColor: AppColors.red),
+        );
+      }
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  @override
+  void dispose() {
+    _identifierController.dispose();
+    _passwordController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.bg,
       body: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
         child: Column(
           children: [
-            Container(
-              height: MediaQuery.of(context).size.height * 0.4,
-              width: double.infinity,
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Color(0xFF48C6EF), Color(0xFF6F86D6)],
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                ),
-                borderRadius: BorderRadius.only(
-                  bottomLeft: Radius.circular(80),
-                ),
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Image.asset(
-                    'assets/images/LogoSatuSekolah.png',
-                    height: 100,
-                  ),
-                  const SizedBox(height: 15),
-                  const Text(
-                    "SATU SEKOLAH",
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 2,
-                    ),
-                  ),
-                  const Text(
-                    "Parent Portal",
-                    style: TextStyle(color: Colors.white70, fontSize: 16),
-                  ),
-                ],
-              ),
-            ),
+            _buildHeaderHero(context),
             Padding(
-              padding: const EdgeInsets.all(30.0),
+              padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 30.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    "Selamat Datang",
-                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                    "Selamat Datang 👋",
+                    style: TextStyle(
+                      fontFamily: 'Nunito',
+                      fontSize: 26,
+                      fontWeight: FontWeight.w900,
+                      color: AppColors.text,
+                      letterSpacing: -0.5,
+                    ),
                   ),
-                  const SizedBox(height: 30),
+                  const SizedBox(height: 8),
+                  const Text(
+                    "Silakan masuk untuk memantau perkembangan belajar anak Anda.",
+                    style: TextStyle(
+                      fontFamily: 'Nunito',
+                      fontSize: 14,
+                      color: AppColors.text2,
+                      height: 1.5,
+                    ),
+                  ),
+                  const SizedBox(height: 35),
 
-                  // Form Input dengan penambahan parameter controller
                   _buildInput(
                     controller: _identifierController,
-                    label: "Email atau Nomor HP",
-                    icon: Icons.person_outline,
+                    label: "Email",
+                    icon: Icons.email_outlined,
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 16),
                   _buildInput(
                     controller: _passwordController,
                     label: "Password",
-                    icon: Icons.lock_outline,
+                    icon: Icons.lock_outline_rounded,
                     isPassword: true,
                   ),
 
-                  const SizedBox(height: 30),
+                  const SizedBox(height: 12),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: Text(
+                      "Lupa Password?",
+                      style: TextStyle(
+                        fontFamily: 'Nunito',
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.accent,
+                      ),
+                    ),
+                  ),
 
-                  // Tombol Masuk
+                  const SizedBox(height: 35),
+
                   SizedBox(
                     width: double.infinity,
                     height: 55,
                     child: ElevatedButton(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF6F86D6),
+                        backgroundColor: AppColors.accent,
                         foregroundColor: Colors.white,
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(15),
+                          borderRadius: BorderRadius.circular(16),
                         ),
-                        elevation: 5,
+                        elevation: 0,
                       ),
                       onPressed: _isLoading ? null : _loginProses,
                       child: _isLoading
-                          ? const CircularProgressIndicator(color: Colors.white)
+                          ? const SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
+                            )
                           : const Text(
                               "MASUK",
                               style: TextStyle(
-                                  fontSize: 16, fontWeight: FontWeight.bold),
+                                fontFamily: 'Nunito',
+                                fontSize: 16,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 1,
+                              ),
                             ),
                     ),
                   ),
-
-                  const SizedBox(height: 25),
-
-                  Row(
-                    children: [
-                      Expanded(child: Divider(color: Colors.grey[400])),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 15),
-                        child: Text(
-                          "atau",
-                          style:
-                              TextStyle(color: Colors.grey[600], fontSize: 14),
-                        ),
-                      ),
-                      Expanded(child: Divider(color: Colors.grey[400])),
-                    ],
-                  ),
-
-                  const SizedBox(height: 25),
-
-                  // Tombol Masuk dengan Google
-                  SizedBox(
-                    width: double.infinity,
-                    height: 55,
-                    child: OutlinedButton.icon(
-                      onPressed: _isLoading ? null : _loginGoogleProses,
-                      icon: Image.asset(
-                        'assets/images/Google_Favicon_2025.png',
-                        height: 24,
-                        errorBuilder: (context, error, stackTrace) =>
-                            const Icon(Icons.g_mobiledata,
-                                size: 36, color: Colors.red),
-                      ),
-                      label: const Text(
-                        "Masuk dengan Google",
-                        style: TextStyle(
-                          color: Colors.black87,
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: Colors.black26),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(15),
-                        ),
+                  
+                  const SizedBox(height: 20),
+                  
+                  // Tombol Google (Mock)
+                  OutlinedButton.icon(
+                    onPressed: _isLoading ? _loginGoogleProses : _loginGoogleProses,
+                    icon: SvgPicture.network('https://cdn.jsdelivr.net/gh/glincker/thesvg@main/public/icons/google/default.svg', width: 24, height: 24),
+                    label: const Text('Masuk dengan Google'),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      minimumSize: const Size(double.infinity, 55),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
                       ),
                     ),
                   ),
+                  
+                  const SizedBox(height: 20),
+                  
+                  // Register Button
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Text(
+                        "Belum punya akun? ",
+                        style: TextStyle(
+                          fontFamily: 'Nunito',
+                          color: AppColors.text2,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: () {
+                          Navigator.pushNamed(context, '/register');
+                        },
+                        child: const Text(
+                          "Daftar",
+                          style: TextStyle(
+                            fontFamily: 'Nunito',
+                            color: AppColors.teal,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 40),
                 ],
               ),
             ),
@@ -305,26 +325,91 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  // Modifikasi _buildInput untuk menerima TextEditingController
-  Widget _buildInput(
-      {required TextEditingController controller,
-      required String label,
-      required IconData icon,
-      bool isPassword = false}) {
+  Widget _buildHeaderHero(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [AppColors.accent, Color(0xFFF5A073)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(40),
+          bottomRight: Radius.circular(40),
+        ),
+      ),
+      padding: const EdgeInsets.only(top: 80, bottom: 40),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Image.asset(
+            'assets/images/LogoSatuSekolah.png',
+            height: 80,
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            "Satu Sekolah",
+            style: TextStyle(
+              fontFamily: 'Nunito',
+              color: Colors.white,
+              fontSize: 28,
+              fontWeight: FontWeight.w900,
+              letterSpacing: -0.5,
+            ),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            "Aplikasi Orang Tua & Wali",
+            style: TextStyle(
+              fontFamily: 'Nunito',
+              color: Colors.white70,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInput({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    bool isPassword = false,
+  }) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.grey[100],
-        borderRadius: BorderRadius.circular(15),
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: TextField(
         controller: controller,
         obscureText: isPassword,
+        style: const TextStyle(
+          fontFamily: 'Nunito',
+          fontSize: 15,
+          fontWeight: FontWeight.w600,
+          color: AppColors.text,
+        ),
         decoration: InputDecoration(
           hintText: label,
-          prefixIcon: Icon(icon, color: Colors.blueGrey),
+          hintStyle: const TextStyle(
+            fontFamily: 'Nunito',
+            color: AppColors.text3,
+            fontWeight: FontWeight.w500,
+          ),
+          prefixIcon: Icon(icon, color: AppColors.text3, size: 22),
           border: InputBorder.none,
-          contentPadding:
-              const EdgeInsets.symmetric(vertical: 15, horizontal: 20),
+          contentPadding: const EdgeInsets.symmetric(vertical: 18, horizontal: 20),
         ),
       ),
     );

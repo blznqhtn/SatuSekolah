@@ -1,10 +1,45 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:aplikasi_mobile_siswa/features/academic/controllers/academic_activity_controller.dart';
 
-class ExtracurricularRegistrationScreen extends StatelessWidget {
-  final String title;
-  const ExtracurricularRegistrationScreen({Key? key, required this.title}) : super(key: key);
+class ExtracurricularRegistrationScreen extends StatefulWidget {
+  final ExtracurricularModel extra;
+  const ExtracurricularRegistrationScreen({Key? key, required this.extra}) : super(key: key);
+
+  @override
+  State<ExtracurricularRegistrationScreen> createState() => _ExtracurricularRegistrationScreenState();
+}
+
+class _ExtracurricularRegistrationScreenState extends State<ExtracurricularRegistrationScreen> {
+  final AcademicActivityController _ctrl = Get.isRegistered<AcademicActivityController>()
+      ? Get.find<AcademicActivityController>()
+      : Get.put(AcademicActivityController());
+
+  final _reasonCtrl = TextEditingController();
+  bool _isSubmitting = false;
+
+  @override
+  void dispose() {
+    _reasonCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _register() async {
+    setState(() => _isSubmitting = true);
+    final success = await _ctrl.registerExtracurricular(widget.extra.id);
+    setState(() => _isSubmitting = false);
+
+    if (success) {
+      Get.back();
+      Get.snackbar(
+        'Pendaftaran Berhasil',
+        'Pendaftaran ekstrakurikuler ${widget.extra.name} berhasil diajukan.',
+        backgroundColor: Colors.green.shade600,
+        colorText: Colors.white,
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -18,7 +53,7 @@ class ExtracurricularRegistrationScreen extends StatelessWidget {
           onPressed: () => Get.back(),
         ),
         title: Text(
-          'Daftar $title',
+          'Daftar ${widget.extra.name}',
           style: const TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.bold, fontSize: 18),
         ),
       ),
@@ -34,18 +69,74 @@ class ExtracurricularRegistrationScreen extends StatelessWidget {
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: const Color(0xFFE2E8F0)),
               ),
-              child: const Text(
-                'Pastikan Anda memiliki waktu luang di jadwal ekstrakurikuler ini. Kehadiran sangat diperhitungkan.',
-                style: TextStyle(color: Color(0xFF64748B), height: 1.5),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.info_outline_rounded, color: Color(0xFF055D97), size: 20),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Informasi Kegiatan ${widget.extra.name}',
+                        style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF0F172A), fontSize: 14),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  if (widget.extra.description.isNotEmpty) ...[
+                    Text(
+                      widget.extra.description,
+                      style: const TextStyle(color: Color(0xFF64748B), height: 1.5, fontSize: 13),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                  Row(
+                    children: [
+                      const Icon(Icons.schedule_rounded, size: 16, color: Color(0xFF64748B)),
+                      const SizedBox(width: 8),
+                      Text(
+                        '${widget.extra.scheduleDay}, ${widget.extra.scheduleTime}',
+                        style: const TextStyle(color: Color(0xFF334155), fontSize: 13, fontWeight: FontWeight.w500),
+                      ),
+                    ],
+                  ),
+                  if (widget.extra.location.isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        const Icon(Icons.location_on_outlined, size: 16, color: Color(0xFF64748B)),
+                        const SizedBox(width: 8),
+                        Text(
+                          widget.extra.location,
+                          style: const TextStyle(color: Color(0xFF334155), fontSize: 13),
+                        ),
+                      ],
+                    ),
+                  ],
+                  if (widget.extra.coachName.isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        const Icon(Icons.person_outline_rounded, size: 16, color: Color(0xFF64748B)),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Pembina: ${widget.extra.coachName}',
+                          style: const TextStyle(color: Color(0xFF334155), fontSize: 13),
+                        ),
+                      ],
+                    ),
+                  ],
+                ],
               ),
             ),
             const SizedBox(height: 24),
-            const Text('Alasan Bergabung', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
+            const Text('Alasan Bergabung (Opsional)', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
             const SizedBox(height: 8),
             TextField(
+              controller: _reasonCtrl,
               maxLines: 4,
               decoration: InputDecoration(
-                hintText: 'Tuliskan alasan singkat...',
+                hintText: 'Tuliskan minat atau pengalaman Anda terkait ekstrakurikuler ini...',
                 filled: true,
                 fillColor: const Color(0xFFF1F5F9),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
@@ -55,16 +146,19 @@ class ExtracurricularRegistrationScreen extends StatelessWidget {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: () {
-                  Get.back();
-                  Get.snackbar('Berhasil', 'Pendaftaran $title berhasil dikirim.', backgroundColor: Colors.green, colorText: Colors.white);
-                },
+                onPressed: _isSubmitting ? null : _register,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF055D97),
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
-                child: const Text('Kirim Pendaftaran', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                child: _isSubmitting
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                      )
+                    : const Text('Kirim Pendaftaran', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
               ),
             )
           ],

@@ -6,32 +6,41 @@ import 'package:aplikasi_mobile_siswa/features/dashboard/screens/home_screen.dar
 import 'package:aplikasi_mobile_siswa/features/profile/screens/profile_screen.dart';
 import 'package:aplikasi_mobile_siswa/features/dashboard/screens/akademik_screen.dart';
 
-class MainWrapperScreen extends StatelessWidget {
-  MainWrapperScreen({Key? key}) : super(key: key);
+class MainWrapperScreen extends StatefulWidget {
+  const MainWrapperScreen({Key? key}) : super(key: key);
 
-  final MainWrapperController controller = Get.put(MainWrapperController());
+  @override
+  State<MainWrapperScreen> createState() => _MainWrapperScreenState();
+}
 
-  // Layar Dummy untuk Akademik
-  final List<Widget> _pages = [
-    const HomeScreen(),
-    const AkademikScreen(),
-    const ProfileScreen(),
+class _MainWrapperScreenState extends State<MainWrapperScreen> {
+  late final MainWrapperController controller;
+
+  final List<Widget> _pages = const [
+    HomeScreen(),
+    AkademikScreen(),
+    ProfileScreen(),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    controller = Get.isRegistered<MainWrapperController>()
+        ? Get.find<MainWrapperController>()
+        : Get.put(MainWrapperController());
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       extendBody: true, 
       body: Obx(() {
-        // Mencegah error jika index controller tertinggal di angka 3 atau 4 saat hot reload
-        int safeIndex = controller.currentIndex.value;
-        if (safeIndex >= _pages.length) {
-          safeIndex = 0;
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            controller.currentIndex.value = 0;
-          });
-        }
-        return _pages[safeIndex];
+        final rawIndex = controller.currentIndex.value;
+        final safeIndex = (rawIndex >= 0 && rawIndex < _pages.length) ? rawIndex : 0;
+        return IndexedStack(
+          index: safeIndex,
+          children: _pages,
+        );
       }),
       bottomNavigationBar: SafeArea(
         child: Padding(
@@ -100,7 +109,7 @@ class MainWrapperScreen extends StatelessWidget {
                 transitionBuilder: (child, anim) => ScaleTransition(scale: anim, child: child),
                 child: Icon(
                   isSelected ? activeIcon : icon,
-                  key: ValueKey(isSelected),
+                  key: ValueKey('nav_icon_${index}_$isSelected'),
                   color: isSelected ? Colors.white : const Color(0xFF475569), 
                   size: 26, 
                 ),

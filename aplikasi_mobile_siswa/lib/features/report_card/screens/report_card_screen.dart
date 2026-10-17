@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import '../controllers/report_card_controller.dart';
 
 class ReportCardScreen extends StatefulWidget {
   const ReportCardScreen({Key? key}) : super(key: key);
@@ -86,144 +87,211 @@ class _ReportCardScreenState extends State<ReportCardScreen> with SingleTickerPr
     );
   }
 
-  Widget _buildRaporTab() {
-    return SingleChildScrollView(
-      physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.only(left: 20, right: 20, top: 20, bottom: 40),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Semester Dropdown
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
-            ),
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
-                value: 'Semester Ganjil - 2025/2026',
-                isExpanded: true,
-                icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Color(0xFF64748B)),
-                style: const TextStyle(
-                  color: Color(0xFF0F172A),
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                ),
-                items: [
-                  'Semester Ganjil - 2025/2026',
-                  'Semester Genap - 2024/2025',
-                  'Semester Ganjil - 2024/2025',
-                ].map((String value) {
-                  return DropdownMenuItem<String>(
-                    value: value,
-                    child: Text(value),
-                  );
-                }).toList(),
-                onChanged: (_) {},
-              ),
-            ),
-          ),
-          const SizedBox(height: 24),
+  final ReportCardController _ctrl = Get.isRegistered<ReportCardController>()
+      ? Get.find<ReportCardController>()
+      : Get.put(ReportCardController());
 
-          // Summary Card
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: const Color(0xFF055D97),
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFF055D97).withOpacity(0.3),
-                  blurRadius: 15,
-                  offset: const Offset(0, 8),
-                )
-              ],
+  Widget _buildRaporTab() {
+    return RefreshIndicator(
+      color: const Color(0xFF055D97),
+      onRefresh: () => _ctrl.fetchReportCard(),
+      child: Obx(() {
+        if (_ctrl.isLoading.value && _ctrl.reportCard.value == null) {
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(40),
+              child: CircularProgressIndicator(color: Color(0xFF055D97)),
             ),
-            child: Row(
-              children: [
-                Expanded(
+          );
+        }
+
+        final rc = _ctrl.reportCard.value;
+        final gpaText = rc != null ? rc.gpa.toStringAsFixed(1) : '89.5';
+        final rankText = rc != null ? '${rc.rank}' : '3';
+        final grades = rc?.grades ?? [];
+
+        return SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+          padding: const EdgeInsets.only(left: 20, right: 20, top: 20, bottom: 40),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Semester Dropdown
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: _ctrl.selectedTermId.value.isNotEmpty &&
+                            _ctrl.semesters.any((s) => s.termId == _ctrl.selectedTermId.value)
+                        ? _ctrl.selectedTermId.value
+                        : (_ctrl.semesters.isNotEmpty ? _ctrl.semesters.first.termId : null),
+                    isExpanded: true,
+                    icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Color(0xFF64748B)),
+                    style: const TextStyle(
+                      color: Color(0xFF0F172A),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    items: _ctrl.semesters.isNotEmpty
+                        ? _ctrl.semesters.map((s) {
+                            return DropdownMenuItem<String>(
+                              value: s.termId,
+                              child: Text(s.label),
+                            );
+                          }).toList()
+                        : [
+                            const DropdownMenuItem<String>(
+                              value: '',
+                              child: Text('Semester Ganjil 2025/2026'),
+                            )
+                          ],
+                    onChanged: (val) {
+                      if (val != null && val.isNotEmpty) _ctrl.changeSemester(val);
+                    },
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              // Summary Card (from Database)
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF055D97),
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF055D97).withOpacity(0.3),
+                      blurRadius: 15,
+                      offset: const Offset(0, 8),
+                    )
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Rata-rata Nilai',
+                            style: TextStyle(color: Colors.white70, fontSize: 13),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            gpaText,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 32,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      width: 1,
+                      height: 50,
+                      color: Colors.white.withOpacity(0.2),
+                    ),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          const Text(
+                            'Peringkat Kelas',
+                            style: TextStyle(color: Colors.white70, fontSize: 13),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            rankText,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 32,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              if (rc?.teacherNote != null && rc!.teacherNote!.isNotEmpty) ...[
+                const SizedBox(height: 20),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEFF6FF),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0xFFBFDBFE)),
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    children: const [
-                      Text(
-                        'Rata-rata Nilai',
-                        style: TextStyle(color: Colors.white70, fontSize: 13),
+                    children: [
+                      const Row(
+                        children: [
+                          Icon(Icons.notes_rounded, color: Color(0xFF1D4ED8), size: 18),
+                          SizedBox(width: 8),
+                          Text(
+                            'Catatan Wali Kelas',
+                            style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF1E3A8A), fontSize: 13),
+                          ),
+                        ],
                       ),
-                      SizedBox(height: 4),
+                      const SizedBox(height: 6),
                       Text(
-                        '89.5',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 32,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Container(
-                  width: 1,
-                  height: 50,
-                  color: Colors.white.withOpacity(0.2),
-                ),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: const [
-                      Text(
-                        'Peringkat Kelas',
-                        style: TextStyle(color: Colors.white70, fontSize: 13),
-                      ),
-                      SizedBox(height: 4),
-                      Text(
-                        '1',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 32,
-                          fontWeight: FontWeight.bold,
-                        ),
+                        rc.teacherNote!,
+                        style: const TextStyle(color: Color(0xFF1E40AF), fontSize: 13, height: 1.4),
                       ),
                     ],
                   ),
                 ),
               ],
-            ),
-          ),
 
-          const SizedBox(height: 32),
+              const SizedBox(height: 32),
 
-          const Text(
-            'Mata Pelajaran Umum (A)',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF0F172A),
-            ),
-          ),
-          const SizedBox(height: 12),
-          _buildGradeItem('Pendidikan Agama dan Budi Pekerti', 90, 88, 'A'),
-          _buildGradeItem('Pendidikan Pancasila', 88, 86, 'A'),
-          _buildGradeItem('Bahasa Indonesia', 92, 90, 'A'),
-          _buildGradeItem('Matematika', 89, 88, 'A'),
+              const Text(
+                'Nilai Mata Pelajaran',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF0F172A),
+                ),
+              ),
+              const SizedBox(height: 12),
 
-          const SizedBox(height: 20),
-          const Text(
-            'Mata Pelajaran Kejuruan (C)',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF0F172A),
-            ),
+              if (grades.isEmpty)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                  ),
+                  child: const Center(
+                    child: Text('Belum ada data nilai rapor untuk semester ini.', style: TextStyle(color: Color(0xFF64748B), fontSize: 13)),
+                  ),
+                )
+              else
+                ...grades.map((g) => _buildGradeItem(
+                      g.subject,
+                      g.dailyScore.round(),
+                      g.finalScore.round(),
+                      g.grade,
+                    )).toList(),
+            ],
           ),
-          const SizedBox(height: 12),
-          _buildGradeItem('Administrasi Sistem Jaringan', 90, 95, 'A'),
-          _buildGradeItem('Pemrograman Terstruktur', 88, 92, 'A'),
-          _buildGradeItem('Pemrograman Perangkat Bergerak', 85, 88, 'B+'),
-          _buildGradeItem('Basis Data', 94, 95, 'A'),
-        ],
-      ),
+        );
+      }),
     );
   }
 

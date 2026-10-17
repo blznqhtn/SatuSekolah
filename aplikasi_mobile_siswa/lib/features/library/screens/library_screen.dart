@@ -15,6 +15,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import '../controllers/library_controller.dart';
 
 class LibraryScreen extends StatefulWidget {
   const LibraryScreen({Key? key}) : super(key: key);
@@ -24,9 +25,18 @@ class LibraryScreen extends StatefulWidget {
 }
 
 class _LibraryScreenState extends State<LibraryScreen> {
+  late final LibraryController _ctrl;
   String _selectedCategory = 'Semua';
   String _searchQuery = '';
   final Set<String> _savedBooks = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = Get.isRegistered<LibraryController>()
+        ? Get.find<LibraryController>()
+        : Get.put(LibraryController());
+  }
 
   void _toggleSaved(String title) {
     setState(() {
@@ -38,43 +48,22 @@ class _LibraryScreenState extends State<LibraryScreen> {
     });
   }
 
-  final List<Map<String, dynamic>> _allBooks = [
-    {
-      'title': 'Bumi Manusia',
-      'author': 'Pramoedya A. Toer',
-      'category': 'Sejarah',
-      'imageUrl': 'https://images.unsplash.com/photo-1589829085413-56de8ae18c73?q=80&w=300&auto=format&fit=crop',
+  List<Map<String, dynamic>> get _allBooks {
+    if (_ctrl.books.isEmpty) {
+      return [];
+    }
+    return _ctrl.books.map((b) => {
+      'id': b.id,
+      'title': b.title,
+      'author': b.author,
+      'category': b.category,
+      'imageUrl': (b.coverUrl != null && b.coverUrl!.isNotEmpty)
+          ? b.coverUrl!
+          : 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?q=80&w=300&auto=format&fit=crop',
       'rating': 4.8,
-    },
-    {
-      'title': 'Atomic Habits',
-      'author': 'James Clear',
-      'category': 'Pengembangan Diri',
-      'imageUrl': 'https://images.unsplash.com/photo-1589998059171-988d887df646?q=80&w=300&auto=format&fit=crop',
-      'rating': 4.9,
-    },
-    {
-      'title': 'Sapiens',
-      'author': 'Yuval Noah Harari',
-      'category': 'Sains',
-      'imageUrl': 'https://images.unsplash.com/photo-1532012197267-da84d127e765?q=80&w=300&auto=format&fit=crop',
-      'rating': 4.7,
-    },
-    {
-      'title': 'Laskar Pelangi',
-      'author': 'Andrea Hirata',
-      'category': 'Fiksi',
-      'imageUrl': 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?q=80&w=300&auto=format&fit=crop',
-      'rating': 4.9,
-    },
-    {
-      'title': 'Dasar Pemrograman Web',
-      'author': 'Budi Raharjo',
-      'category': 'Teknologi',
-      'imageUrl': 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?q=80&w=300&auto=format&fit=crop',
-      'rating': 4.6,
-    },
-  ];
+      'stock': b.stock,
+    }).toList();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -129,259 +118,263 @@ class _LibraryScreenState extends State<LibraryScreen> {
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
-        padding: const EdgeInsets.only(bottom: 30),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Search Bar & Filter
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: const Color(0xFFE2E8F0)),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.02),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
-                          )
-                        ],
-                      ),
-                      child: TextField(
-                        onChanged: (value) {
-                          setState(() {
-                            _searchQuery = value;
-                          });
-                        },
-                        decoration: InputDecoration(
-                          hintText: 'Cari judul, penulis...',
-                          hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
-                          prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFF64748B), size: 20),
-                          border: InputBorder.none,
-                          contentPadding: const EdgeInsets.symmetric(vertical: 14),
+      body: Obx(() {
+        if (_ctrl.isLoadingBooks.value && _allBooks.isEmpty) {
+          return const Center(
+            child: CircularProgressIndicator(color: Color(0xFF055D97)),
+          );
+        }
+
+        final categoriesList = _ctrl.categories.isNotEmpty
+            ? _ctrl.categories.toList()
+            : ['Semua', 'Fiksi', 'Sains', 'Sejarah', 'Teknologi', 'Umum'];
+
+        return RefreshIndicator(
+          onRefresh: () => _ctrl.fetchAll(),
+          color: const Color(0xFF055D97),
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+            padding: const EdgeInsets.only(bottom: 30),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Search Bar & Filter
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.02),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
+                              )
+                            ],
+                          ),
+                          child: TextField(
+                            onChanged: (value) {
+                              setState(() {
+                                _searchQuery = value;
+                              });
+                            },
+                            decoration: const InputDecoration(
+                              hintText: 'Cari judul, penulis...',
+                              hintStyle: TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
+                              prefixIcon: Icon(Icons.search_rounded, color: Color(0xFF64748B), size: 20),
+                              border: InputBorder.none,
+                              contentPadding: EdgeInsets.symmetric(vertical: 14),
+                            ),
+                          ),
                         ),
                       ),
+                    ],
+                  ),
+                ),
+                
+                const SizedBox(height: 20),
+
+                // Kategori Dinamis dari Database
+                SizedBox(
+                  height: 40,
+                  child: ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    physics: const BouncingScrollPhysics(),
+                    itemCount: categoriesList.length,
+                    itemBuilder: (context, idx) {
+                      return _buildCategoryChip(categoriesList[idx]);
+                    },
+                  ),
+                ),
+
+                const SizedBox(height: 32),
+
+                // Result
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Text(
+                    _searchQuery.isNotEmpty || _selectedCategory != 'Semua' ? 'Hasil Pencarian' : 'Rekomendasi Untukmu',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF0F172A),
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                
+                if (filteredBooks.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 20, vertical: 40),
+                    child: Center(
+                      child: Text('Tidak ada buku yang ditemukan.', style: TextStyle(color: Color(0xFF94A3B8))),
+                    ),
+                  )
+                else
+                  SizedBox(
+                    height: 260,
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      physics: const BouncingScrollPhysics(),
+                      itemCount: filteredBooks.length,
+                      itemBuilder: (context, index) {
+                        final book = filteredBooks[index];
+                        return _buildBookCard(
+                          title: book['title'],
+                          author: book['author'],
+                          category: book['category'],
+                          imageUrl: book['imageUrl'],
+                          rating: book['rating'] ?? 4.8,
+                          isSaved: _savedBooks.contains(book['title']),
+                          onToggleSaved: () => _toggleSaved(book['title']),
+                        );
+                      },
                     ),
                   ),
 
-                ],
-              ),
-            ),
-            
-            const SizedBox(height: 20),
-
-            // Kategori
-            SizedBox(
-              height: 40,
-              child: ListView(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                physics: const BouncingScrollPhysics(),
-                children: [
-                  _buildCategoryChip('Semua'),
-                  _buildCategoryChip('Fiksi'),
-                  _buildCategoryChip('Sains'),
-                  _buildCategoryChip('Sejarah'),
-                  _buildCategoryChip('Teknologi'),
-                  _buildCategoryChip('Pengembangan Diri'),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 32),
-
-            // Result
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Text(
-                _searchQuery.isNotEmpty || _selectedCategory != 'Semua' ? 'Hasil Pencarian' : 'Rekomendasi Untukmu',
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF0F172A),
-                  letterSpacing: -0.5,
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            
-            if (filteredBooks.isEmpty)
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 20, vertical: 40),
-                child: Center(
-                  child: Text('Tidak ada buku yang ditemukan.', style: TextStyle(color: Color(0xFF94A3B8))),
-                ),
-              )
-            else
-              SizedBox(
-                height: 260,
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  physics: const BouncingScrollPhysics(),
-                  itemCount: filteredBooks.length,
-                  itemBuilder: (context, index) {
-                    final book = filteredBooks[index];
-                    return _buildBookCard(
-                      title: book['title'],
-                      author: book['author'],
-                      category: book['category'],
-                      imageUrl: book['imageUrl'],
-                      rating: book['rating'],
-                      isSaved: _savedBooks.contains(book['title']),
-                      onToggleSaved: () => _toggleSaved(book['title']),
-                    );
-                  },
-                ),
-              ),
-
-            // Hide continue reading if searching
-            if (_searchQuery.isEmpty && _selectedCategory == 'Semua') ...[
-              const SizedBox(height: 32),
-              // Sedang Dibaca (Continue Reading)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                // Hide continue reading if searching
+                if (_searchQuery.isEmpty && _selectedCategory == 'Semua' && _allBooks.isNotEmpty) ...[
+                  const SizedBox(height: 32),
+                  // Sedang Dibaca (Continue Reading)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'Sedang Dibaca',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF0F172A),
-                            letterSpacing: -0.5,
-                          ),
+                        const Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Sedang Dibaca',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF0F172A),
+                                letterSpacing: -0.5,
+                              ),
+                            ),
+                          ],
                         ),
-                        const Text(
-                          'Lihat Semua',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF055D97),
+                        const SizedBox(height: 16),
+                        GestureDetector(
+                          onTap: () {
+                            final activeBook = _allBooks.first;
+                            Get.to(() => BookDetailScreen(
+                              title: activeBook['title'],
+                              author: activeBook['author'],
+                              category: activeBook['category'],
+                              rating: activeBook['rating'] ?? 4.8,
+                              imageUrl: activeBook['imageUrl'],
+                            ));
+                          },
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: const Color(0xFFE2E8F0)),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.02),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 4),
+                                )
+                              ],
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 60,
+                                  height: 85,
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(8),
+                                    color: const Color(0xFFF1F5F9),
+                                    image: DecorationImage(
+                                      image: NetworkImage(_allBooks.first['imageUrl']),
+                                      fit: BoxFit.cover,
+                                    ),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withOpacity(0.1),
+                                        blurRadius: 4,
+                                        offset: const Offset(2, 2),
+                                      )
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        _allBooks.first['title'],
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 16,
+                                          color: Color(0xFF0F172A),
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        _allBooks.first['author'],
+                                        style: const TextStyle(
+                                          color: Color(0xFF64748B),
+                                          fontSize: 13,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 12),
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: ClipRRect(
+                                              borderRadius: BorderRadius.circular(4),
+                                              child: const LinearProgressIndicator(
+                                                value: 0.65,
+                                                backgroundColor: Color(0xFFF1F5F9),
+                                                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF055D97)),
+                                                minHeight: 6,
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 12),
+                                          const Text(
+                                            '65%',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                              color: Color(0xFF334155),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 16),
-                    GestureDetector(
-                      onTap: () {
-                        Get.to(() => const BookDetailScreen(
-                          title: 'Laskar Pelangi',
-                          author: 'Andrea Hirata',
-                          category: 'Fiksi',
-                          rating: 4.9,
-                          imageUrl: 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?q=80&w=200&auto=format&fit=crop',
-                        ));
-                      },
-                      child: Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: const Color(0xFFE2E8F0)),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.02),
-                              blurRadius: 10,
-                              offset: const Offset(0, 4),
-                            )
-                          ],
-                        ),
-                        child: Row(
-                          children: [
-                            Container(
-                              width: 60,
-                              height: 85,
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(8),
-                                color: const Color(0xFFF1F5F9),
-                                image: const DecorationImage(
-                                  image: NetworkImage('https://images.unsplash.com/photo-1544947950-fa07a98d237f?q=80&w=200&auto=format&fit=crop'),
-                                  fit: BoxFit.cover,
-                                ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.1),
-                                    blurRadius: 4,
-                                    offset: const Offset(2, 2),
-                                  )
-                                ],
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Text(
-                                    'Laskar Pelangi',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 16,
-                                      color: Color(0xFF0F172A),
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  const SizedBox(height: 4),
-                                  const Text(
-                                    'Andrea Hirata',
-                                    style: TextStyle(
-                                      color: Color(0xFF64748B),
-                                      fontSize: 13,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 12),
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: ClipRRect(
-                                          borderRadius: BorderRadius.circular(4),
-                                          child: const LinearProgressIndicator(
-                                            value: 0.65,
-                                            backgroundColor: Color(0xFFF1F5F9),
-                                            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF055D97)),
-                                            minHeight: 6,
-                                          ),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 12),
-                                      const Text(
-                                        '65%',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w600,
-                                          color: Color(0xFF334155),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ]
-          ],
-        ),
-      ),
+                  ),
+                ]
+              ],
+            ),
+          ),
+        );
+      }),
     );
   }
 
