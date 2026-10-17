@@ -18,16 +18,18 @@ func NewCalendarRepository(db *sql.DB) domain.CalendarRepository {
 }
 
 func (r *calendarRepository) GetEventsByMonth(ctx context.Context, tenantID uuid.UUID, year, month int, targetUserID *uuid.UUID) ([]*domain.CalendarEvent, error) {
+	startDate := fmt.Sprintf("%04d-%02d-01", year, month)
+	endDate := fmt.Sprintf("%04d-%02d-31", year, month)
 	query := `
 		SELECT id, tenant_id, title, description, event_date, start_time, end_time, location, category, status, attachment_url, created_by, target_user_id, created_at, updated_at
 		FROM calendar_events
 		WHERE tenant_id = ? 
-		  AND YEAR(event_date) = ? 
-		  AND MONTH(event_date) = ?
+		  AND event_date >= ? 
+		  AND event_date <= ?
 		  AND deleted_at IS NULL
 	`
 	var args []interface{}
-	args = append(args, tenantID, year, month)
+	args = append(args, tenantID, startDate, endDate)
 
 	if targetUserID != nil {
 		query += ` AND (target_user_id IS NULL OR target_user_id = ?)`

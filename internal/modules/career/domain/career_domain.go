@@ -62,6 +62,9 @@ type JobVacancy struct {
 	SalaryMax    *float64       `json:"salary_max,omitempty"`
 	HideSalary   bool           `json:"hide_salary"`
 	Deadline     *time.Time     `json:"deadline,omitempty"`
+	CompanyName  *string        `json:"company_name,omitempty"`
+	CompanyLogo  *string        `json:"company_logo,omitempty"`
+	CompanyLocation *string     `json:"company_location,omitempty"`
 	CreatedAt    time.Time      `json:"created_at"`
 	UpdatedAt    time.Time      `json:"updated_at"`
 }

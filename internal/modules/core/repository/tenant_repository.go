@@ -284,10 +284,10 @@ func (r *coreRepository) CreateUser(ctx context.Context, user *domain.User) erro
 	user.ID = uuid.New()
 
 	query := `
-		INSERT INTO users (id, tenant_id, account_number, category, name, email, password_hash)
-		VALUES (?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO users (id, tenant_id, account_number, category, name, email, username, nisn, npk, password_hash)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
-	_, err = r.exec(ctx, query, user.ID, user.TenantID, user.AccountNumber, user.Category, user.Name, user.Email, string(hashed))
+	_, err = r.exec(ctx, query, user.ID, user.TenantID, user.AccountNumber, user.Category, user.Name, user.Email, user.Username, user.Nisn, user.Npk, string(hashed))
 	return err
 }
 
@@ -327,18 +327,38 @@ func (r *coreRepository) GetUserByLoginIdentifier(ctx context.Context, identifie
 
 func (r *coreRepository) GetUserByID(ctx context.Context, id uuid.UUID) (*domain.User, error) {
 	query := `
-		SELECT id, tenant_id, account_number, category, name, email, phone, address, avatar_url, password_hash, COALESCE(pin_hash, ''), created_at
-		FROM users WHERE id = ? AND deleted_at IS NULL
+		SELECT u.id, u.tenant_id, u.account_number, u.category, u.name, u.email, u.phone, u.address, u.avatar_url, u.password_hash, COALESCE(u.pin_hash, ''), u.created_at,
+		       COALESCE(u.username, ''), COALESCE(u.nisn, ''), COALESCE(u.class_id::text, ''), COALESCE(c.name, '')
+		FROM users u
+		LEFT JOIN classes c ON c.id = u.class_id
+		WHERE u.id = ? AND u.deleted_at IS NULL
 	`
 	var user domain.User
+	var username, nisn, classIDStr, className string
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
 		&user.ID, &user.TenantID, &user.AccountNumber, &user.Category, &user.Name, &user.Email, &user.Phone, &user.Address, &user.AvatarURL, &user.Password, &user.PinHash, &user.CreatedAt,
+		&username, &nisn, &classIDStr, &className,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
 		}
 		return nil, err
+	}
+	if username != "" {
+		user.Username = &username
+	}
+	if nisn != "" {
+		user.Nisn = &nisn
+	} else if username != "" {
+		user.Nisn = &username
+	}
+	if classIDStr != "" {
+		cid, _ := uuid.Parse(classIDStr)
+		user.ClassID = &cid
+	}
+	if className != "" {
+		user.ClassName = &className
 	}
 	return &user, nil
 }

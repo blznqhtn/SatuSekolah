@@ -136,3 +136,7 @@ func (u *academicUsecase) GetStudentSchedules(ctx context.Context, tenantID, stu
 
 	return schedules, nil
 }
+
+func (u *academicUsecase) GetAnnouncements(ctx context.Context, tenantID uuid.UUID) ([]*domain.AnnouncementDTO, error) {
+	return u.repo.GetAnnouncements(ctx, tenantID)
+}

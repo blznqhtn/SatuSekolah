@@ -37,6 +37,10 @@ func (u *libraryUsecase) AddBook(ctx context.Context, book *libDomain.Book, staf
 	return u.repo.CreateBook(ctx, book)
 }
 
+func (u *libraryUsecase) GetBooks(ctx context.Context, tenantID uuid.UUID) ([]*libDomain.Book, error) {
+	return u.repo.GetBooks(ctx, tenantID)
+}
+
 func (u *libraryUsecase) RequestBorrow(ctx context.Context, req *libDomain.BookBorrowing) error {
 	book, err := u.repo.GetBook(ctx, req.BookID)
 	if err != nil {

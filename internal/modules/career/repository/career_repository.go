@@ -40,21 +40,42 @@ func (r *careerRepository) exec(ctx context.Context, query string, args ...inter
 
 func scanJob(row *sql.Row) (*domain.JobVacancy, error) {
 	var j domain.JobVacancy
+	var idStr, tenantIDStr string
 	var salaryMin, salaryMax sql.NullFloat64
-	var deadline sql.NullTime
-	var companyID sql.NullString
+	var deadline, createdAt, updatedAt sql.NullTime
+	var companyID, compName, compLogo, compAddress sql.NullString
+	var targetRole, arrangement, description, requirements sql.NullString
+	var hideSalary sql.NullBool
 	err := row.Scan(
-		&j.ID, &companyID, &j.TenantID, &j.Title, &j.Type, &j.TargetRole,
-		&j.Arrangement, &j.Description, &j.Requirements,
+		&idStr, &companyID, &tenantIDStr, &j.Title, &j.Type, &targetRole,
+		&arrangement, &description, &requirements,
 		&j.IsActive, &j.IsPublic, &salaryMin, &salaryMax,
-		&j.HideSalary, &deadline, &j.CreatedAt, &j.UpdatedAt,
+		&hideSalary, &deadline, &createdAt, &updatedAt,
+		&compName, &compLogo, &compAddress,
 	)
 	if err != nil {
 		return nil, err
 	}
+	j.ID, _ = uuid.Parse(idStr)
+	j.TenantID, _ = uuid.Parse(tenantIDStr)
 	if companyID.Valid {
 		id, _ := uuid.Parse(companyID.String)
 		j.CompanyID = &id
+	}
+	if targetRole.Valid {
+		j.TargetRole = domain.JobTargetRole(targetRole.String)
+	}
+	if arrangement.Valid {
+		j.Arrangement = domain.JobArrangement(arrangement.String)
+	}
+	if description.Valid {
+		j.Description = description.String
+	}
+	if requirements.Valid {
+		j.Requirements = requirements.String
+	}
+	if hideSalary.Valid {
+		j.HideSalary = hideSalary.Bool
 	}
 	if salaryMin.Valid {
 		j.SalaryMin = &salaryMin.Float64
@@ -65,6 +86,21 @@ func scanJob(row *sql.Row) (*domain.JobVacancy, error) {
 	if deadline.Valid {
 		j.Deadline = &deadline.Time
 	}
+	if createdAt.Valid {
+		j.CreatedAt = createdAt.Time
+	}
+	if updatedAt.Valid {
+		j.UpdatedAt = updatedAt.Time
+	}
+	if compName.Valid {
+		j.CompanyName = &compName.String
+	}
+	if compLogo.Valid {
+		j.CompanyLogo = &compLogo.String
+	}
+	if compAddress.Valid {
+		j.CompanyLocation = &compAddress.String
+	}
 	return &j, nil
 }
 
@@ -72,20 +108,41 @@ func scanJobs(rows *sql.Rows) ([]*domain.JobVacancy, error) {
 	var jobs []*domain.JobVacancy
 	for rows.Next() {
 		var j domain.JobVacancy
+		var idStr, tenantIDStr string
 		var salaryMin, salaryMax sql.NullFloat64
-		var deadline sql.NullTime
-		var companyID sql.NullString
+		var deadline, createdAt, updatedAt sql.NullTime
+		var companyID, compName, compLogo, compAddress sql.NullString
+		var targetRole, arrangement, description, requirements sql.NullString
+		var hideSalary sql.NullBool
 		if err := rows.Scan(
-			&j.ID, &companyID, &j.TenantID, &j.Title, &j.Type, &j.TargetRole,
-			&j.Arrangement, &j.Description, &j.Requirements,
+			&idStr, &companyID, &tenantIDStr, &j.Title, &j.Type, &targetRole,
+			&arrangement, &description, &requirements,
 			&j.IsActive, &j.IsPublic, &salaryMin, &salaryMax,
-			&j.HideSalary, &deadline, &j.CreatedAt, &j.UpdatedAt,
+			&hideSalary, &deadline, &createdAt, &updatedAt,
+			&compName, &compLogo, &compAddress,
 		); err != nil {
 			continue
 		}
+		j.ID, _ = uuid.Parse(idStr)
+		j.TenantID, _ = uuid.Parse(tenantIDStr)
 		if companyID.Valid {
 			id, _ := uuid.Parse(companyID.String)
 			j.CompanyID = &id
+		}
+		if targetRole.Valid {
+			j.TargetRole = domain.JobTargetRole(targetRole.String)
+		}
+		if arrangement.Valid {
+			j.Arrangement = domain.JobArrangement(arrangement.String)
+		}
+		if description.Valid {
+			j.Description = description.String
+		}
+		if requirements.Valid {
+			j.Requirements = requirements.String
+		}
+		if hideSalary.Valid {
+			j.HideSalary = hideSalary.Bool
 		}
 		if salaryMin.Valid {
 			j.SalaryMin = &salaryMin.Float64
@@ -96,12 +153,27 @@ func scanJobs(rows *sql.Rows) ([]*domain.JobVacancy, error) {
 		if deadline.Valid {
 			j.Deadline = &deadline.Time
 		}
+		if createdAt.Valid {
+			j.CreatedAt = createdAt.Time
+		}
+		if updatedAt.Valid {
+			j.UpdatedAt = updatedAt.Time
+		}
+		if compName.Valid {
+			j.CompanyName = &compName.String
+		}
+		if compLogo.Valid {
+			j.CompanyLogo = &compLogo.String
+		}
+		if compAddress.Valid {
+			j.CompanyLocation = &compAddress.String
+		}
 		jobs = append(jobs, &j)
 	}
 	return jobs, nil
 }
 
-const jobSelectFields = `id, company_id, tenant_id, title, type, target_role, arrangement, description, requirements, is_active, is_public, salary_min, salary_max, hide_salary, deadline, created_at, updated_at`
+const jobSelectFields = `j.id, j.company_id, j.tenant_id, j.title, j.type, j.target_role, j.arrangement, j.description, j.requirements, j.is_active, j.is_public, j.salary_min, j.salary_max, j.hide_salary, j.deadline, j.created_at, j.updated_at, c.name, c.logo_url, c.address`
 
 func (r *careerRepository) CreateJobVacancy(ctx context.Context, job *domain.JobVacancy) error {
 	_, err := r.exec(ctx,
@@ -116,8 +188,8 @@ func (r *careerRepository) CreateJobVacancy(ctx context.Context, job *domain.Job
 
 func (r *careerRepository) GetLocalJobs(ctx context.Context, tenantID uuid.UUID) ([]*domain.JobVacancy, error) {
 	rows, err := r.query(ctx,
-		`SELECT `+jobSelectFields+` FROM job_vacancies WHERE tenant_id = $1 AND is_active = TRUE AND deleted_at IS NULL ORDER BY created_at DESC`,
-		tenantID,
+		`SELECT `+jobSelectFields+` FROM job_vacancies j LEFT JOIN companies c ON c.id = j.company_id WHERE (j.tenant_id = $1 OR j.tenant_id = $2) AND j.is_active = TRUE AND j.deleted_at IS NULL ORDER BY j.created_at DESC`,
+		tenantID, tenantID.String(),
 	)
 	if err != nil {
 		return nil, err
@@ -128,7 +200,7 @@ func (r *careerRepository) GetLocalJobs(ctx context.Context, tenantID uuid.UUID)
 
 func (r *careerRepository) GetPublicJobs(ctx context.Context) ([]*domain.JobVacancy, error) {
 	rows, err := r.query(ctx,
-		`SELECT `+jobSelectFields+` FROM job_vacancies WHERE is_public = TRUE AND is_active = TRUE AND deleted_at IS NULL ORDER BY created_at DESC`,
+		`SELECT `+jobSelectFields+` FROM job_vacancies j LEFT JOIN companies c ON c.id = j.company_id WHERE j.is_public = TRUE AND j.is_active = TRUE AND j.deleted_at IS NULL ORDER BY j.created_at DESC`,
 	)
 	if err != nil {
 		return nil, err
@@ -139,7 +211,7 @@ func (r *careerRepository) GetPublicJobs(ctx context.Context) ([]*domain.JobVaca
 
 func (r *careerRepository) GetJobByID(ctx context.Context, id uuid.UUID) (*domain.JobVacancy, error) {
 	row := r.queryRow(ctx,
-		`SELECT `+jobSelectFields+` FROM job_vacancies WHERE id = $1 AND deleted_at IS NULL LIMIT 1`,
+		`SELECT `+jobSelectFields+` FROM job_vacancies j LEFT JOIN companies c ON c.id = j.company_id WHERE j.id = $1 AND j.deleted_at IS NULL LIMIT 1`,
 		id,
 	)
 	j, err := scanJob(row)

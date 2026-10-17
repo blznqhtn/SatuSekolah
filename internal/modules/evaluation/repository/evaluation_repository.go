@@ -64,7 +64,7 @@ func (r *evaluationRepository) GetEligibleTeachers(ctx context.Context, tenantID
 	q := `
 		SELECT DISTINCT u.id, u.name, COALESCE(c.name, 'Wali Kelas') as course_name
 		FROM users u
-		LEFT JOIN classes cl ON cl.homeroom_teacher_id = u.id AND cl.id = ?
+		LEFT JOIN classes cl ON cl.staff_id = u.id AND cl.id = ?
 		LEFT JOIN class_schedules cs ON cs.staff_id = u.id AND cs.class_id = ?
 		LEFT JOIN courses c ON cs.course_id = c.id
 		WHERE u.tenant_id = ? AND (cl.id IS NOT NULL OR cs.id IS NOT NULL)

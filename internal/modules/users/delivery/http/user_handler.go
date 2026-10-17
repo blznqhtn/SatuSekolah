@@ -235,6 +235,8 @@ func (h *UserHandler) GetProfile(c *fiber.Ctx) error {
 			"permissions":    permissions,
 			"tenant_id":      user.TenantID,
 			"spmb_completed": spmbCompleted,
+			"class_name":     user.ClassName,
+			"nisn":           user.Nisn,
 		},
 	})
 }

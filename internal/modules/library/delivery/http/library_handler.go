@@ -15,7 +15,20 @@ func NewLibraryHandler(uc domain.LibraryUsecase) *LibraryHandler {
 	return &LibraryHandler{uc: uc}
 }
 
-// Stubs for brevity, but shows the new routes
+func (h *LibraryHandler) GetBooks(c *fiber.Ctx) error {
+	claims := c.Locals("claims").(*middleware.Claims)
+	tenantID, _ := uuid.Parse(claims.TenantID)
+
+	books, err := h.uc.GetBooks(c.Context(), tenantID)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+	if books == nil {
+		books = []*domain.Book{}
+	}
+	return c.Status(fiber.StatusOK).JSON(books)
+}
+
 func (h *LibraryHandler) AddBook(c *fiber.Ctx) error {
 	return c.SendStatus(fiber.StatusNotImplemented)
 }

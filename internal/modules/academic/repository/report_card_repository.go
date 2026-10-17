@@ -235,25 +235,46 @@ func (r *reportCardRepository) GetStudentsByClass(ctx context.Context, tenantID,
 
 func (r *reportCardRepository) GetStudentReportCardSummary(ctx context.Context, tenantID, studentID, termID uuid.UUID) (*domain.ReportCardResponseDTO, error) {
 	// First get the summary info
-	qSummary := `
-		SELECT 
-			rc.id, rc.class_rank, rc.homeroom_notes,
-			at.name as term_name, ay.name as year_name,
-			COALESCE(ht.name, 'Belum Ditentukan') as homeroom_teacher
-		FROM report_cards rc
-		JOIN academic_terms at ON rc.term_id = at.id
-		JOIN academic_years ay ON at.academic_year_id = ay.id
-		JOIN users u ON rc.student_id = u.id
-		LEFT JOIN classes c ON u.class_id = c.id
-		LEFT JOIN users ht ON c.staff_id = ht.id
-		WHERE rc.tenant_id = $1 AND rc.student_id = $2 AND rc.term_id = $3
-	`
+	var qSummary string
+	var args []interface{}
+	if termID == uuid.Nil {
+		qSummary = `
+			SELECT 
+				rc.id, rc.class_rank, rc.homeroom_notes,
+				at.name as term_name, ay.name as year_name,
+				COALESCE(ht.name, 'Belum Ditentukan') as homeroom_teacher
+			FROM report_cards rc
+			JOIN academic_terms at ON rc.term_id = at.id
+			JOIN academic_years ay ON at.academic_year_id = ay.id
+			JOIN users u ON rc.student_id = u.id
+			LEFT JOIN classes c ON u.class_id = c.id
+			LEFT JOIN users ht ON c.staff_id = ht.id
+			WHERE rc.tenant_id = $1 AND rc.student_id = $2
+			ORDER BY rc.created_at DESC LIMIT 1
+		`
+		args = []interface{}{tenantID, studentID}
+	} else {
+		qSummary = `
+			SELECT 
+				rc.id, rc.class_rank, rc.homeroom_notes,
+				at.name as term_name, ay.name as year_name,
+				COALESCE(ht.name, 'Belum Ditentukan') as homeroom_teacher
+			FROM report_cards rc
+			JOIN academic_terms at ON rc.term_id = at.id
+			JOIN academic_years ay ON at.academic_year_id = ay.id
+			JOIN users u ON rc.student_id = u.id
+			LEFT JOIN classes c ON u.class_id = c.id
+			LEFT JOIN users ht ON c.staff_id = ht.id
+			WHERE rc.tenant_id = $1 AND rc.student_id = $2 AND rc.term_id = $3
+		`
+		args = []interface{}{tenantID, studentID, termID}
+	}
 	var rcID uuid.UUID
 	var summary domain.ReportCardSummaryDTO
 	var hNotes sql.NullString
 	var classRank sql.NullInt32
 
-	err := r.queryRow(ctx, qSummary, tenantID, studentID, termID).Scan(
+	err := r.queryRow(ctx, qSummary, args...).Scan(
 		&rcID, &classRank, &hNotes, &summary.ActiveSemester, &summary.AcademicYear, &summary.HomeroomTeacher,
 	)
 	if err == sql.ErrNoRows {

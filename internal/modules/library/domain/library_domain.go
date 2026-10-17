@@ -109,6 +109,7 @@ type LibraryRepository interface {
 
 	CreateBook(ctx context.Context, book *Book) error
 	GetBook(ctx context.Context, bookID uuid.UUID) (*Book, error)
+	GetBooks(ctx context.Context, tenantID uuid.UUID) ([]*Book, error)
 	UpdateBookStock(ctx context.Context, bookID uuid.UUID, delta int) error
 
 	CreateBorrowing(ctx context.Context, borrowing *BookBorrowing) error
@@ -126,6 +127,7 @@ type LibraryUsecase interface {
 	
 	// Books
 	AddBook(ctx context.Context, book *Book, staffID uuid.UUID) error
+	GetBooks(ctx context.Context, tenantID uuid.UUID) ([]*Book, error)
 	
 	// Physical Borrowing Flow
 	RequestBorrow(ctx context.Context, req *BookBorrowing) error

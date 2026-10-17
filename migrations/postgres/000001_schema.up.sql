@@ -101,11 +101,13 @@ CREATE TABLE users (
     tenant_id VARCHAR(36) REFERENCES tenants(id),
     class_id VARCHAR(36) REFERENCES classes(id),
     account_number VARCHAR(12) UNIQUE NOT NULL,
-    category ENUM('admin', 'staff', 'student', 'parent') NOT NULL,
-    status ENUM('CANDIDATE', 'ACTIVE', 'ALUMNI', 'SUSPENDED') DEFAULT 'ACTIVE',
+    category VARCHAR(50) NOT NULL,
+    status VARCHAR(50) DEFAULT 'ACTIVE',
     name VARCHAR(255) NOT NULL,
     email VARCHAR(255),
     phone VARCHAR(50),
+    address TEXT,
+    avatar_url VARCHAR(255),
     password_hash VARCHAR(255),
     pin_hash VARCHAR(255),
     username VARCHAR(100) UNIQUE,
@@ -121,31 +123,6 @@ CREATE TABLE users (
     deleted_at TIMESTAMP,
     UNIQUE (tenant_id, email)
 );
-
-CREATE TABLE student_invoices (
-      id VARCHAR(36) PRIMARY KEY,
-      tenant_id VARCHAR(36) REFERENCES tenants(id),
-      student_id VARCHAR(36) REFERENCES users(id),
-      fee_id VARCHAR(36) REFERENCES fees(id),
-      invoice_name VARCHAR(255),
-      total_amount DECIMAL(15,2),
-      paid_amount DECIMAL(15,2) DEFAULT 0,
-      status ENUM('PENDING', 'PARTIAL', 'PAID', 'EXPIRED') DEFAULT 'PENDING',
-      -- Kolom cicilan
-      can_installment BOOLEAN DEFAULT FALSE,
-      minimum_installment DECIMAL(15,2) DEFAULT 0,
-      -- Kode pembayaran dinamis (berlaku s.d. due_date)
-      dynamic_qr_code VARCHAR(100) UNIQUE,
-      rfid_payment_code VARCHAR(20) UNIQUE,
-      transfer_target_account VARCHAR(20) UNIQUE,
-      -- Midtrans order ID untuk pembayaran tunai
-      midtrans_order_id VARCHAR(100) UNIQUE,
-      due_date DATE,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      updated_at TIMESTAMP,
-      deleted_at TIMESTAMP,
-      updated_by VARCHAR(36) REFERENCES users(id)
-  );
 
 CREATE INDEX idx_users_tenant_username ON users(tenant_id, username);
 CREATE INDEX idx_users_tenant_class ON users(tenant_id, class_id);
@@ -174,7 +151,7 @@ CREATE TABLE wallet_ledgers (
     id VARCHAR(36) PRIMARY KEY,
     tenant_id VARCHAR(36) REFERENCES tenants(id),
     user_id VARCHAR(36) REFERENCES users(id),
-    transaction_type ENUM('CREDIT', 'DEBIT') NOT NULL,
+    transaction_type VARCHAR(50) NOT NULL,
     amount DECIMAL(15,2) NOT NULL,
     fee DECIMAL(10,2) DEFAULT 0,
     reference_type VARCHAR(100),
@@ -214,7 +191,7 @@ CREATE TABLE holidays (
     tenant_id VARCHAR(36) REFERENCES tenants(id),
     name VARCHAR(255) NOT NULL,
     date DATE NOT NULL,
-    applies_to ENUM('STUDENT', 'STAFF', 'ALL') DEFAULT 'ALL',
+    applies_to VARCHAR(50) DEFAULT 'ALL',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     created_by VARCHAR(36) REFERENCES users(id)
 );
@@ -235,7 +212,7 @@ CREATE TABLE activities (
 CREATE TABLE activity_targets (
     id VARCHAR(36) PRIMARY KEY,
     activity_id VARCHAR(36) REFERENCES activities(id),
-    target_type ENUM('USER', 'CLASS', 'MAJOR') NOT NULL,
+    target_type VARCHAR(50) NOT NULL,
     target_id VARCHAR(36) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -246,7 +223,7 @@ CREATE TABLE activity_attendances (
     user_id VARCHAR(36) REFERENCES users(id),
     check_in_at TIMESTAMP,
     check_out_at TIMESTAMP,
-    status ENUM('PRESENT', 'LATE', 'ABSENT', 'EXCUSED') DEFAULT 'PRESENT',
+    status VARCHAR(50) DEFAULT 'PRESENT',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(activity_id, user_id)
 );
@@ -259,7 +236,7 @@ CREATE TABLE attendances (
     method VARCHAR(50), -- 'RFID', 'FACE', 'FINGERPRINT', 'SYSTEM'
     check_in_at TIMESTAMP,
     check_out_at TIMESTAMP,
-    status ENUM('PRESENT', 'LATE', 'ABSENT', 'EXCUSED'),
+    status VARCHAR(50),
     notes TEXT
 );
 
@@ -284,7 +261,7 @@ CREATE TABLE violation_types (
     description TEXT,
     points INT DEFAULT 0,
     -- applies_to: who this violation category applies to
-    applies_to ENUM('STUDENT', 'STAFF', 'ALL') DEFAULT 'ALL',
+    applies_to VARCHAR(50) DEFAULT 'ALL',
     -- is_active: admin/student affairs can disable a type without deleting it
     is_active BOOLEAN DEFAULT TRUE,
     -- is_system_default: true = cannot be deleted (e.g., LATE_ATTENDANCE)
@@ -322,7 +299,7 @@ CREATE TABLE leave_requests (
     reason TEXT,
     start_time TIMESTAMP,
     end_time TIMESTAMP,
-    status ENUM('PENDING', 'APPROVED', 'REJECTED') DEFAULT 'PENDING',
+    status VARCHAR(50) DEFAULT 'PENDING',
     current_tier INT DEFAULT 1,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP
@@ -333,7 +310,7 @@ CREATE TABLE leave_approvals (
     leave_request_id VARCHAR(36) REFERENCES leave_requests(id),
     approver_role_id VARCHAR(36) REFERENCES roles(id),
     tier_level INT,
-    status ENUM('PENDING', 'APPROVED', 'REJECTED') DEFAULT 'PENDING',
+    status VARCHAR(50) DEFAULT 'PENDING',
     approved_by VARCHAR(36) REFERENCES users(id),
     approved_at TIMESTAMP
 );
@@ -397,7 +374,7 @@ CREATE TABLE menstrual_cycles (
     end_date DATE,
     symptoms TEXT,
     ai_advice TEXT,
-    status ENUM('ONGOING', 'COMPLETED', 'BLOCKED_OVERDUE') DEFAULT 'ONGOING',
+    status VARCHAR(50) DEFAULT 'ONGOING',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP,
     FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE,
@@ -412,7 +389,7 @@ CREATE TABLE ribbon_borrowings (
     borrowed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     expected_return_at TIMESTAMP NOT NULL,
     returned_at TIMESTAMP,
-    status ENUM('BORROWED', 'RETURNED', 'OVERDUE') DEFAULT 'BORROWED',
+    status VARCHAR(50) DEFAULT 'BORROWED',
     sanction_notes TEXT,
     handled_by CHAR(36),
     FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE,
@@ -431,7 +408,7 @@ CREATE TABLE reimbursements (
     amount DECIMAL(15,2),
     description TEXT,
     receipt_file_url VARCHAR(255),
-    status ENUM('PENDING', 'APPROVED', 'REJECTED') DEFAULT 'PENDING',
+    status VARCHAR(50) DEFAULT 'PENDING',
     approved_by VARCHAR(36) REFERENCES users(id),
     approved_at TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -574,7 +551,7 @@ CREATE TABLE questions (
     -- e.g. 'MULTIPLE_CHOICE', 'MULTIPLE_SELECT', 'ESSAY', 'MATCHING'
     question_text TEXT,
     media_url VARCHAR(255),
-    media_type ENUM('IMAGE', 'AUDIO', 'VIDEO', 'DOCUMENT', 'NONE') DEFAULT 'NONE',
+    media_type VARCHAR(50) DEFAULT 'NONE',
     ai_reference_answer TEXT,
     deleted_at TIMESTAMP
 );
@@ -584,7 +561,7 @@ CREATE TABLE question_options (
     question_id CHAR(36) NOT NULL,
     option_text TEXT,
     media_url VARCHAR(255),
-    media_type ENUM('IMAGE', 'AUDIO', 'VIDEO', 'DOCUMENT', 'NONE') DEFAULT 'NONE',
+    media_type VARCHAR(50) DEFAULT 'NONE',
     is_correct BOOLEAN DEFAULT FALSE,
     match_left TEXT,
     match_right TEXT,
@@ -605,9 +582,9 @@ CREATE TABLE student_answers (
 
 CREATE TABLE assignment_targets (
     id CHAR(36) PRIMARY KEY,
-    source_type ENUM('COURSE', 'QUIZ') NOT NULL,
+    source_type VARCHAR(50) NOT NULL,
     source_id CHAR(36) NOT NULL,
-    target_type ENUM('CLASS', 'MAJOR', 'ROLE', 'USER') NOT NULL,
+    target_type VARCHAR(50) NOT NULL,
     target_id CHAR(36) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -663,7 +640,13 @@ CREATE TABLE student_invoices (
     invoice_name VARCHAR(255),
     total_amount DECIMAL(15,2),
     paid_amount DECIMAL(15,2) DEFAULT 0,
-    status ENUM('PENDING', 'PARTIAL', 'PAID') DEFAULT 'PENDING',
+    status VARCHAR(50) DEFAULT 'PENDING',
+    can_installment BOOLEAN DEFAULT FALSE,
+    minimum_installment DECIMAL(15,2) DEFAULT 0,
+    dynamic_qr_code VARCHAR(100) UNIQUE,
+    rfid_payment_code VARCHAR(20) UNIQUE,
+    transfer_target_account VARCHAR(20) UNIQUE,
+    midtrans_order_id VARCHAR(100) UNIQUE,
     due_date DATE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP,
@@ -719,15 +702,6 @@ CREATE TABLE report_card_grades (
 -- ==========================================
 -- 16. POIN PELANGGARAN
 -- ==========================================
-CREATE TABLE violation_types (
-    id VARCHAR(36) PRIMARY KEY,
-    tenant_id VARCHAR(36) REFERENCES tenants(id),
-    name VARCHAR(255),
-    point_weight INT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    deleted_at TIMESTAMP
-);
-
 CREATE TABLE student_violations (
     id VARCHAR(36) PRIMARY KEY,
     tenant_id VARCHAR(36) REFERENCES tenants(id),
@@ -750,7 +724,7 @@ CREATE TABLE canteen_shops (
     name VARCHAR(255) NOT NULL,
     static_qr_code VARCHAR(255) UNIQUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     deleted_at TIMESTAMP,
     FOREIGN KEY (tenant_id) REFERENCES tenants(id),
     FOREIGN KEY (owner_id) REFERENCES users(id)
@@ -765,7 +739,7 @@ CREATE TABLE canteen_items (
     stock INT DEFAULT 0,
     image_url VARCHAR(255),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     deleted_at TIMESTAMP,
     FOREIGN KEY (shop_id) REFERENCES canteen_shops(id)
 );
@@ -776,7 +750,7 @@ CREATE TABLE canteen_carts (
     item_id CHAR(36),
     quantity INT NOT NULL DEFAULT 1,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id),
     FOREIGN KEY (item_id) REFERENCES canteen_items(id)
 );
@@ -795,9 +769,9 @@ CREATE TABLE canteen_orders (
     rfid_payment_code VARCHAR(20) UNIQUE,
     transfer_target_account VARCHAR(15) UNIQUE,
     expires_at TIMESTAMP,
-    status ENUM('PENDING', 'PREPARING', 'READY', 'DELIVERING', 'COMPLETED', 'CANCELED') DEFAULT 'PENDING',
+    status VARCHAR(20) DEFAULT 'PENDING',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (shop_id) REFERENCES canteen_shops(id),
     FOREIGN KEY (buyer_id) REFERENCES users(id),
     FOREIGN KEY (wallet_ledger_id) REFERENCES wallet_ledgers(id)
@@ -823,7 +797,7 @@ CREATE TABLE gate_pass_settings (
     level_2_role_id CHAR(36),
     level_3_role_id CHAR(36),
     main_approver_role_id CHAR(36),
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (tenant_id) REFERENCES tenants(id),
     FOREIGN KEY (level_1_role_id) REFERENCES roles(id),
     FOREIGN KEY (level_2_role_id) REFERENCES roles(id),
@@ -842,9 +816,9 @@ CREATE TABLE gate_passes (
     actual_return_time TIMESTAMP,
     exit_qr_token VARCHAR(255) UNIQUE,
     return_qr_token VARCHAR(255) UNIQUE,
-    status ENUM('PENDING', 'APPROVED', 'EXITED', 'RETURNED', 'REJECTED', 'OVERDUE') DEFAULT 'PENDING',
+    status VARCHAR(20) DEFAULT 'PENDING',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (tenant_id) REFERENCES tenants(id),
     FOREIGN KEY (student_id) REFERENCES users(id)
 );
@@ -854,7 +828,7 @@ CREATE TABLE gate_pass_approvals (
     gate_pass_id CHAR(36),
     approver_role_id CHAR(36),
     tier_level INT NOT NULL,
-    status ENUM('PENDING', 'APPROVED', 'REJECTED') DEFAULT 'PENDING',
+    status VARCHAR(20) DEFAULT 'PENDING',
     approved_by CHAR(36),
     approved_at TIMESTAMP,
     FOREIGN KEY (gate_pass_id) REFERENCES gate_passes(id),
@@ -881,9 +855,9 @@ CREATE TABLE job_vacancies (
     company_id VARCHAR(36) REFERENCES companies(id),
     tenant_id VARCHAR(36) REFERENCES tenants(id),
     title VARCHAR(255),
-    type ENUM('PKL', 'MAGANG', 'FULL_TIME', 'PART_TIME', 'CONTRACT', 'FREELANCE'),
-    target_role ENUM('STUDENT', 'TEACHER', 'STAFF', 'ANY') DEFAULT 'STUDENT',
-    arrangement ENUM('ON_SITE', 'HYBRID', 'REMOTE') DEFAULT 'ON_SITE',
+    type VARCHAR(50),
+    target_role VARCHAR(50) DEFAULT 'STUDENT',
+    arrangement VARCHAR(50) DEFAULT 'ON_SITE',
     description TEXT,
     requirements TEXT,
     is_active BOOLEAN DEFAULT TRUE,
@@ -902,7 +876,7 @@ CREATE TABLE job_applications (
     job_vacancy_id VARCHAR(36) REFERENCES job_vacancies(id),
     user_id VARCHAR(36) REFERENCES users(id),
     resume_url VARCHAR(255),
-    status ENUM('APPLIED', 'REVIEWED', 'INTERVIEW', 'ACCEPTED', 'REJECTED') DEFAULT 'APPLIED',
+    status VARCHAR(50) DEFAULT 'APPLIED',
     applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP
 );
@@ -1044,7 +1018,7 @@ CREATE TABLE spmb_registrations (
     nisn VARCHAR(50),
     previous_school VARCHAR(255),
     region VARCHAR(255),
-    gender ENUM('MALE', 'FEMALE'),
+    gender VARCHAR(50),
     religion VARCHAR(50),
     photo_url VARCHAR(255),
     student_phone VARCHAR(50),
@@ -1060,7 +1034,7 @@ CREATE TABLE spmb_registrations (
     mother_income VARCHAR(100),
     
     -- Status & Exam
-    registration_status ENUM('PENDING', 'DOCUMENT_REVIEW', 'TEST', 'ACCEPTED', 'REJECTED') DEFAULT 'PENDING',
+    registration_status VARCHAR(50) DEFAULT 'PENDING',
     exam_schedule TIMESTAMP,
     
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -1079,7 +1053,7 @@ CREATE TABLE inventories (
     name VARCHAR(255),
     category VARCHAR(100),
     quantity INT,
-    condition ENUM('GOOD', 'DAMAGED', 'MAINTENANCE') DEFAULT 'GOOD',
+    condition VARCHAR(50) DEFAULT 'GOOD',
     location VARCHAR(255),
     managed_by VARCHAR(36) REFERENCES users(id),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -1106,14 +1080,14 @@ CREATE TABLE books (
     isbn VARCHAR(50),
     cover_url VARCHAR(255),
     -- For physical books
-    book_type ENUM('PHYSICAL', 'DIGITAL') NOT NULL,
+    book_type VARCHAR(50) NOT NULL,
     stock INT DEFAULT 0,
     is_negotiable_time BOOLEAN DEFAULT FALSE,
     max_borrow_days INT DEFAULT 7,
     late_fee_per_day DECIMAL(10,2) DEFAULT 0.00,
     -- For digital books
     file_url VARCHAR(500),
-    payment_type ENUM('FREE', 'ONE_TIME', 'SUBSCRIPTION') DEFAULT 'FREE',
+    payment_type VARCHAR(50) DEFAULT 'FREE',
     price DECIMAL(10,2) DEFAULT 0.00,
     uploader_staff_id CHAR(36) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -1132,7 +1106,7 @@ CREATE TABLE book_borrowings (
     requested_end_date TIMESTAMP NOT NULL,
     approved_start_date TIMESTAMP,
     approved_end_date TIMESTAMP,
-    status ENUM('PENDING', 'APPROVED', 'BORROWED', 'RETURNED', 'REJECTED', 'OVERDUE') DEFAULT 'PENDING',
+    status VARCHAR(50) DEFAULT 'PENDING',
     borrow_qr_token VARCHAR(255),
     return_qr_token VARCHAR(255),
     actual_borrowed_at TIMESTAMP,
@@ -1149,7 +1123,7 @@ CREATE TABLE digital_book_access (
     id CHAR(36) PRIMARY KEY,
     user_id CHAR(36) NOT NULL,
     book_id CHAR(36) NOT NULL,
-    access_type ENUM('ONE_TIME', 'SUBSCRIPTION') NOT NULL,
+    access_type VARCHAR(50) NOT NULL,
     expires_at TIMESTAMP,
     granted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
@@ -1168,7 +1142,7 @@ CREATE TABLE scientific_journals (
     jurusan VARCHAR(100) NOT NULL,
     softcopy_url VARCHAR(500),
     scanner_url VARCHAR(500),
-    status ENUM('PENDING', 'APPROVED', 'REJECTED') DEFAULT 'PENDING',
+    status VARCHAR(50) DEFAULT 'PENDING',
     approved_by CHAR(36),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE,
@@ -1194,7 +1168,7 @@ CREATE TABLE pkl_monitorings (
     supervisor_staff_id CHAR(36) NOT NULL,
     documentation_url VARCHAR(500),
     notes TEXT,
-    status ENUM('PENDING', 'APPROVED', 'REJECTED') DEFAULT 'PENDING',
+    status VARCHAR(50) DEFAULT 'PENDING',
     principal_score DECIMAL(5,2),
     principal_notes TEXT,
     evaluated_at TIMESTAMP,
@@ -1431,8 +1405,8 @@ CREATE TABLE IF NOT EXISTS chat_messages (
 -- 28. INVENTORY
 -- =========================================
 CREATE TABLE IF NOT EXISTS inventory_items (
-    id UUID PRIMARY KEY,
-    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    id VARCHAR(36) PRIMARY KEY,
+    tenant_id VARCHAR(36) NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
     name VARCHAR(100) NOT NULL,
     description TEXT,
     stock INT DEFAULT 0,
@@ -1442,10 +1416,10 @@ CREATE TABLE IF NOT EXISTS inventory_items (
 );
 
 CREATE TABLE IF NOT EXISTS inventory_reports (
-    id UUID PRIMARY KEY,
-    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
-    item_id UUID NOT NULL REFERENCES inventory_items(id) ON DELETE CASCADE,
-    staff_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    id VARCHAR(36) PRIMARY KEY,
+    tenant_id VARCHAR(36) NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    item_id VARCHAR(36) NOT NULL REFERENCES inventory_items(id) ON DELETE CASCADE,
+    staff_id VARCHAR(36) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     condition VARCHAR(50),
     notes TEXT,
     document_url VARCHAR(255),

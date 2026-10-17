@@ -307,3 +307,26 @@ func (r *academicRepository) GetClassIDByStudentID(ctx context.Context, studentI
 	return &cid, nil
 }
 
+func (r *academicRepository) GetAnnouncements(ctx context.Context, tenantID uuid.UUID) ([]*domain.AnnouncementDTO, error) {
+	q := `SELECT id, title, content, type, event_date, created_at FROM announcements WHERE tenant_id = ? AND deleted_at IS NULL ORDER BY created_at DESC`
+	rows, err := r.query(ctx, q, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var list []*domain.AnnouncementDTO
+	for rows.Next() {
+		var a domain.AnnouncementDTO
+		var ev sql.NullTime
+		if err := rows.Scan(&a.ID, &a.Title, &a.Content, &a.Type, &ev, &a.CreatedAt); err != nil {
+			return nil, err
+		}
+		if ev.Valid {
+			a.EventDate = &ev.Time
+		}
+		list = append(list, &a)
+	}
+	return list, nil
+}
+

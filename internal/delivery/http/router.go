@@ -164,20 +164,22 @@ func SetupRouter(db *sql.DB, cfg *config.Config) *fiber.App {
 	app.Use(recover.New())
 
 	// Helmet: sets secure HTTP response headers to mitigate XSS, clickjacking, etc.
-	app.Use(helmet.New())
+	app.Use(helmet.New(helmet.Config{
+		CrossOriginResourcePolicy: "cross-origin",
+	}))
 
-	// CORS: only allow trusted origins. Adjust allowed origins via config if needed.
-	allowedOrigins := "https://satusekolah.id, https://www.satusekolah.id"
-	if cfg.App.Env == "development" || cfg.App.Env == "local" {
-		allowedOrigins = "http://localhost:3000, http://127.0.0.1:3000, http://localhost:5173, http://127.0.0.1:5173, https://satusekolah.id, https://www.satusekolah.id"
-	}
-
+	// CORS: allow origins dynamically. In development/local, allow all origins (Flutter Web/Chrome, etc.)
 	app.Use(cors.New(cors.Config{
-		AllowOrigins:     allowedOrigins, // Dynamic based on environment
+		AllowOriginsFunc: func(origin string) bool {
+			if cfg.App.Env == "development" || cfg.App.Env == "local" || cfg.App.Env == "" {
+				return true
+			}
+			return origin == "https://satusekolah.id" || origin == "https://www.satusekolah.id"
+		},
 		AllowMethods:     "GET,POST,PUT,PATCH,DELETE,OPTIONS",
-		AllowHeaders:     "Origin, Content-Type, Accept, Authorization, X-Tenant-ID",
-		AllowCredentials: true,  // Diperlukan jika menggunakan cookies/session lintas subdomain
-		MaxAge:           86400, // 24 hours preflight cache
+		AllowHeaders:     "Origin, Content-Type, Accept, Authorization, X-Tenant-ID, X-Requested-With, Cache-Control",
+		AllowCredentials: true,
+		MaxAge:           86400,
 	}))
 
 	// Smart Rate Limiter: Limit berdasarkan Token/Device ID. Melindungi NAT sekolah.
@@ -316,6 +318,19 @@ func SetupRouter(db *sql.DB, cfg *config.Config) *fiber.App {
 	academicRepository := academicRepo.NewAcademicRepository(db)
 	academicUc := academicUsecase.NewAcademicUsecase(academicRepository)
 	academicHandler := academicHttp.NewAcademicHandler(academicUc)
+
+	// Student Activity: Permits, Counseling, Extracurricular
+	permitRepository := academicRepo.NewPermitRepository(db)
+	permitUc := academicUsecase.NewPermitUsecase(permitRepository)
+	permitHandler := academicHttp.NewPermitHandler(permitUc)
+
+	counselingRepository := academicRepo.NewCounselingRepository(db)
+	counselingUc := academicUsecase.NewCounselingUsecase(counselingRepository)
+	counselingHandler := academicHttp.NewCounselingHandler(counselingUc)
+
+	extraRepository := academicRepo.NewExtracurricularRepository(db)
+	extraUc := academicUsecase.NewExtracurricularUsecase(extraRepository)
+	extraHandler := academicHttp.NewExtracurricularHandler(extraUc)
 
 	reportCardRepository := academicRepo.NewReportCardRepository(db)
 	reportCardUc := academicUsecase.NewReportCardUsecase(reportCardRepository)
@@ -539,6 +554,34 @@ func SetupRouter(db *sql.DB, cfg *config.Config) *fiber.App {
 
 	// Schedules
 	academicGroup.Get("/schedules/student/day/:dayOfWeek", academicHandler.GetStudentSchedules)
+	academicGroup.Get("/announcements", academicHandler.GetAnnouncements)
+	apiV1.Get("/announcements", jwtAuth, academicHandler.GetAnnouncements)
+
+	// ==========================================
+	// STUDENT PERMITS (Izin Siswa)
+	// ==========================================
+	academicGroup.Post("/permits", permitHandler.SubmitPermit)                       // Student: ajukan izin
+	academicGroup.Get("/permits/my", permitHandler.GetMyPermits)                     // Student: lihat izin saya
+	academicGroup.Get("/permits/pending", permitHandler.GetPendingPermits)           // Staff: izin yang menunggu
+	academicGroup.Patch("/permits/:id/review", permitHandler.ReviewPermit)           // Staff: setujui/tolak izin
+
+	// ==========================================
+	// COUNSELING / BIMBINGAN KONSELING (BK)
+	// ==========================================
+	academicGroup.Post("/counseling/book", counselingHandler.BookSession)            // Student: ajukan sesi BK
+	academicGroup.Get("/counseling/my", counselingHandler.GetMySessions)             // Student: sesi BK saya
+	academicGroup.Get("/counseling", counselingHandler.GetAllSessions)               // Counselor/Admin: semua sesi
+	academicGroup.Patch("/counseling/:id/schedule", counselingHandler.ScheduleSession) // Counselor: jadwalkan sesi
+
+	// ==========================================
+	// EXTRACURRICULAR (Ekstrakulikuler)
+	// ==========================================
+	academicGroup.Get("/extracurriculars", extraHandler.GetAll)                      // List semua ekskul aktif
+	academicGroup.Post("/extracurriculars", adminOnly, extraHandler.Create)          // Admin: tambah ekskul
+	academicGroup.Post("/extracurriculars/:id/register", extraHandler.Register)      // Student: daftar ekskul
+	academicGroup.Get("/extracurriculars/my", extraHandler.GetMyRegistrations)       // Student: ekskul saya
+	academicGroup.Patch("/extracurriculars/registrations/:id/approve", adminOnly, extraHandler.ApproveRegistration) // Admin
+	academicGroup.Patch("/extracurriculars/registrations/:id/reject", adminOnly, extraHandler.RejectRegistration)  // Admin
 
 	academicGroup.Get("/report-cards/template", reportCardHandler.GetTemplate)
 	academicGroup.Post("/report-cards/upload", reportCardHandler.UploadGrades)
@@ -636,6 +679,7 @@ func SetupRouter(db *sql.DB, cfg *config.Config) *fiber.App {
 
 	// Library (Books, Borrowing, Digital, Journals)
 	libraryGroup := apiV1.Group("/library", jwtAuth)
+	libraryGroup.Get("/books", libraryHandler.GetBooks)
 	libraryGroup.Post("/books", libraryHandler.AddBook)
 	libraryGroup.Post("/borrowings/request", libraryHandler.RequestBorrow)
 	libraryGroup.Post("/borrowings/approve", libraryHandler.ApproveBorrow)

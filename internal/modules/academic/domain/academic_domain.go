@@ -95,6 +95,8 @@ type AcademicRepository interface {
 	// Schedules
 	GetSchedulesByClassAndDay(ctx context.Context, tenantID, classID uuid.UUID, dayOfWeek int) ([]*ScheduleResponseDTO, error)
 	GetScheduleChangesByDate(ctx context.Context, tenantID, classID uuid.UUID, date time.Time) ([]*ScheduleChange, error)
+	// Announcements
+	GetAnnouncements(ctx context.Context, tenantID uuid.UUID) ([]*AnnouncementDTO, error)
 }
 
 type AcademicUsecase interface {
@@ -113,6 +115,18 @@ type AcademicUsecase interface {
 
 	// Schedules
 	GetStudentSchedules(ctx context.Context, tenantID, studentID uuid.UUID, dayOfWeek int) ([]*ScheduleResponseDTO, error)
+
+	// Announcements
+	GetAnnouncements(ctx context.Context, tenantID uuid.UUID) ([]*AnnouncementDTO, error)
+}
+
+type AnnouncementDTO struct {
+	ID        uuid.UUID  `json:"id"`
+	Title     string     `json:"title"`
+	Content   string     `json:"content"`
+	Type      string     `json:"type"`
+	EventDate *time.Time `json:"event_date,omitempty"`
+	CreatedAt time.Time  `json:"created_at"`
 }
 
 // ==========================================

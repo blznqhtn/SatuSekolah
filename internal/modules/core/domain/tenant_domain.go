@@ -21,6 +21,8 @@ type User struct {
 	Username      *string    `json:"username"`
 	Nisn          *string    `json:"nisn"`
 	Npk           *string    `json:"npk"`
+	ClassID       *uuid.UUID `json:"class_id,omitempty"`
+	ClassName     *string    `json:"class_name,omitempty"`
 	Password      string     `json:"-"` // NEVER expose password hash in JSON responses
 	PinHash       string     `json:"-"` // NEVER expose pin hash in JSON responses
 	CreatedAt     time.Time  `json:"created_at"`

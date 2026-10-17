@@ -58,6 +58,28 @@ func (r *libraryRepository) GetBook(ctx context.Context, bookID uuid.UUID) (*dom
 	return &b, nil
 }
 
+func (r *libraryRepository) GetBooks(ctx context.Context, tenantID uuid.UUID) ([]*domain.Book, error) {
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT id, tenant_id, title, COALESCE(author, ''), book_type, COALESCE(stock, 0), is_negotiable_time, max_borrow_days, late_fee_per_day, COALESCE(payment_type, 'FREE'), price, uploader_staff_id, created_at
+		FROM books WHERE tenant_id = ? AND deleted_at IS NULL
+		ORDER BY created_at DESC
+	`, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var books []*domain.Book
+	for rows.Next() {
+		var b domain.Book
+		if err := rows.Scan(&b.ID, &b.TenantID, &b.Title, &b.Author, &b.BookType, &b.Stock, &b.IsNegotiableTime, &b.MaxBorrowDays, &b.LateFeePerDay, &b.PaymentType, &b.Price, &b.UploaderStaffID, &b.CreatedAt); err != nil {
+			return nil, err
+		}
+		books = append(books, &b)
+	}
+	return books, nil
+}
+
 func (r *libraryRepository) UpdateBookStock(ctx context.Context, bookID uuid.UUID, delta int) error {
 	_, err := r.db.ExecContext(ctx, "UPDATE books SET stock = stock + ? WHERE id = ?", delta, bookID)
 	return err

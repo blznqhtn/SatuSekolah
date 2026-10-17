@@ -19,7 +19,7 @@ func (r *notificationRepository) GetNotifications(ctx context.Context, tenantID,
 	query := `
 		SELECT id, tenant_id, user_id, title, COALESCE(content, ''), COALESCE(type, ''), is_read, COALESCE(action_url, ''), created_at
 		FROM notifications
-		WHERE tenant_id = ? AND user_id = ?
+		WHERE tenant_id = $1 AND user_id = $2
 		ORDER BY created_at DESC
 	`
 	rows, err := r.db.QueryContext(ctx, query, tenantID, userID)
@@ -31,29 +31,34 @@ func (r *notificationRepository) GetNotifications(ctx context.Context, tenantID,
 	var notifs []*domain.Notification
 	for rows.Next() {
 		var n domain.Notification
-		if err := rows.Scan(&n.ID, &n.TenantID, &n.UserID, &n.Title, &n.Content, &n.Type, &n.IsRead, &n.ActionURL, &n.CreatedAt); err != nil {
+		var idStr, tStr, uStr string
+		if err := rows.Scan(&idStr, &tStr, &uStr, &n.Title, &n.Content, &n.Type, &n.IsRead, &n.ActionURL, &n.CreatedAt); err != nil {
 			return nil, err
 		}
+		n.ID, _ = uuid.Parse(idStr)
+		n.TenantID, _ = uuid.Parse(tStr)
+		n.UserID, _ = uuid.Parse(uStr)
 		notifs = append(notifs, &n)
 	}
 	return notifs, nil
 }
 
 func (r *notificationRepository) MarkAsRead(ctx context.Context, tenantID, userID, notificationID uuid.UUID) error {
-	query := `UPDATE notifications SET is_read = TRUE WHERE id = ? AND tenant_id = ? AND user_id = ?`
+	query := `UPDATE notifications SET is_read = TRUE WHERE id = $1 AND tenant_id = $2 AND user_id = $3`
 	_, err := r.db.ExecContext(ctx, query, notificationID, tenantID, userID)
 	return err
 }
 
 func (r *notificationRepository) DeleteNotification(ctx context.Context, tenantID, userID, notificationID uuid.UUID) error {
-	query := `DELETE FROM notifications WHERE id = ? AND tenant_id = ? AND user_id = ?`
+	query := `DELETE FROM notifications WHERE id = $1 AND tenant_id = $2 AND user_id = $3`
 	_, err := r.db.ExecContext(ctx, query, notificationID, tenantID, userID)
 	return err
 }
 
 func (r *notificationRepository) CountUnread(ctx context.Context, tenantID, userID uuid.UUID) (int, error) {
-	query := `SELECT COUNT(*) FROM notifications WHERE is_read = FALSE AND tenant_id = ? AND user_id = ?`
+	query := `SELECT COUNT(*) FROM notifications WHERE is_read = FALSE AND tenant_id = $1 AND user_id = $2`
 	var count int
 	err := r.db.QueryRowContext(ctx, query, tenantID, userID).Scan(&count)
 	return count, err
 }
+

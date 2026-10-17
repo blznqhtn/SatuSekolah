@@ -156,3 +156,18 @@ func (h *AcademicHandler) GetStudentSchedules(c *fiber.Ctx) error {
 	}
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{"data": schedules})
 }
+
+// GET /api/v1/academic/announcements — Student/All: view school announcements
+func (h *AcademicHandler) GetAnnouncements(c *fiber.Ctx) error {
+	claims := c.Locals("claims").(*middleware.Claims)
+	tenantID, _ := uuid.Parse(claims.TenantID)
+
+	announcements, err := h.uc.GetAnnouncements(c.Context(), tenantID)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+	if announcements == nil {
+		announcements = []*domain.AnnouncementDTO{}
+	}
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{"data": announcements})
+}
