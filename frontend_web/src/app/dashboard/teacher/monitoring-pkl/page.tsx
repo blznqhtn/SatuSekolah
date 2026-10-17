@@ -19,7 +19,7 @@ export default function Page() {
       sortable: true,
       render: (item) => (
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-[#4b25bb]/10 text-[#4b25bb] flex items-center justify-center font-bold text-xs">
+          <div className="w-8 h-8 rounded-lg bg-[#2563eb]/10 text-[#2563eb] flex items-center justify-center font-bold text-xs">
             <Building2 className="w-4 h-4" />
           </div>
           <div>

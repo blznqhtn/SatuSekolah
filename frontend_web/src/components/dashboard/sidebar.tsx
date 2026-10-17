@@ -36,6 +36,7 @@ import {
   Image,
   Eye,
   ScanLine,
+  Table2,
 } from "lucide-react"
 
 const menuGroups = [
@@ -89,6 +90,7 @@ const menuGroups = [
     title: "Kepegawaian & Guru",
     items: [
       { name: "Perangkat Pembelajaran", href: "/dashboard/teacher/rpp", icon: BookOpen },
+      { name: "Buku Nilai (Gradebook)", href: "/dashboard/teacher/gradebook", icon: Table2, permission: "MANAGE_LMS" },
       { name: "Media & Dokumentasi", href: "/dashboard/teacher/media", icon: Image },
       { name: "Laporan Monitoring PKL", href: "/dashboard/teacher/monitoring-pkl", icon: Activity, permission: "MANAGE_PKL" },
       { name: "Laporan Sarpras", href: "/dashboard/teacher/inventory", icon: Package, permission: "MANAGE_INVENTORY" },
@@ -120,6 +122,7 @@ function getInitials(name?: string) {
 
 export function Sidebar({ onClose }: { onClose?: () => void }) {
   const pathname = usePathname()
+  const router = useRouter()
   const { user, logout } = useAuth()
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({})
 
@@ -143,64 +146,55 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
   return (
     <>
       <style>{`
-        /* ── Design tokens ───────────────────────────── */
-        /* Primary: #4b25bb  (deep violet)               */
-        /* Surface: #ffffff  (white)                     */
-        /* Accent bg: rgba(75,37,187,0.06)               */
-        /* Active bg: rgba(75,37,187,0.10)               */
-        /* Border: rgba(75,37,187,0.10)                  */
-
         .sidebar-root {
           display: flex;
           flex-direction: column;
           height: 100%;
           width: 256px;
           flex-shrink: 0;
-          background: #ffffff;
-          border-right: 1px solid rgba(75,37,187,0.08);
+          background: var(--surface);
+          border-right: 1px solid var(--border);
           overflow-y: auto;
           scrollbar-width: none;
         }
         .sidebar-root::-webkit-scrollbar { display: none; }
 
-        /* Brand */
         .sb-brand {
           display: flex;
           align-items: center;
           gap: 10px;
           padding: 20px 18px 16px;
           text-decoration: none;
-          border-bottom: 1px solid rgba(75,37,187,0.08);
+          border-bottom: 1px solid var(--border);
           margin-bottom: 4px;
           position: sticky;
           top: 0;
           z-index: 10;
-          background: #ffffff;
+          background: var(--surface);
         }
         .sb-brand-icon {
           width: 36px; height: 36px;
           border-radius: 10px;
-          background: #4b25bb;
+          background: linear-gradient(135deg, var(--brand), var(--brand-deep));
           display: flex; align-items: center; justify-content: center;
           flex-shrink: 0;
-          box-shadow: 0 4px 12px rgba(75,37,187,0.28);
+          box-shadow: 0 4px 12px rgba(var(--brand-rgb), 0.32);
         }
         .sb-brand-name {
           font-size: 15px;
           font-weight: 700;
-          color: #4b25bb;
+          color: var(--brand-deep);
           letter-spacing: -0.3px;
           line-height: 1.2;
         }
         .sb-brand-sub {
           font-size: 9px;
-          color: #9ca3af;
+          color: var(--muted-foreground);
           text-transform: uppercase;
           letter-spacing: 1.2px;
           font-weight: 500;
         }
 
-        /* Nav */
         .sb-nav {
           flex: 1;
           padding: 6px 10px;
@@ -209,7 +203,6 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
           gap: 2px;
         }
 
-        /* Group */
         .sb-group { margin-top: 6px; }
 
         .sb-group-header {
@@ -221,17 +214,18 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
           border-radius: 6px;
           transition: background 0.12s;
         }
-        .sb-group-header:hover { background: rgba(75,37,187,0.04); }
+        .sb-group-header:hover { background: rgba(var(--brand-rgb), 0.05); }
 
         .sb-group-title {
           font-size: 9.5px;
           font-weight: 700;
-          color: #9ca3af;
+          color: var(--muted-foreground);
           text-transform: uppercase;
           letter-spacing: 1px;
         }
         .sb-group-chevron {
-          color: #c4b5d0;
+          color: var(--muted-foreground);
+          opacity: 0.6;
           transition: transform 0.2s;
         }
         .sb-group-chevron.open { transform: rotate(180deg); }
@@ -240,9 +234,13 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
           display: flex;
           flex-direction: column;
           gap: 1px;
+          animation: sbFade 0.18s ease both;
+        }
+        @keyframes sbFade {
+          from { opacity: 0; transform: translateY(-4px); }
+          to { opacity: 1; transform: translateY(0); }
         }
 
-        /* Nav item */
         .sb-item {
           display: flex;
           align-items: center;
@@ -252,17 +250,17 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
           text-decoration: none;
           font-size: 13px;
           font-weight: 400;
-          color: #6b7280;
-          transition: background 0.12s, color 0.12s;
+          color: var(--muted-foreground);
+          transition: background 0.15s, color 0.15s;
           position: relative;
         }
         .sb-item:hover {
-          background: rgba(75,37,187,0.06);
-          color: #4b25bb;
+          background: rgba(var(--brand-rgb), 0.07);
+          color: var(--brand);
         }
         .sb-item.active {
-          background: rgba(75,37,187,0.10);
-          color: #4b25bb;
+          background: rgba(var(--brand-rgb), 0.11);
+          color: var(--brand);
           font-weight: 600;
         }
         .sb-item.active::before {
@@ -271,40 +269,38 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
           left: 0; top: 18%; bottom: 18%;
           width: 3px;
           border-radius: 2px;
-          background: #4b25bb;
+          background: var(--brand);
         }
         .sb-item-icon {
           flex-shrink: 0;
-          color: #9ca3af;
-          transition: color 0.12s;
+          color: var(--muted-foreground);
+          opacity: 0.85;
+          transition: color 0.15s, opacity 0.15s;
         }
-        .sb-item:hover .sb-item-icon { color: #4b25bb; }
-        .sb-item.active .sb-item-icon { color: #4b25bb; }
+        .sb-item:hover .sb-item-icon { color: var(--brand); opacity: 1; }
+        .sb-item.active .sb-item-icon { color: var(--brand); opacity: 1; }
 
         .sb-item-arrow {
           margin-left: auto;
-          color: #4b25bb;
+          color: var(--brand);
           opacity: 0.5;
         }
 
-        /* Divider */
         .sb-divider {
           height: 1px;
-          background: rgba(75,37,187,0.06);
+          background: var(--border);
           margin: 4px 8px;
         }
 
-        /* Footer */
         .sb-footer {
           padding: 12px 10px;
-          border-top: 1px solid rgba(75,37,187,0.08);
+          border-top: 1px solid var(--border);
         }
 
-        /* Support card */
         .sb-support {
           border-radius: 12px;
-          background: rgba(75,37,187,0.05);
-          border: 1px solid rgba(75,37,187,0.12);
+          background: var(--brand-soft);
+          border: 1px solid rgba(var(--brand-rgb), 0.14);
           padding: 12px;
           margin-bottom: 10px;
         }
@@ -317,23 +313,22 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
         .sb-support-dot {
           width: 6px; height: 6px;
           border-radius: 50%;
-          background: #4b25bb;
-          box-shadow: 0 0 5px rgba(75,37,187,0.5);
+          background: var(--brand);
+          box-shadow: 0 0 6px rgba(var(--brand-rgb), 0.6);
           flex-shrink: 0;
         }
         .sb-support-label {
           font-size: 11px;
           font-weight: 700;
-          color: #4b25bb;
+          color: var(--brand);
         }
         .sb-support-text {
           font-size: 10px;
-          color: #9ca3af;
+          color: var(--muted-foreground);
           line-height: 1.5;
           padding-left: 14px;
         }
 
-        /* User row */
         .sb-user {
           display: flex;
           align-items: center;
@@ -344,7 +339,7 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
         .sb-avatar {
           width: 32px; height: 32px;
           border-radius: 9px;
-          background: linear-gradient(135deg, #4b25bb, #7c3aed);
+          background: linear-gradient(135deg, var(--brand), var(--brand-deep));
           display: flex; align-items: center; justify-content: center;
           font-size: 11px;
           font-weight: 700;
@@ -354,17 +349,17 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
         .sb-user-name {
           font-size: 12px;
           font-weight: 600;
-          color: #1f2937;
+          color: var(--foreground);
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
         }
         .sb-user-role {
           font-size: 10px;
-          color: #9ca3af;
+          color: var(--muted-foreground);
+          text-transform: capitalize;
         }
 
-        /* Logout */
         .sb-logout {
           display: flex;
           align-items: center;
@@ -377,13 +372,13 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
           cursor: pointer;
           font-size: 13px;
           font-weight: 500;
-          color: #ef4444;
-          transition: background 0.12s, color 0.12s;
-          opacity: 0.7;
+          color: var(--destructive);
+          transition: background 0.12s, opacity 0.12s;
+          opacity: 0.85;
+          font-family: inherit;
         }
         .sb-logout:hover {
-          background: #fef2f2;
-          color: #dc2626;
+          background: rgba(220, 38, 38, 0.08);
           opacity: 1;
         }
       `}</style>
@@ -456,10 +451,10 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
           <div className="sb-support hidden lg:block">
             <div className="sb-support-head">
               <div className="sb-support-dot" />
-              <span className="sb-support-label">IT Support 24/7</span>
+              <span className="sb-support-label">Bantuan Cepat</span>
             </div>
             <p className="sb-support-text">
-              Butuh bantuan sistem? Tim kami siap membantu kapan saja.
+              Butuh bantuan sistem? Tim IT support siap membantu Anda kapan saja.
             </p>
           </div>
 
@@ -468,7 +463,7 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
             <div className="sb-avatar">{getInitials(user?.name)}</div>
             <div style={{ overflow: "hidden" }}>
               <div className="sb-user-name">{user?.name ?? "Pengguna"}</div>
-              <div className="sb-user-role">{user?.category ?? "—"}</div>
+              <div className="sb-user-role">{user?.role || user?.category || "—"}</div>
             </div>
           </div>
 

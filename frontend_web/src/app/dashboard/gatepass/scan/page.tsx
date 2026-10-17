@@ -48,7 +48,7 @@ export default function ScanPage() {
               onClick={() => setScanType("exit")}
               className={`flex-1 flex items-center justify-center gap-2 py-2 text-xs font-semibold rounded-lg transition-all ${
                 scanType === "exit"
-                  ? "bg-white text-[#4b25bb] shadow-sm"
+                  ? "bg-white text-[#2563eb] shadow-sm"
                   : "text-slate-600 hover:text-slate-900"
               }`}
             >
@@ -59,7 +59,7 @@ export default function ScanPage() {
               onClick={() => setScanType("return")}
               className={`flex-1 flex items-center justify-center gap-2 py-2 text-xs font-semibold rounded-lg transition-all ${
                 scanType === "return"
-                  ? "bg-white text-[#4b25bb] shadow-sm"
+                  ? "bg-white text-[#2563eb] shadow-sm"
                   : "text-slate-600 hover:text-slate-900"
               }`}
             >
@@ -71,7 +71,7 @@ export default function ScanPage() {
           <form onSubmit={handleScan} className="space-y-4">
             <div className="space-y-2">
               <label className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
-                <QrCode className="w-4 h-4 text-[#4b25bb]" />
+                <QrCode className="w-4 h-4 text-[#2563eb]" />
                 Token QR Siswa ({scanType === "exit" ? "Izin Keluar" : "Izin Kembali"})
               </label>
               <input
@@ -80,7 +80,7 @@ export default function ScanPage() {
                 placeholder="Scan barcode scanner atau ketik token..."
                 value={token}
                 onChange={e => setToken(e.target.value)}
-                className="w-full px-4 py-3 text-base font-mono rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#4b25bb]/20 focus:border-[#4b25bb] transition-all"
+                className="w-full px-4 py-3 text-base font-mono rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb] transition-all"
               />
               <p className="text-[11px] text-muted-foreground">
                 Gunakan scanner barcode USB/Bluetooth atau ketik manual token yang ditampilkan di smartphone siswa.
@@ -90,7 +90,7 @@ export default function ScanPage() {
             <button
               type="submit"
               disabled={isLoading || !token.trim()}
-              className="w-full py-3 bg-[#4b25bb] hover:bg-[#3d1ea0] text-white text-sm font-semibold rounded-xl shadow-md shadow-[#4b25bb]/20 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+              className="w-full py-3 bg-[#2563eb] hover:bg-[#1e3a8a] text-white text-sm font-semibold rounded-xl shadow-md shadow-[#2563eb]/20 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
               Verifikasi Gerbang

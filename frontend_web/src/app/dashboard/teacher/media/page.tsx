@@ -59,7 +59,7 @@ export default function Page() {
       sortable: true,
       render: (item) => (
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-[#4b25bb]/10 text-[#4b25bb] flex items-center justify-center font-bold text-xs">
+          <div className="w-8 h-8 rounded-lg bg-[#2563eb]/10 text-[#2563eb] flex items-center justify-center font-bold text-xs">
             <Video className="w-4 h-4" />
           </div>
           <div>
@@ -74,7 +74,7 @@ export default function Page() {
       label: "Distribusi Jaringan",
       render: (item) => (
         item.is_torrentable || item.magnet_link ? (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 text-xs font-semibold rounded-full bg-purple-50 text-purple-700 border border-purple-200">
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 text-xs font-semibold rounded-full bg-blue-50 text-blue-700 border border-blue-200">
             ⚡ WebTorrent Seed Active
           </span>
         ) : (
@@ -89,7 +89,7 @@ export default function Page() {
         <div className="flex items-center justify-end gap-2">
           <button
             onClick={() => alert(`Memutar media: ${item.title || item.name}...`)}
-            className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-[#4b25bb] hover:bg-[#4b25bb]/10 border border-[#4b25bb]/20 rounded-lg transition-colors"
+            className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-[#2563eb] hover:bg-[#2563eb]/10 border border-[#2563eb]/20 rounded-lg transition-colors"
           >
             <PlayCircle className="w-3.5 h-3.5" />
             Putar Media
@@ -115,9 +115,9 @@ export default function Page() {
       {isAddOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
           <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl border border-slate-100 overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-gradient-to-r from-purple-50/60 to-blue-50/40">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-gradient-to-r from-blue-50/60 to-blue-50/40">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-[#4b25bb]/10 flex items-center justify-center text-[#4b25bb]">
+                <div className="w-10 h-10 rounded-xl bg-[#2563eb]/10 flex items-center justify-center text-[#2563eb]">
                   <UploadCloud className="w-5 h-5" />
                 </div>
                 <div>
@@ -151,7 +151,7 @@ export default function Page() {
                     placeholder="cth. Praktikum Rangkaian Listrik Seri Paralel"
                     value={title}
                     onChange={e => setTitle(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#4b25bb]/20 focus:border-[#4b25bb] transition-all"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb] transition-all"
                   />
                 </div>
 
@@ -163,7 +163,7 @@ export default function Page() {
                     type="file"
                     required
                     onChange={e => setFile(e.target.files?.[0] || null)}
-                    className="w-full text-xs text-slate-600 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-[#4b25bb]/10 file:text-[#4b25bb] hover:file:bg-[#4b25bb]/20"
+                    className="w-full text-xs text-slate-600 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-[#2563eb]/10 file:text-[#2563eb] hover:file:bg-[#2563eb]/20"
                   />
                   <p className="text-[11px] text-muted-foreground">Mendukung format video MP4, WebM, MKV, atau PDF hingga 500MB.</p>
                 </div>
@@ -180,7 +180,7 @@ export default function Page() {
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="px-5 py-2 text-sm font-semibold text-white bg-[#4b25bb] hover:bg-[#3d1ea0] rounded-xl shadow-md shadow-[#4b25bb]/20 transition-all disabled:opacity-50 flex items-center gap-2"
+                  className="px-5 py-2 text-sm font-semibold text-white bg-[#2563eb] hover:bg-[#1e3a8a] rounded-xl shadow-md shadow-[#2563eb]/20 transition-all disabled:opacity-50 flex items-center gap-2"
                 >
                   {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
                   Unggah Media

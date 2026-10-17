@@ -19,7 +19,7 @@ export default function Page() {
       sortable: true,
       render: (item) => (
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-[#4b25bb]/10 text-[#4b25bb] flex items-center justify-center font-bold text-xs">
+          <div className="w-8 h-8 rounded-lg bg-[#2563eb]/10 text-[#2563eb] flex items-center justify-center font-bold text-xs">
             <FileText className="w-4 h-4" />
           </div>
           <div>
@@ -68,7 +68,7 @@ export default function Page() {
         <div className="flex items-center justify-end gap-1.5">
           <button
             onClick={() => alert(`Mencetak Rapor Digital PDF resmi ber-barcode untuk ${item.student_name || item.name}...`)}
-            className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-[#4b25bb] hover:bg-[#4b25bb]/10 border border-[#4b25bb]/20 rounded-lg transition-colors"
+            className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-[#2563eb] hover:bg-[#2563eb]/10 border border-[#2563eb]/20 rounded-lg transition-colors"
           >
             <Printer className="w-3 h-3" />
             Cetak PDF
@@ -88,7 +88,7 @@ export default function Page() {
       headerActions={
         <button
           onClick={() => alert("Mengunduh Template Nilai Excel untuk Import Nilai Massal...")}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-[#4b25bb] hover:bg-[#3d1ea0] rounded-lg shadow-sm transition-colors"
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-[#2563eb] hover:bg-[#1e3a8a] rounded-lg shadow-sm transition-colors"
         >
           <Download className="w-3.5 h-3.5" />
           Template Excel Nilai

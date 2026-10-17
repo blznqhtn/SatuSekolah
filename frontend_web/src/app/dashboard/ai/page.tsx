@@ -113,13 +113,13 @@ export default function AIPage() {
   return (
     <div className="p-6 md:p-8 max-w-6xl mx-auto space-y-8 animate-in fade-in duration-300">
       {/* Header Banner */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-[#4b25bb] via-[#3d1ea0] to-[#1c67b1] p-8 text-white shadow-xl">
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-[#2563eb] via-[#1e3a8a] to-[#1c67b1] p-8 text-white shadow-xl">
         <div className="relative z-10 max-w-2xl space-y-3">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md text-xs font-semibold text-purple-200 border border-white/10">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md text-xs font-semibold text-blue-200 border border-white/10">
             <Sparkles className="w-3.5 h-3.5 text-amber-300" /> Satu Sekolah AI Intelligence Engine
           </div>
           <h1 className="text-3xl font-extrabold tracking-tight">Pusat Kontrol & Tata Kelola AI</h1>
-          <p className="text-sm text-purple-100/90 leading-relaxed">
+          <p className="text-sm text-blue-100/90 leading-relaxed">
             Aktifkan dan atur kuota fitur kecerdasan buatan untuk seluruh modul sekolah, mulai dari rapor otomatis, bimbingan PKL, hingga analisis UKS.
           </p>
         </div>
@@ -134,7 +134,7 @@ export default function AIPage() {
         </div>
         <button
           onClick={loadModules}
-          className="p-2 text-slate-500 hover:text-[#4b25bb] bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors flex items-center gap-1.5 text-xs font-semibold"
+          className="p-2 text-slate-500 hover:text-[#2563eb] bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors flex items-center gap-1.5 text-xs font-semibold"
         >
           <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? "animate-spin" : ""}`} />
           Refresh Status
@@ -150,7 +150,7 @@ export default function AIPage() {
               key={mod.module_name}
               className={`p-6 rounded-2xl border transition-all duration-200 flex flex-col justify-between ${
                 mod.is_active
-                  ? "bg-white border-purple-100 shadow-sm hover:shadow-md"
+                  ? "bg-white border-blue-100 shadow-sm hover:shadow-md"
                   : "bg-slate-50/80 border-slate-200/60 opacity-70"
               }`}
             >
@@ -158,7 +158,7 @@ export default function AIPage() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
                     <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs ${
-                      mod.is_active ? "bg-[#4b25bb]/10 text-[#4b25bb]" : "bg-slate-200 text-slate-500"
+                      mod.is_active ? "bg-[#2563eb]/10 text-[#2563eb]" : "bg-slate-200 text-slate-500"
                     }`}>
                       <Zap className="w-4 h-4" />
                     </div>
@@ -173,13 +173,13 @@ export default function AIPage() {
                   <button
                     onClick={() => handleToggleModule(mod)}
                     disabled={isToggling}
-                    className="p-1 text-[#4b25bb] hover:scale-110 transition-transform disabled:opacity-50"
+                    className="p-1 text-[#2563eb] hover:scale-110 transition-transform disabled:opacity-50"
                     title={mod.is_active ? "Nonaktifkan fitur AI ini" : "Aktifkan fitur AI ini"}
                   >
                     {isToggling ? (
-                      <Loader2 className="w-6 h-6 animate-spin text-[#4b25bb]" />
+                      <Loader2 className="w-6 h-6 animate-spin text-[#2563eb]" />
                     ) : mod.is_active ? (
-                      <ToggleRight className="w-8 h-8 text-[#4b25bb]" />
+                      <ToggleRight className="w-8 h-8 text-[#2563eb]" />
                     ) : (
                       <ToggleLeft className="w-8 h-8 text-slate-400" />
                     )}
@@ -198,7 +198,7 @@ export default function AIPage() {
                 </div>
                 <button
                   onClick={() => alert(`Pengaturan limit untuk modul ${mod.module_name}: ${mod.daily_limit || 100} prompt per hari.`)}
-                  className="text-[#4b25bb] font-semibold hover:underline"
+                  className="text-[#2563eb] font-semibold hover:underline"
                 >
                   Atur Limit
                 </button>

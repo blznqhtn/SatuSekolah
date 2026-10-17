@@ -1,83 +1,224 @@
 @import "tailwindcss";
 
+/* ──────────────────────────────────────────────────────────────
+   Satu Sekolah — Design Tokens (Royal Blue + Dark Mode)
+   Single source of truth. Inline <style> blocks in shell components
+   reference these vars so theme changes cascade everywhere.
+   ────────────────────────────────────────────────────────────── */
 @theme {
-  --color-brand-green: oklch(0.70 0.19 144);
-  --color-brand-blue: oklch(0.62 0.22 255);
-  --color-brand-purple: oklch(0.58 0.23 283);
-  
+  /* Brand semantic colors (Tailwind utilities: bg-brand, text-brand, etc.) */
+  --color-brand: var(--brand);
+  --color-brand-deep: var(--brand-deep);
+  --color-brand-accent: var(--brand-accent);
+  --color-brand-soft: var(--brand-soft);
+  --color-brand-green: oklch(0.70 0.17 152);
+  --color-brand-blue: var(--brand);
+
+  /* shadcn-style semantic tokens */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
-  
   --color-popover: var(--popover);
   --color-popover-foreground: var(--popover-foreground);
-  
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
-  
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
-  
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
-  
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
-  
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
-  
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
-  
+
   --radius-lg: var(--radius);
   --radius-md: calc(var(--radius) - 2px);
   --radius-sm: calc(var(--radius) - 4px);
 }
 
+/* ── Light theme (default) ───────────────────────────────────── */
 :root {
-  --background: oklch(0.98 0.01 200); /* Very light cyan/blue-ish white */
-  --foreground: oklch(0.2 0.02 240);
-  
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.2 0.02 240);
-  
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.2 0.02 240);
-  
-  --primary: oklch(0.62 0.22 255); /* Brand Blue */
-  --primary-foreground: oklch(1 0 0);
-  
-  --secondary: oklch(0.95 0.02 144); /* Very light Green */
-  --secondary-foreground: oklch(0.4 0.1 144); /* Dark Green */
-  
-  --muted: oklch(0.92 0.01 240);
-  --muted-foreground: oklch(0.4 0.02 240);
-  
-  --accent: oklch(0.95 0.02 283); /* Very light Purple */
-  --accent-foreground: oklch(0.4 0.1 283); /* Dark Purple */
-  
-  --destructive: oklch(0.6 0.18 20);
-  --destructive-foreground: oklch(1 0 0);
-  
-  --border: oklch(0.9 0.01 240);
-  --input: oklch(0.9 0.01 240);
-  --ring: oklch(0.62 0.22 255); /* Brand Blue */
-  
+  /* Brand Royal Blue */
+  --brand: #2563eb;
+  --brand-deep: #1e3a8a;
+  --brand-accent: #3b82f6;
+  --brand-soft: #eff6ff;
+
+  /* Surfaces */
+  --surface: #ffffff;
+  --surface-2: #f8fafc;
+  --background: #f1f5f9;
+  --foreground: #0f172a;
+  --card: #ffffff;
+  --card-foreground: #0f172a;
+  --popover: #ffffff;
+  --popover-foreground: #0f172a;
+
+  --primary: #2563eb;
+  --primary-foreground: #ffffff;
+  --secondary: #eff6ff;
+  --secondary-foreground: #1e3a8a;
+  --muted: #f1f5f9;
+  --muted-foreground: #64748b;
+  --accent: #eff6ff;
+  --accent-foreground: #1e3a8a;
+  --destructive: #dc2626;
+  --destructive-foreground: #ffffff;
+  --border: #e2e8f0;
+  --input: #e2e8f0;
+  --ring: #2563eb;
+
   --radius: 0.75rem;
+
+  /* Brand rgba helpers (used by inline <style> blocks) */
+  --brand-rgb: 37, 99, 235;
+  --brand-deep-rgb: 30, 58, 138;
+  --brand-accent-rgb: 59, 130, 246;
+}
+
+/* ── Dark theme ──────────────────────────────────────────────── */
+:root[data-theme="dark"],
+.dark {
+  --brand: #3b82f6;
+  --brand-deep: #1e40af;
+  --brand-accent: #60a5fa;
+  --brand-soft: rgba(59, 130, 246, 0.12);
+
+  --surface: #0f172a;
+  --surface-2: #1e293b;
+  --background: #0b1220;
+  --foreground: #e2e8f0;
+  --card: #111c33;
+  --card-foreground: #e2e8f0;
+  --popover: #111c33;
+  --popover-foreground: #e2e8f0;
+
+  --primary: #3b82f6;
+  --primary-foreground: #0b1220;
+  --secondary: rgba(59, 130, 246, 0.12);
+  --secondary-foreground: #93c5fd;
+  --muted: #1e293b;
+  --muted-foreground: #94a3b8;
+  --accent: rgba(59, 130, 246, 0.14);
+  --accent-foreground: #93c5fd;
+  --destructive: #f87171;
+  --destructive-foreground: #0b1220;
+  --border: rgba(148, 163, 184, 0.16);
+  --input: rgba(148, 163, 184, 0.20);
+  --ring: #3b82f6;
+
+  --brand-rgb: 59, 130, 246;
+  --brand-deep-rgb: 30, 64, 175;
+  --brand-accent-rgb: 96, 165, 250;
+}
+
+/* Follow system preference when no explicit choice */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --brand: #3b82f6;
+    --brand-deep: #1e40af;
+    --brand-accent: #60a5fa;
+    --brand-soft: rgba(59, 130, 246, 0.12);
+    --surface: #0f172a;
+    --surface-2: #1e293b;
+    --background: #0b1220;
+    --foreground: #e2e8f0;
+    --card: #111c33;
+    --card-foreground: #e2e8f0;
+    --popover: #111c33;
+    --popover-foreground: #e2e8f0;
+    --primary: #3b82f6;
+    --primary-foreground: #0b1220;
+    --secondary: rgba(59, 130, 246, 0.12);
+    --secondary-foreground: #93c5fd;
+    --muted: #1e293b;
+    --muted-foreground: #94a3b8;
+    --accent: rgba(59, 130, 246, 0.14);
+    --accent-foreground: #93c5fd;
+    --destructive: #f87171;
+    --destructive-foreground: #0b1220;
+    --border: rgba(148, 163, 184, 0.16);
+    --input: rgba(148, 163, 184, 0.20);
+    --ring: #3b82f6;
+    --brand-rgb: 59, 130, 246;
+    --brand-deep-rgb: 30, 64, 175;
+    --brand-accent-rgb: 96, 165, 250;
+  }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-family: "Geist", "Inter", system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
 @layer base {
   * {
     border-color: var(--border);
+  }
+}
+
+/* ── Utility helpers ─────────────────────────────────────────── */
+.scrollbar-hide {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Custom scrollbar (subtle, themed) */
+*::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background: rgba(var(--brand-rgb), 0.25);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: rgba(var(--brand-rgb), 0.45);
+  background-clip: padding-box;
+}
+
+/* ── Keyframes (lightweight) ─────────────────────────────────── */
+@keyframes ssFadeUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes ssScaleIn {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes ssShimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+@keyframes ssFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+.animate-fade-up { animation: ssFadeUp 0.4s ease both; }
+.animate-scale-in { animation: ssScaleIn 0.25s ease both; }
+
+/* Respect reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
   }
 }

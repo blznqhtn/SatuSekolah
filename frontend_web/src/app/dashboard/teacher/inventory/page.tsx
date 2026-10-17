@@ -60,7 +60,7 @@ export default function Page() {
         <div className="flex items-center justify-end gap-2">
           <button
             onClick={() => alert(`Laporan kondisi sarpras ${item.name} telah diteruskan ke Bagian Sarana Prasarana.`)}
-            className="px-2.5 py-1 text-xs font-semibold text-[#4b25bb] hover:bg-[#4b25bb]/10 border border-[#4b25bb]/20 rounded-lg transition-colors"
+            className="px-2.5 py-1 text-xs font-semibold text-[#2563eb] hover:bg-[#2563eb]/10 border border-[#2563eb]/20 rounded-lg transition-colors"
           >
             Lapor Kerusakan
           </button>

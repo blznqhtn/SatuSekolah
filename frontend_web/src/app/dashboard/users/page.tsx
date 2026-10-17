@@ -101,7 +101,7 @@ export default function Page() {
             : cat === "student"
             ? "bg-emerald-50 text-emerald-600 border-emerald-200"
             : cat === "parent"
-            ? "bg-purple-50 text-purple-600 border-purple-200"
+            ? "bg-indigo-50 text-indigo-600 border-indigo-200"
             : "bg-slate-50 text-slate-600 border-slate-200"
 
         return (
@@ -121,7 +121,7 @@ export default function Page() {
             {!isRestricted && (
               <button
                 onClick={() => setEditingUser(item)}
-                className="px-2.5 py-1 text-xs font-semibold text-[#4b25bb] hover:bg-[#4b25bb]/10 border border-[#4b25bb]/20 rounded-lg transition-colors"
+                className="px-2.5 py-1 text-xs font-semibold text-[#2563eb] hover:bg-[#2563eb]/10 border border-[#2563eb]/20 rounded-lg transition-colors"
                 title="Kelola hak akses role & izin"
               >
                 Hak Akses

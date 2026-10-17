@@ -115,7 +115,7 @@ export function EditUserModal({ user, isOpen, onClose }: EditUserModalProps) {
               {/* Permissions Section */}
               <div className="space-y-3">
                 <div className="flex items-center gap-2 text-slate-800 font-semibold">
-                  <Key className="w-4 h-4 text-brand-purple" />
+                  <Key className="w-4 h-4 text-brand-blue" />
                   <h3>Izin Khusus (Permissions)</h3>
                 </div>
                 <div className="space-y-2 border border-slate-100 rounded-xl p-4 bg-slate-50/50 max-h-48 overflow-y-auto">

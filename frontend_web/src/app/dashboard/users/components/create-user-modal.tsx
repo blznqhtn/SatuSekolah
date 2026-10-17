@@ -66,9 +66,9 @@ export function CreateUserModal({ isOpen, onClose, onSuccess }: CreateUserModalP
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
       <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl border border-slate-100 overflow-hidden animate-in zoom-in-95 duration-200">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-gradient-to-r from-purple-50/60 to-blue-50/40">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-gradient-to-r from-blue-50/60 to-blue-50/40">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-[#4b25bb]/10 flex items-center justify-center text-[#4b25bb]">
+            <div className="w-10 h-10 rounded-xl bg-[#2563eb]/10 flex items-center justify-center text-[#2563eb]">
               <UserPlus className="w-5 h-5" />
             </div>
             <div>
@@ -96,12 +96,12 @@ export function CreateUserModal({ isOpen, onClose, onSuccess }: CreateUserModalP
             {/* Role / Category */}
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
-                <Shield className="w-3.5 h-3.5 text-[#4b25bb]" /> Role / Kategori
+                <Shield className="w-3.5 h-3.5 text-[#2563eb]" /> Role / Kategori
               </label>
               <select
                 value={formData.category}
                 onChange={e => setFormData({ ...formData, category: e.target.value })}
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#4b25bb]/20 focus:border-[#4b25bb] transition-all"
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb] transition-all"
               >
                 <option value="staff">Staff / Guru</option>
                 <option value="student">Siswa</option>
@@ -121,7 +121,7 @@ export function CreateUserModal({ isOpen, onClose, onSuccess }: CreateUserModalP
                 placeholder="cth. Ahmad Fauzi, S.Pd"
                 value={formData.name}
                 onChange={e => setFormData({ ...formData, name: e.target.value })}
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#4b25bb]/20 focus:border-[#4b25bb] transition-all"
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb] transition-all"
               />
             </div>
 
@@ -136,7 +136,7 @@ export function CreateUserModal({ isOpen, onClose, onSuccess }: CreateUserModalP
                   placeholder="ahmad@satusekolah.id"
                   value={formData.email}
                   onChange={e => setFormData({ ...formData, email: e.target.value })}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#4b25bb]/20 focus:border-[#4b25bb] transition-all"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb] transition-all"
                 />
               </div>
               <div className="space-y-1.5">
@@ -148,7 +148,7 @@ export function CreateUserModal({ isOpen, onClose, onSuccess }: CreateUserModalP
                   placeholder="ahmad.fauzi"
                   value={formData.username}
                   onChange={e => setFormData({ ...formData, username: e.target.value })}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#4b25bb]/20 focus:border-[#4b25bb] transition-all"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb] transition-all"
                 />
               </div>
             </div>
@@ -164,7 +164,7 @@ export function CreateUserModal({ isOpen, onClose, onSuccess }: CreateUserModalP
                   placeholder="0012345678"
                   value={formData.nisn}
                   onChange={e => setFormData({ ...formData, nisn: e.target.value })}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#4b25bb]/20 focus:border-[#4b25bb] transition-all"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb] transition-all"
                 />
               </div>
             )}
@@ -179,7 +179,7 @@ export function CreateUserModal({ isOpen, onClose, onSuccess }: CreateUserModalP
                   placeholder="198501012010011001"
                   value={formData.npk}
                   onChange={e => setFormData({ ...formData, npk: e.target.value })}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#4b25bb]/20 focus:border-[#4b25bb] transition-all"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb] transition-all"
                 />
               </div>
             )}
@@ -194,7 +194,7 @@ export function CreateUserModal({ isOpen, onClose, onSuccess }: CreateUserModalP
                 placeholder="081234567890"
                 value={formData.phone}
                 onChange={e => setFormData({ ...formData, phone: e.target.value })}
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#4b25bb]/20 focus:border-[#4b25bb] transition-all"
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb] transition-all"
               />
             </div>
 
@@ -208,7 +208,7 @@ export function CreateUserModal({ isOpen, onClose, onSuccess }: CreateUserModalP
                 placeholder="Default: SatuSekolah123!"
                 value={formData.password}
                 onChange={e => setFormData({ ...formData, password: e.target.value })}
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#4b25bb]/20 focus:border-[#4b25bb] transition-all"
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb] transition-all"
               />
               <p className="text-[11px] text-muted-foreground">Kosongkan untuk menggunakan password default <code>SatuSekolah123!</code></p>
             </div>
@@ -226,7 +226,7 @@ export function CreateUserModal({ isOpen, onClose, onSuccess }: CreateUserModalP
             <button
               type="submit"
               disabled={isLoading}
-              className="px-5 py-2 text-sm font-semibold text-white bg-[#4b25bb] hover:bg-[#3d1ea0] rounded-xl shadow-md shadow-[#4b25bb]/20 transition-all disabled:opacity-50 flex items-center gap-2"
+              className="px-5 py-2 text-sm font-semibold text-white bg-[#2563eb] hover:bg-[#1e3a8a] rounded-xl shadow-md shadow-[#2563eb]/20 transition-all disabled:opacity-50 flex items-center gap-2"
             >
               {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
               Simpan Pengguna
