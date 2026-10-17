@@ -1,0 +1,7 @@
+.env
+.env.production
+docs/deleted.txt
+docs/reconstructed.dbml
+docs/restore.json
+scripts/*
+*.exe

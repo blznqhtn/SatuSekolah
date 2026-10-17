@@ -1,0 +1,3 @@
+ALTER TABLE users 
+ADD COLUMN address TEXT NULL AFTER phone,
+ADD COLUMN avatar_url VARCHAR(255) NULL AFTER address;

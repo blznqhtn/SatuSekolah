@@ -1,0 +1,19 @@
+CREATE TABLE IF NOT EXISTS user_notification_settings (
+    user_id CHAR(36) NOT NULL,
+    email_notif BOOLEAN DEFAULT TRUE,
+    push_notif BOOLEAN DEFAULT TRUE,
+    sms_notif BOOLEAN DEFAULT FALSE,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS faqs (
+    id CHAR(36) NOT NULL,
+    question VARCHAR(255) NOT NULL,
+    answer TEXT NOT NULL,
+    category VARCHAR(50) DEFAULT 'UMUM',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NULL,
+    PRIMARY KEY (id)
+);
