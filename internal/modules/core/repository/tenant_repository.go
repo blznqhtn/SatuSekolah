@@ -606,3 +606,73 @@ func (r *coreRepository) GetChildrenByParentID(ctx context.Context, parentID uui
 	}
 	return children, nil
 }
+
+func (r *coreRepository) GetUsers(ctx context.Context, tenantID uuid.UUID, category string) ([]*domain.User, error) {
+	query := `
+		SELECT id, tenant_id, account_number, category, name, COALESCE(email, ''), COALESCE(phone, ''), COALESCE(address, ''), avatar_url, username, nisn, npk, created_at
+		FROM users
+		WHERE tenant_id = $1 AND deleted_at IS NULL
+	`
+	var args []interface{}
+	args = append(args, tenantID)
+
+	if category != "" && category != "all" {
+		query += ` AND category = $2`
+		args = append(args, category)
+	}
+	query += ` ORDER BY created_at DESC`
+
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var users []*domain.User
+	for rows.Next() {
+		var u domain.User
+		if err := rows.Scan(
+			&u.ID, &u.TenantID, &u.AccountNumber, &u.Category, &u.Name, &u.Email, &u.Phone, &u.Address, &u.AvatarURL, &u.Username, &u.Nisn, &u.Npk, &u.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		users = append(users, &u)
+	}
+	return users, nil
+}
+
+func (r *coreRepository) DeleteUser(ctx context.Context, id uuid.UUID) error {
+	query := `UPDATE users SET deleted_at = NOW() WHERE id = $1`
+	_, err := r.db.ExecContext(ctx, query, id)
+	return err
+}
+
+func (r *coreRepository) UpdateUser(ctx context.Context, user *domain.User) error {
+	query := `
+		UPDATE users 
+		SET name = $1, email = $2, category = $3, phone = $4, address = $5, updated_at = NOW()
+		WHERE id = $6 AND deleted_at IS NULL
+	`
+	_, err := r.db.ExecContext(ctx, query, user.Name, user.Email, user.Category, user.Phone, user.Address, user.ID)
+	return err
+}
+
+func (r *coreRepository) UpdateUserAccess(ctx context.Context, userID uuid.UUID, roleName string, permissions []string) error {
+	user, err := r.GetUserByID(ctx, userID)
+	if err != nil || user == nil {
+		return fmt.Errorf("user not found")
+	}
+
+	var roleID uuid.UUID
+	err = r.db.QueryRowContext(ctx, `SELECT id FROM roles WHERE tenant_id = $1 AND LOWER(name) = LOWER($2) LIMIT 1`, user.TenantID, roleName).Scan(&roleID)
+	if err != nil {
+		_ = r.db.QueryRowContext(ctx, `SELECT id FROM roles WHERE LOWER(name) = LOWER($1) LIMIT 1`, roleName).Scan(&roleID)
+	}
+
+	if roleID != uuid.Nil {
+		_ = r.AssignRoleToUser(ctx, userID, roleID)
+	}
+
+	r.invalidateUserCache(ctx, userID)
+	return nil
+}

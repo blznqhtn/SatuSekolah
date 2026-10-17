@@ -108,6 +108,12 @@ type CoreRepository interface {
 	UpdateNotificationSettings(ctx context.Context, userID uuid.UUID, settings map[string]bool) error
 	GetFaqs(ctx context.Context) ([]*Faq, error)
 	GetChildrenByParentID(ctx context.Context, parentID uuid.UUID) ([]*User, error)
+
+	// User management
+	GetUsers(ctx context.Context, tenantID uuid.UUID, category string) ([]*User, error)
+	DeleteUser(ctx context.Context, id uuid.UUID) error
+	UpdateUser(ctx context.Context, user *User) error
+	UpdateUserAccess(ctx context.Context, userID uuid.UUID, roleName string, permissions []string) error
 }
 
 // CoreUsecase defines the business logic interface for Tenants and RBAC

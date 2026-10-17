@@ -19,8 +19,15 @@ func main() {
 		log.Fatalf("Failed to load config: %v", err)
 	}
 
-	// 2. Connect to Database (MySQL assumed based on previous context)
-	db, err := database.NewMySQLConnection(cfg)
+	// 2. Connect to Database based on driver configuration
+	var db *sql.DB
+	if cfg.Database.Driver == "mysql" {
+		db, err = database.NewMySQLConnection(cfg)
+	} else if cfg.Database.Driver == "sqlite" {
+		db, err = database.NewSQLiteConnection(cfg)
+	} else {
+		db, err = database.NewPostgresConnection(cfg)
+	}
 	if err != nil {
 		log.Fatalf("Failed to connect to DB: %v", err)
 	}

@@ -485,3 +485,222 @@ func (h *UserHandler) GetChildren(c *fiber.Ctx) error {
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{"data": children})
 }
+
+// GetUsers returns list of users for the tenant
+// GET /api/v1/users
+func (h *UserHandler) GetUsers(c *fiber.Ctx) error {
+	claims, ok := c.Locals("claims").(*middleware.Claims)
+	if !ok || claims == nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "unauthorized"})
+	}
+
+	tenantID, err := uuid.Parse(claims.TenantID)
+	if err != nil {
+		defaultTenant, err := h.repo.GetFirstTenant(c.Context())
+		if err != nil || defaultTenant == nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "tenant not found"})
+		}
+		tenantID = defaultTenant.ID
+	}
+
+	category := c.Query("category", "")
+	users, err := h.repo.GetUsers(c.Context(), tenantID, category)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "could not fetch users: " + err.Error()})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{"data": users})
+}
+
+// CreateUser creates a new user account (Admin only)
+// POST /api/v1/users
+func (h *UserHandler) CreateUser(c *fiber.Ctx) error {
+	claims, ok := c.Locals("claims").(*middleware.Claims)
+	if !ok || claims == nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "unauthorized"})
+	}
+
+	tenantID, err := uuid.Parse(claims.TenantID)
+	if err != nil {
+		defaultTenant, err := h.repo.GetFirstTenant(c.Context())
+		if err != nil || defaultTenant == nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "tenant not found"})
+		}
+		tenantID = defaultTenant.ID
+	}
+
+	var req struct {
+		Name     string  `json:"name"`
+		Email    string  `json:"email"`
+		Password string  `json:"password"`
+		Category string  `json:"category"`
+		Username *string `json:"username"`
+		Nisn     *string `json:"nisn"`
+		Npk      *string `json:"npk"`
+		Phone    *string `json:"phone"`
+	}
+
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
+	}
+
+	if req.Name == "" || req.Category == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "name and category are required"})
+	}
+
+	if req.Password == "" {
+		req.Password = "SatuSekolah123!" // default initial password
+	}
+
+	user := &domain.User{
+		TenantID:  tenantID,
+		Name:      req.Name,
+		Email:     req.Email,
+		Category:  req.Category,
+		Password:  req.Password,
+		Username:  req.Username,
+		Nisn:      req.Nisn,
+		Npk:       req.Npk,
+		Phone:     req.Phone,
+		CreatedAt: time.Now(),
+	}
+
+	if err := h.repo.CreateUser(c.Context(), user); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to create user: " + err.Error()})
+	}
+
+	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
+		"message": "user created successfully",
+		"data":    user,
+	})
+}
+
+// UpdateUser updates user data (Admin only)
+// PUT /api/v1/users/:id
+func (h *UserHandler) UpdateUser(c *fiber.Ctx) error {
+	idParam := c.Params("id")
+	userID, err := uuid.Parse(idParam)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid user id"})
+	}
+
+	var req struct {
+		Name     string  `json:"name"`
+		Email    string  `json:"email"`
+		Category string  `json:"category"`
+		Phone    *string `json:"phone"`
+		Address  *string `json:"address"`
+	}
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
+	}
+
+	user, err := h.repo.GetUserByID(c.Context(), userID)
+	if err != nil || user == nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "user not found"})
+	}
+
+	if req.Name != "" {
+		user.Name = req.Name
+	}
+	if req.Email != "" {
+		user.Email = req.Email
+	}
+	if req.Category != "" {
+		user.Category = req.Category
+	}
+	user.Phone = req.Phone
+	user.Address = req.Address
+
+	if err := h.repo.UpdateUser(c.Context(), user); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to update user"})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"message": "user updated successfully",
+		"data":    user,
+	})
+}
+
+// DeleteUser soft deletes a user
+// DELETE /api/v1/users/:id
+func (h *UserHandler) DeleteUser(c *fiber.Ctx) error {
+	idParam := c.Params("id")
+	userID, err := uuid.Parse(idParam)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid user id"})
+	}
+
+	if err := h.repo.DeleteUser(c.Context(), userID); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to delete user"})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{"message": "user deleted successfully"})
+}
+
+// ResetPassword resets password for a user
+// POST /api/v1/users/:id/reset-password
+func (h *UserHandler) ResetPassword(c *fiber.Ctx) error {
+	idParam := c.Params("id")
+	userID, err := uuid.Parse(idParam)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid user id"})
+	}
+
+	tempPassword := "SatuSekolah123!"
+	if err := h.repo.UpdateUserPassword(c.Context(), userID, tempPassword); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to reset password"})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"message": "password berhasil direset ke password sementara: " + tempPassword,
+	})
+}
+
+// GetUserAccess gets role and permissions for a user
+// GET /api/v1/users/:id/access
+func (h *UserHandler) GetUserAccess(c *fiber.Ctx) error {
+	idParam := c.Params("id")
+	userID, err := uuid.Parse(idParam)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid user id"})
+	}
+
+	roleName, _ := h.repo.GetUserRoleName(c.Context(), userID)
+	perms, _ := h.repo.GetUserPermissions(c.Context(), userID)
+	if perms == nil {
+		perms = []string{}
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"data": fiber.Map{
+			"role":        roleName,
+			"permissions": perms,
+		},
+	})
+}
+
+// UpdateUserAccess updates role and permissions for a user
+// PUT /api/v1/users/:id/access
+func (h *UserHandler) UpdateUserAccess(c *fiber.Ctx) error {
+	idParam := c.Params("id")
+	userID, err := uuid.Parse(idParam)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid user id"})
+	}
+
+	var req struct {
+		Role        string   `json:"role"`
+		Permissions []string `json:"permissions"`
+	}
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
+	}
+
+	if err := h.repo.UpdateUserAccess(c.Context(), userID, req.Role, req.Permissions); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to update user access: " + err.Error()})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{"message": "access updated successfully"})
+}
+
