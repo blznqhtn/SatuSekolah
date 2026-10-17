@@ -52,15 +52,6 @@ export default function Page() {
     }
   }
 
-  // Sample catalog data when backend endpoint is a stub
-  const sampleBooks = [
-    { id: "1", title: "Fisika Modern Kelas XII", author: "Dr. Budi Santoso", category: "Pelajaran", isbn: "978-602-01-2345-1", copies: 12, available: 8 },
-    { id: "2", title: "Kimia Dasar Terapan", author: "Prof. Siti Aminah", category: "Pelajaran", isbn: "978-602-01-6789-2", copies: 10, available: 10 },
-    { id: "3", title: "Laskar Pelangi", author: "Andrea Hirata", category: "Fiksi", isbn: "978-979-3062-79-2", copies: 5, available: 2 },
-    { id: "4", title: "Struktur Data & Algoritma", author: "Rinaldi Munir", category: "Teknologi", isbn: "978-602-01-9988-3", copies: 8, available: 6 },
-    { id: "5", title: "Sejarah Indonesia Merdeka", author: "Prof. Sardiman", category: "Sejarah", isbn: "978-602-01-1122-4", copies: 15, available: 14 },
-  ]
-
   const columns: ColumnDef[] = [
     {
       key: "no",
@@ -77,7 +68,7 @@ export default function Page() {
             <BookOpen className="w-4 h-4" />
           </div>
           <div>
-            <span className="font-semibold text-slate-800 text-sm block">{item.title}</span>
+            <span className="font-semibold text-slate-800 text-sm block">{item.title || "Judul Buku"}</span>
             <span className="text-[11px] text-muted-foreground">Penulis: {item.author || "—"}</span>
           </div>
         </div>
@@ -85,21 +76,21 @@ export default function Page() {
     },
     {
       key: "isbn",
-      label: "ISBN / Kategori",
+      label: "ISBN / Tipe Buku",
       render: (item) => (
         <div className="flex flex-col text-xs text-slate-600">
-          <span className="font-mono">{item.isbn || "—"}</span>
-          <span className="text-[11px] text-[#4b25bb] font-semibold">{item.category || "Umum"}</span>
+          <span className="font-mono">{item.isbn || item.book_type || "—"}</span>
+          <span className="text-[11px] text-[#4b25bb] font-semibold">{item.category || item.payment_type || "Koleksi Perpustakaan"}</span>
         </div>
       ),
     },
     {
       key: "availability",
-      label: "Ketersediaan",
+      label: "Ketersediaan Stok",
       render: (item) => (
         <span className="inline-flex items-center gap-1 px-2.5 py-0.5 text-xs font-semibold rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200">
           <CheckCircle2 className="w-3 h-3" />
-          {item.available ?? item.copies ?? 5} Tersedia / {item.copies ?? 5} Total
+          {item.available ?? item.stock ?? 0} Tersedia
         </span>
       ),
     },
@@ -123,8 +114,8 @@ export default function Page() {
     <>
       <DataTableTemplate
         moduleName="Perpustakaan & E-Book"
-        description="Katalog buku perpustakaan fisik, buku digital, peminjaman RFID, dan denda keterlambatan."
-        customData={sampleBooks}
+        description="Katalog buku perpustakaan fisik, buku digital, peminjaman RFID, dan denda keterlambatan dari database API."
+        endpoint="/library/books"
         columns={columns}
         addLabel="Tambah Koleksi Buku"
         onAddClick={() => setIsAddOpen(true)}

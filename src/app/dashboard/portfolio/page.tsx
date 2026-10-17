@@ -53,13 +53,6 @@ export default function Page() {
     }
   }
 
-  // Sample data fallback for portfolio items
-  const samplePortfolio = [
-    { id: "1", title: "Ketua Tim Robotik Sekolah", company_name: "Klub Robotika Satu Sekolah", period: "Jan 2026 - Sekarang", description: "Merancang line follower robot berbasis Arduino dan memenangkan Juara 2 Tingkat Provinsi." },
-    { id: "2", title: "Junior Web Developer Intern", company_name: "PT Neura Solusi Digital", period: "Jul 2025 - Des 2025", description: "Membantu pengembangan frontend dashboard menggunakan Next.js dan TailwindCSS." },
-    { id: "3", title: "Staff Publikasi & Dokumentasi", company_name: "OSIS Satu Sekolah", period: "Jan 2025 - Des 2025", description: "Mengelola konten media sosial sekolah dengan capaian engagement meningkat 140%." },
-  ]
-
   const columns: ColumnDef[] = [
     {
       key: "no",
@@ -76,7 +69,7 @@ export default function Page() {
             <FolderGit2 className="w-4 h-4" />
           </div>
           <div>
-            <span className="font-semibold text-slate-800 text-sm block">{item.title}</span>
+            <span className="font-semibold text-slate-800 text-sm block">{item.title || "Pengalaman Siswa"}</span>
             <span className="text-[11px] text-muted-foreground flex items-center gap-1">
               <Building2 className="w-3 h-3 text-slate-400" />
               {item.company_name || "Organisasi / Perusahaan"}
@@ -100,7 +93,7 @@ export default function Page() {
       label: "Deskripsi Capaian",
       render: (item) => (
         <span className="text-xs text-slate-600 max-w-sm truncate block">
-          {item.description}
+          {item.description || "—"}
         </span>
       ),
     },
@@ -110,7 +103,7 @@ export default function Page() {
       render: (item) => (
         <div className="flex items-center justify-end gap-2">
           <button
-            onClick={() => alert(`Portofolio: ${item.title}\n${item.description}`)}
+            onClick={() => alert(`Portofolio: ${item.title}\n${item.description || ""}`)}
             className="px-2.5 py-1 text-xs font-semibold text-[#4b25bb] hover:bg-[#4b25bb]/10 border border-[#4b25bb]/20 rounded-lg transition-colors"
           >
             Lihat Portofolio
@@ -124,9 +117,8 @@ export default function Page() {
     <>
       <DataTableTemplate
         moduleName="Portofolio Digital Siswa (LinkedIn-Style)"
-        description="Rekam jejak prestasi, proyek kejuruan, kepanitiaan organisasi, dan sertifikasi keahlian siswa."
+        description="Rekam jejak prestasi, proyek kejuruan, kepanitiaan organisasi, dan sertifikasi keahlian siswa dari database API."
         endpoint="/portfolio"
-        customData={samplePortfolio}
         columns={columns}
         addLabel="Tambah Pengalaman"
         onAddClick={() => setIsAddOpen(true)}

@@ -2,16 +2,10 @@
 
 import React, { useState } from "react"
 import { DataTableTemplate, ColumnDef } from "@/components/dashboard/data-table-template"
-import { BookOpen, FileText, CheckCircle2, Download, ExternalLink } from "lucide-react"
+import { FileText, CheckCircle2, Download } from "lucide-react"
 
 export default function Page() {
   const [refreshKey, setRefreshKey] = useState(0)
-
-  const sampleRPP = [
-    { id: "1", title: "Modul Ajar Bab 1: Eksponen & Logaritma", subject: "Matematika", grade: "Fase E (Kelas X)", status: "TERVALIDASI", updated_at: "2026-10-10" },
-    { id: "2", title: "Modul Ajar Bab 2: Barisan & Deret Aritmatika", subject: "Matematika", grade: "Fase E (Kelas X)", status: "TERVALIDASI", updated_at: "2026-10-12" },
-    { id: "3", title: "Modul Ajar Bab 3: Vektor & Trigonometri", subject: "Matematika", grade: "Fase E (Kelas X)", status: "DRAF", updated_at: "2026-10-16" },
-  ]
 
   const columns: ColumnDef[] = [
     {
@@ -29,8 +23,8 @@ export default function Page() {
             <FileText className="w-4 h-4" />
           </div>
           <div>
-            <span className="font-semibold text-slate-800 text-sm block">{item.title}</span>
-            <span className="text-[11px] text-muted-foreground">{item.subject} · {item.grade}</span>
+            <span className="font-semibold text-slate-800 text-sm block">{item.title || item.name || "Modul Pembelajaran"}</span>
+            <span className="text-[11px] text-muted-foreground">{item.subject || item.course_name || "Mata Pelajaran"} · {item.grade || item.class_level || "Umum"}</span>
           </div>
         </div>
       ),
@@ -40,10 +34,10 @@ export default function Page() {
       label: "Status Validasi Kurikulum",
       render: (item) => (
         <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 text-xs font-semibold rounded-full border ${
-          item.status === "TERVALIDASI" ? "bg-emerald-50 text-emerald-600 border-emerald-200" : "bg-amber-50 text-amber-600 border-amber-200"
+          item.status === "TERVALIDASI" || item.is_active ? "bg-emerald-50 text-emerald-600 border-emerald-200" : "bg-amber-50 text-amber-600 border-amber-200"
         }`}>
           <CheckCircle2 className="w-3 h-3" />
-          {item.status}
+          {item.status || (item.is_active ? "TERVALIDASI" : "AKTIF")}
         </span>
       ),
     },
@@ -53,7 +47,7 @@ export default function Page() {
       render: (item) => (
         <div className="flex items-center justify-end gap-2">
           <button
-            onClick={() => alert(`Mengunduh dokumen Modul Ajar: ${item.title}...`)}
+            onClick={() => alert(`Mengunduh dokumen Modul Ajar: ${item.title || item.name || "RPP"}...`)}
             className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-[#4b25bb] hover:bg-[#4b25bb]/10 border border-[#4b25bb]/20 rounded-lg transition-colors"
           >
             <Download className="w-3 h-3" />
@@ -67,9 +61,8 @@ export default function Page() {
   return (
     <DataTableTemplate
       moduleName="Perangkat Pembelajaran & Modul Ajar Guru"
-      description="Bank RPP Merdeka Belajar, modul ajar interaktif, asesmen diagnostik, dan lembar kerja peserta didik (LKPD)."
+      description="Bank RPP Merdeka Belajar, modul ajar interaktif, asesmen diagnostik, dan lembar kerja peserta didik (LKPD) dari database API."
       endpoint="/academic/modules"
-      customData={sampleRPP}
       columns={columns}
       hideAddButton
       refreshTrigger={refreshKey}

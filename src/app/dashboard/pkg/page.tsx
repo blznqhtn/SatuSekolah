@@ -45,14 +45,6 @@ export default function Page() {
     }
   }
 
-  // Sample data fallback for teacher performance submissions
-  const samplePKGData = [
-    { id: "1", indicator_name: "Perangkat Pembelajaran & Modul Ajar Kurikulum Merdeka", document_url: "https://drive.google.com/file/d/modul-ajar-2026", description: "RPP dan Modul Ajar Semester 1 lengkap dengan asesmen diagnostik", score: 94, status: "TEREVALUASI", date: "10 Okt 2026" },
-    { id: "2", indicator_name: "Pengembangan Keprofesian Berkelanjutan (PKB)", document_url: "https://drive.google.com/file/d/sertifikat-pelatihan", description: "Sertifikat Pelatihan Nasional Pemanfaatan AI untuk Pembelajaran", score: 90, status: "TEREVALUASI", date: "05 Okt 2026" },
-    { id: "3", indicator_name: "Pelaksanaan Pembelajaran Interaktif di Kelas", document_url: "https://youtube.com/watch?v=video-pembelajaran", description: "Rekaman video microteaching dan lembar observasi teman sejawat", score: 92, status: "TEREVALUASI", date: "02 Okt 2026" },
-    { id: "4", indicator_name: "Tugas Tambahan Sebagai Pembina Ekstrakurikuler", document_url: "https://drive.google.com/file/d/laporan-ekskul", description: "Laporan kegiatan bimbingan olimpiade sains dan presensi mingguan", score: null, status: "MENUNGGU_REVIEW", date: "15 Okt 2026" },
-  ]
-
   const columns: ColumnDef[] = [
     {
       key: "no",
@@ -69,8 +61,8 @@ export default function Page() {
             <FileCheck className="w-4 h-4" />
           </div>
           <div>
-            <span className="font-semibold text-slate-800 text-sm block">{item.indicator_name || "Indikator Kinerja"}</span>
-            <span className="text-[11px] text-muted-foreground">{item.description}</span>
+            <span className="font-semibold text-slate-800 text-sm block">{item.indicator_name || item.name || "Indikator Kinerja"}</span>
+            <span className="text-[11px] text-muted-foreground">{item.description || "Dokumen bukti fisik"}</span>
           </div>
         </div>
       ),
@@ -127,9 +119,8 @@ export default function Page() {
     <>
       <DataTableTemplate
         moduleName="Penilaian Kinerja Guru (PKG)"
-        description="Pengunggahan bukti kinerja tahunan guru, evaluasi kepala sekolah, perhitungan skor agregat, dan sertifikasi."
+        description="Pengunggahan bukti kinerja tahunan guru, evaluasi kepala sekolah, perhitungan skor agregat, dan sertifikasi dari database API."
         endpoint="/pkg/submissions"
-        customData={samplePKGData}
         columns={columns}
         addLabel="Unggah Bukti Kinerja"
         onAddClick={() => setIsAddOpen(true)}

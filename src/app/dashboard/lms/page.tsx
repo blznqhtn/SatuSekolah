@@ -45,13 +45,6 @@ export default function Page() {
     }
   }
 
-  // Sample data fallback for LMS modules
-  const sampleModules = [
-    { id: "1", title: "Pertemuan 1: Pengenalan Aljabar Linear", course_name: "Matematika X", content: "Konsep vektor, matriks dasar, dan operasi penjumlahan matriks 2x2.", created_at: "2026-10-12T08:00:00Z" },
-    { id: "2", title: "Pertemuan 2: Hukum Newton & Gravitasi", course_name: "Fisika X", content: "Penerapan Hukum I, II, dan III Newton dalam dinamika gerak lurus beraturan.", created_at: "2026-10-14T09:30:00Z" },
-    { id: "3", title: "Pertemuan 3: Reaksi Redoks & Elektrokimia", course_name: "Kimia XI", content: "Penyetaraan reaksi reduksi dan oksidasi dengan metode setengah reaksi.", created_at: "2026-10-15T11:00:00Z" },
-  ]
-
   const columns: ColumnDef[] = [
     {
       key: "no",
@@ -68,7 +61,7 @@ export default function Page() {
             <Laptop className="w-4 h-4" />
           </div>
           <div>
-            <span className="font-semibold text-slate-800 text-sm block">{item.title}</span>
+            <span className="font-semibold text-slate-800 text-sm block">{item.title || item.name || "Modul Materi"}</span>
             <span className="text-[11px] text-muted-foreground">{item.course_name || "Mata Pelajaran Kurikulum"}</span>
           </div>
         </div>
@@ -79,7 +72,7 @@ export default function Page() {
       label: "Ringkasan Isi Materi",
       render: (item) => (
         <span className="text-xs text-slate-600 max-w-sm truncate block">
-          {item.content}
+          {item.content || item.description || "—"}
         </span>
       ),
     },
@@ -100,7 +93,7 @@ export default function Page() {
       render: (item) => (
         <div className="flex items-center justify-end gap-2">
           <button
-            onClick={() => alert(`Buka Modul: ${item.title}\n\nIsi Materi:\n${item.content}`)}
+            onClick={() => alert(`Buka Modul: ${item.title || item.name}\n\nIsi Materi:\n${item.content || item.description || "-"}`)}
             className="px-2.5 py-1 text-xs font-semibold text-[#4b25bb] hover:bg-[#4b25bb]/10 border border-[#4b25bb]/20 rounded-lg transition-colors"
           >
             Buka Modul
@@ -114,9 +107,8 @@ export default function Page() {
     <>
       <DataTableTemplate
         moduleName="E-Learning & Modul Pembelajaran"
-        description="Ruang belajar digital, materi modul ajar guru, kuis interaktif, dan penugasan siswa terpadu."
+        description="Ruang belajar digital, materi modul ajar guru, kuis interaktif, dan penugasan siswa terpadu dari database API."
         endpoint="/academic/modules"
-        customData={sampleModules}
         columns={columns}
         addLabel="Tambah Modul Materi"
         onAddClick={() => setIsAddOpen(true)}

@@ -49,14 +49,6 @@ export default function Page() {
     }
   }
 
-  // Sample data fallback for tenant financial report
-  const sampleCanteenData = [
-    { id: "1", shop_name: "Kantin Sehat Bu Nur", item_name: "Nasi Kuning Komplit", total_sales: 450000, orders_count: 30, date: "Hari Ini" },
-    { id: "2", shop_name: "Kantin Bu Nur", item_name: "Susu Kedelai Murni", total_sales: 120000, orders_count: 24, date: "Hari Ini" },
-    { id: "3", shop_name: "Kedai Snack Barokah", item_name: "Roti Bakar Coklat Keju", total_sales: 280000, orders_count: 28, date: "Hari Ini" },
-    { id: "4", shop_name: "Kedai Minuman Segar", item_name: "Jus Alpukat Tanpa Gula", total_sales: 180000, orders_count: 15, date: "Hari Ini" },
-  ]
-
   const columns: ColumnDef[] = [
     {
       key: "no",
@@ -108,7 +100,7 @@ export default function Page() {
       render: (item) => (
         <div className="flex items-center justify-end gap-2">
           <button
-            onClick={() => alert(`Laporan penjualan untuk ${item.item_name || "Menu"}: Omset Rp ${Number(item.total_sales || 0).toLocaleString("id-ID")}`)}
+            onClick={() => alert(`Laporan penjualan untuk ${item.item_name || "Menu"}: Omset Rp ${Number(item.total_sales || item.price || 0).toLocaleString("id-ID")}`)}
             className="px-2.5 py-1 text-xs font-semibold text-[#4b25bb] hover:bg-[#4b25bb]/10 border border-[#4b25bb]/20 rounded-lg transition-colors"
           >
             Detail POS
@@ -122,9 +114,8 @@ export default function Page() {
     <>
       <DataTableTemplate
         moduleName="Kantin Digital & POS Cashless"
-        description="Pembayaran kantin non-tunai via RFID, QR Dinamis, dan Virtual Account 15 digit dengan pemantauan omset real-time."
+        description="Pembayaran kantin non-tunai via RFID, QR Dinamis, dan Virtual Account 15 digit dengan pemantauan omset real-time dari database API."
         endpoint="/canteen/reports/financial"
-        customData={sampleCanteenData}
         columns={columns}
         addLabel="Tambah Menu Kantin"
         onAddClick={() => setIsAddOpen(true)}

@@ -76,7 +76,17 @@ export function DataTableTemplate({
     setError(null)
     try {
       const res = await fetchApi(endpoint)
-      const items = Array.isArray(res.data) ? res.data : Array.isArray(res) ? res : []
+      const raw = res?.data ?? res
+      let items: any[] = []
+      if (Array.isArray(raw)) {
+        items = raw
+      } else if (raw && Array.isArray(raw.items)) {
+        items = raw.items
+      } else if (raw && Array.isArray(raw.records)) {
+        items = raw.records
+      } else if (raw && Array.isArray(raw.data)) {
+        items = raw.data
+      }
       setData(items)
     } catch (err: any) {
       setError(err.message || "Gagal memuat data dari server.")

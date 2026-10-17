@@ -45,14 +45,6 @@ export default function Page() {
     }
   }
 
-  // Fallback sample data for PKL records
-  const samplePKLData = [
-    { id: "1", student_name: "Muhammad Rizki", company_name: "PT Astra Honda Motor", mentor_name: "Ir. Hendra Gunawan", score: 92, status: "TERVERIFIKASI" },
-    { id: "2", student_name: "Dewi Lestari", company_name: "Telkom Witel Bandung", mentor_name: "Siti Rahmawati, S.Kom", score: 88, status: "TERVERIFIKASI" },
-    { id: "3", student_name: "Bagus Prasetyo", company_name: "PT United Tractors", mentor_name: "Agus Salim, M.T", score: 95, status: "TERVERIFIKASI" },
-    { id: "4", student_name: "Nabila Putri", company_name: "Bank BSI Kantor Cabang", mentor_name: "Fitri Handayani, S.E", score: 90, status: "SEDANG_BERJALAN" },
-  ]
-
   const columns: ColumnDef[] = [
     {
       key: "no",
@@ -69,8 +61,8 @@ export default function Page() {
             <Building2 className="w-4 h-4" />
           </div>
           <div>
-            <span className="font-semibold text-slate-800 text-sm block">{item.student_name || "Siswa Peserta"}</span>
-            <span className="text-[11px] text-muted-foreground">{item.company_name || "Mitra Industri"}</span>
+            <span className="font-semibold text-slate-800 text-sm block">{item.student_name || item.student || "Siswa Peserta"}</span>
+            <span className="text-[11px] text-muted-foreground">{item.company_name || item.company || "Mitra Industri"}</span>
           </div>
         </div>
       ),
@@ -80,7 +72,7 @@ export default function Page() {
       label: "Pembimbing Industri",
       render: (item) => (
         <span className="text-xs text-slate-700 font-medium">
-          {item.mentor_name || "Pembimbing Terdaftar"}
+          {item.mentor_name || item.supervisor || "Pembimbing Terdaftar"}
         </span>
       ),
     },
@@ -91,7 +83,7 @@ export default function Page() {
       render: (item) => (
         <span className="inline-flex items-center gap-1 font-mono text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
           <Star className="w-3 h-3 text-amber-500 fill-amber-500" />
-          {item.score || 90} / 100
+          {item.score ?? 90} / 100
         </span>
       ),
     },
@@ -99,7 +91,7 @@ export default function Page() {
       key: "status",
       label: "Status Monitoring",
       render: (item) => {
-        const isDone = item.status === "TERVERIFIKASI"
+        const isDone = item.status === "TERVERIFIKASI" || item.status === "SELESAI"
         return (
           <span
             className={`inline-flex items-center gap-1 px-2.5 py-0.5 text-xs font-semibold rounded-full border ${
@@ -107,7 +99,7 @@ export default function Page() {
             }`}
           >
             <CheckCircle2 className="w-3 h-3" />
-            {isDone ? "Terverifikasi" : "Sedang Magang"}
+            {item.status || (isDone ? "Terverifikasi" : "Sedang Magang")}
           </span>
         )
       },
@@ -118,7 +110,7 @@ export default function Page() {
       render: (item) => (
         <div className="flex items-center justify-end gap-2">
           <button
-            onClick={() => alert(`Buka lembar jurnal bimbingan PKL siswa ${item.student_name} di ${item.company_name}.`)}
+            onClick={() => alert(`Buka lembar jurnal bimbingan PKL siswa ${item.student_name || "Siswa"} di ${item.company_name || "Perusahaan"}.`)}
             className="px-2.5 py-1 text-xs font-semibold text-[#4b25bb] hover:bg-[#4b25bb]/10 border border-[#4b25bb]/20 rounded-lg transition-colors"
           >
             Jurnal PKL
@@ -132,9 +124,8 @@ export default function Page() {
     <>
       <DataTableTemplate
         moduleName="Praktik Kerja Lapangan (PKL) & Kinerja"
-        description="Monitoring magang DU/DI, penilaian kinerja industri, e-jurnal bimbingan, dan evaluasi Hubin."
-        endpoint="/performance/records"
-        customData={samplePKLData}
+        description="Monitoring magang DU/DI, penilaian kinerja industri, e-jurnal bimbingan, dan evaluasi Hubin dari database API."
+        endpoint="/performance/pkl/schedules"
         columns={columns}
         addLabel="Lapor Kegiatan PKL"
         onAddClick={() => setIsAddOpen(true)}

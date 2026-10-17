@@ -45,14 +45,6 @@ export default function Page() {
     }
   }
 
-  // Sample contacts fallback
-  const sampleContacts = [
-    { id: "1", name: "Drs. Mulyono (Kepala Sekolah)", account_number: "2026010001", category: "admin", is_encrypted: true },
-    { id: "2", name: "Siti Rahmawati, S.Pd (Wali Kelas X-IPA)", account_number: "2026020015", category: "staff", is_encrypted: true },
-    { id: "3", name: "Humas & Tata Usaha Sekolah", account_number: "2026020002", category: "staff", is_encrypted: true },
-    { id: "4", name: "Bpk. Hendro (Ketua Komite Sekolah)", account_number: "2026030045", category: "parent", is_encrypted: true },
-  ]
-
   const columns: ColumnDef[] = [
     {
       key: "no",
@@ -69,8 +61,8 @@ export default function Page() {
             {item.name ? item.name.charAt(0).toUpperCase() : "U"}
           </div>
           <div>
-            <span className="font-semibold text-slate-800 text-sm block">{item.name}</span>
-            <span className="font-mono text-[11px] text-muted-foreground">{item.account_number || "Akun Terverifikasi"}</span>
+            <span className="font-semibold text-slate-800 text-sm block">{item.name || item.username || "Kontak Pengguna"}</span>
+            <span className="font-mono text-[11px] text-muted-foreground">{item.account_number || item.email || "Akun Terverifikasi"}</span>
           </div>
         </div>
       ),
@@ -80,7 +72,7 @@ export default function Page() {
       label: "Role",
       render: (item) => (
         <span className="px-2.5 py-0.5 text-[11px] font-semibold rounded-full bg-slate-100 text-slate-700 uppercase">
-          {item.category || "Staff"}
+          {item.category || item.role || "User"}
         </span>
       ),
     },
@@ -100,7 +92,7 @@ export default function Page() {
       render: (item) => (
         <div className="flex items-center justify-end gap-2">
           <button
-            onClick={() => alert(`Membuka ruang percakapan terenkripsi dengan ${item.name}...`)}
+            onClick={() => alert(`Membuka ruang percakapan terenkripsi dengan ${item.name || "Kontak"}...`)}
             className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-white bg-[#4b25bb] hover:bg-[#3d1ea0] rounded-lg shadow-sm transition-colors"
           >
             <Send className="w-3 h-3" />
@@ -115,9 +107,8 @@ export default function Page() {
     <>
       <DataTableTemplate
         moduleName="Pusat Komunikasi & Chat E2EE"
-        description="Komunikasi aman terenkripsi end-to-end antar guru, wali kelas, kepala sekolah, dan orang tua murid."
+        description="Komunikasi aman terenkripsi end-to-end antar guru, wali kelas, kepala sekolah, dan orang tua murid dari database API."
         endpoint="/communication/contacts"
-        customData={sampleContacts}
         columns={columns}
         addLabel="Mulai Obrolan Baru"
         onAddClick={() => setIsAddOpen(true)}

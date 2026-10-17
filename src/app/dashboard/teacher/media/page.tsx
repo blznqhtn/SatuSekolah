@@ -47,12 +47,6 @@ export default function Page() {
     }
   }
 
-  const sampleMedia = [
-    { id: "1", title: "Video Praktikum Kimia: Titrasi Asam Basa", file_type: "MP4 Video", size: "48.5 MB", is_torrentable: true, date: "12 Okt 2026" },
-    { id: "2", title: "Animasi 3D: Cara Kerja Mesin 4 Tak", file_type: "MP4 Video", size: "32.0 MB", is_torrentable: true, date: "08 Okt 2026" },
-    { id: "3", title: "Slide Presentasi Interaktif: Hukum Newton", file_type: "PDF Slide", size: "8.2 MB", is_torrentable: false, date: "04 Okt 2026" },
-  ]
-
   const columns: ColumnDef[] = [
     {
       key: "no",
@@ -69,8 +63,8 @@ export default function Page() {
             <Video className="w-4 h-4" />
           </div>
           <div>
-            <span className="font-semibold text-slate-800 text-sm block">{item.title}</span>
-            <span className="text-[11px] text-muted-foreground">{item.file_type} · {item.size}</span>
+            <span className="font-semibold text-slate-800 text-sm block">{item.title || item.name || "Media Pembelajaran"}</span>
+            <span className="text-[11px] text-muted-foreground">{item.file_type || "Bahan Digital"} · {item.size || "Direct Stream"}</span>
           </div>
         </div>
       ),
@@ -79,12 +73,12 @@ export default function Page() {
       key: "torrent",
       label: "Distribusi Jaringan",
       render: (item) => (
-        item.is_torrentable ? (
+        item.is_torrentable || item.magnet_link ? (
           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 text-xs font-semibold rounded-full bg-purple-50 text-purple-700 border border-purple-200">
             ⚡ WebTorrent Seed Active
           </span>
         ) : (
-          <span className="text-xs text-slate-500">Direct HTTP</span>
+          <span className="text-xs text-slate-500">Direct HTTP / Cloud</span>
         )
       ),
     },
@@ -94,7 +88,7 @@ export default function Page() {
       render: (item) => (
         <div className="flex items-center justify-end gap-2">
           <button
-            onClick={() => alert(`Memutar media: ${item.title}...`)}
+            onClick={() => alert(`Memutar media: ${item.title || item.name}...`)}
             className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-[#4b25bb] hover:bg-[#4b25bb]/10 border border-[#4b25bb]/20 rounded-lg transition-colors"
           >
             <PlayCircle className="w-3.5 h-3.5" />
@@ -109,9 +103,8 @@ export default function Page() {
     <>
       <DataTableTemplate
         moduleName="Media Pembelajaran & Video Streaming"
-        description="Pusat media bahan ajar digital, video pembelajaran resolusi tinggi terdistribusi via WebSeed / WebTorrent."
-        endpoint="/media/upload"
-        customData={sampleMedia}
+        description="Pusat media bahan ajar digital, video pembelajaran resolusi tinggi terdistribusi via WebSeed / WebTorrent dari database API."
+        endpoint="/academic/modules"
         columns={columns}
         addLabel="Unggah Media Baru"
         onAddClick={() => setIsAddOpen(true)}
