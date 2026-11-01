@@ -65,6 +65,10 @@ class _LoginScreenState extends State<LoginScreen> {
         box.write('isLoggedIn', true);
         final nama = data['data']?['nama'] ?? data['user']?['name'] ?? 'Kartini Rahayu';
         box.write('namaOrtu', nama);
+        box.write('token', data['token'] ?? '');
+        box.write('userId', data['data']?['id'] ?? data['user']?['id'] ?? '');
+        box.write('email', data['data']?['email'] ?? data['user']?['email'] ?? 'ortu@sekolah.id');
+        box.write('phone', data['data']?['phone'] ?? data['user']?['phone'] ?? '081234567890');
 
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
@@ -96,6 +100,8 @@ class _LoginScreenState extends State<LoginScreen> {
         final box = GetStorage();
         box.write('isLoggedIn', true);
         box.write('namaOrtu', 'Kartini Rahayu');
+        box.write('email', 'ortu@sekolah.id');
+        box.write('phone', '081234567890');
 
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(

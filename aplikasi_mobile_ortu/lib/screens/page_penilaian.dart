@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../main_screen.dart';
+import '../services/api_service.dart';
 
 class PagePenilaian extends StatefulWidget {
   const PagePenilaian({super.key});
@@ -11,29 +12,102 @@ class PagePenilaian extends StatefulWidget {
 
 class _PagePenilaianState extends State<PagePenilaian> {
   int _selectedGuru = 0;
-  List<int> _ratings = [5, 4, 4];
+  final List<int> _ratings = [5, 4, 5];
+  final TextEditingController _commentController = TextEditingController();
+
+  bool _isLoading = true;
   bool _isSubmitting = false;
   bool _isSuccess = false;
 
+  List<Map<String, dynamic>> _teachers = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadTeachers();
+  }
+
+  @override
+  void dispose() {
+    _commentController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadTeachers() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    final list = await ApiService.getEligibleTeachers();
+    if (mounted) {
+      setState(() {
+        _teachers = list;
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _submitEvaluation() async {
+    if (_teachers.isEmpty) return;
+
+    setState(() {
+      _isSubmitting = true;
+    });
+
+    final teacher = _teachers[_selectedGuru];
+    final teacherId = teacher['id']?.toString() ?? '';
+    final avgRating = (_ratings.reduce((a, b) => a + b) / _ratings.length).round();
+    final review = _commentController.text.trim();
+
+    final ok = await ApiService.submitEvaluation(teacherId, avgRating, review);
+
+    if (mounted) {
+      setState(() {
+        _isSubmitting = false;
+        _isSuccess = ok;
+      });
+
+      if (ok) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ Penilaian berhasil dikirim secara anonim!'),
+            backgroundColor: AppTheme.teal,
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final selectedTeacherName = _teachers.isNotEmpty
+        ? (_teachers[_selectedGuru]['name'] ?? 'Guru')
+        : 'Guru Pengajar';
+
     return Column(
       children: [
         _buildHeader(context),
         Expanded(
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const SizedBox(height: 16),
-                _buildInfoCard(),
-                _buildSectionHeader('Pilih Guru'),
-                _buildGuruList(),
-                _buildRatingCard(),
-                const SizedBox(height: 16),
-              ],
-            ),
-          ),
+          child: _isLoading
+              ? const Center(child: CircularProgressIndicator(color: AppTheme.accent))
+              : RefreshIndicator(
+                  color: AppTheme.accent,
+                  onRefresh: _loadTeachers,
+                  child: SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const SizedBox(height: 16),
+                        _buildInfoCard(),
+                        _buildSectionHeader('Pilih Guru Pengajar'),
+                        _buildGuruList(),
+                        _buildRatingCard(selectedTeacherName),
+                        const SizedBox(height: 24),
+                      ],
+                    ),
+                  ),
+                ),
         ),
       ],
     );
@@ -50,8 +124,8 @@ class _PagePenilaianState extends State<PagePenilaian> {
         children: [
           GestureDetector(
             onTap: () {
-               final parent = context.findAncestorStateOfType<State<MainScreen>>() as dynamic;
-               if(parent != null) parent.goBack();
+              final parent = context.findAncestorStateOfType<State<MainScreen>>() as dynamic;
+              if (parent != null) parent.goBack();
             },
             child: Container(
               width: 34,
@@ -81,13 +155,14 @@ class _PagePenilaianState extends State<PagePenilaian> {
           borderRadius: BorderRadius.circular(AppTheme.radius),
           border: Border.all(color: AppTheme.accent.withOpacity(0.2)),
         ),
-        child: Column(
+        child: const Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: const [
-            Text('🔒 Penilaian Anonim', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800)),
+          children: [
+            Text('🔒 Penilaian Anonim & Rahasia',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800)),
             SizedBox(height: 4),
             Text(
-              'Identitas Anda tidak akan ditampilkan kepada guru. Penilaian ini bersifat rahasia dan digunakan untuk evaluasi kinerja semester.',
+              'Identitas Anda tidak akan ditampilkan kepada guru. Penilaian ini digunakan oleh pihak sekolah untuk meningkatkan kualitas pembelajaran anak Anda.',
               style: TextStyle(fontSize: 12, color: AppTheme.text2, height: 1.6),
             ),
           ],
@@ -104,26 +179,54 @@ class _PagePenilaianState extends State<PagePenilaian> {
   }
 
   Widget _buildGuruList() {
+    if (_teachers.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: AppTheme.cardSmDecoration,
+          child: const Center(
+            child: Text('Belum ada guru yang terdaftar untuk dievaluasi',
+                style: TextStyle(fontSize: 12, color: AppTheme.text3)),
+          ),
+        ),
+      );
+    }
+
+    final gradients = [
+      [const Color(0xFF4F8EF7), const Color(0xFFA78BFA)],
+      [const Color(0xFF34D497), const Color(0xFF38BDF8)],
+      [const Color(0xFFF5C842), const Color(0xFFF76F6F)],
+      [const Color(0xFFEC4899), const Color(0xFF8B5CF6)],
+    ];
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
-        children: [
-          _buildGuruCard(0, 'BW', 'Budi Waluyo, S.Pd.', 'Matematika · Wali Kelas', [const Color(0xFF4F8EF7), const Color(0xFFA78BFA)]),
-          const SizedBox(height: 8),
-          _buildGuruCard(1, 'SD', 'Sari Dewi, M.Pd.', 'Fisika', [const Color(0xFF34D497), const Color(0xFF38BDF8)]),
-          const SizedBox(height: 8),
-          _buildGuruCard(2, 'HG', 'Hendra Gunawan', 'Kimia', [const Color(0xFFF5C842), const Color(0xFFF76F6F)]),
-        ],
+        children: List.generate(_teachers.length, (index) {
+          final guru = _teachers[index];
+          final name = guru['name']?.toString() ?? 'Guru';
+          final mapel = guru['subject']?.toString() ?? 'Mata Pelajaran';
+          final grad = gradients[index % gradients.length];
+          final initials = name.length >= 2 ? name.substring(0, 2).toUpperCase() : 'GR';
+
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: _buildGuruCard(index, initials, name, mapel, grad),
+          );
+        }),
       ),
     );
   }
 
-  Widget _buildGuruCard(int index, String initials, String name, String mapel, List<Color> gradientColors) {
+  Widget _buildGuruCard(
+      int index, String initials, String name, String mapel, List<Color> gradientColors) {
     final isSelected = _selectedGuru == index;
     return GestureDetector(
       onTap: () {
         setState(() {
           _selectedGuru = index;
+          _isSuccess = false;
         });
       },
       child: Container(
@@ -151,14 +254,18 @@ class _PagePenilaianState extends State<PagePenilaian> {
                   end: Alignment.bottomRight,
                 ),
               ),
-              child: Text(initials, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w800)),
+              child: Text(initials,
+                  style: const TextStyle(
+                      color: Colors.white, fontSize: 14, fontWeight: FontWeight.w800)),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(name, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppTheme.text)),
+                  Text(name,
+                      style: const TextStyle(
+                          fontSize: 13, fontWeight: FontWeight.w700, color: AppTheme.text)),
                   Text(mapel, style: const TextStyle(fontSize: 11, color: AppTheme.text3)),
                 ],
               ),
@@ -173,7 +280,7 @@ class _PagePenilaianState extends State<PagePenilaian> {
     );
   }
 
-  Widget _buildRatingCard() {
+  Widget _buildRatingCard(String teacherName) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
       child: Container(
@@ -182,21 +289,24 @@ class _PagePenilaianState extends State<PagePenilaian> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Rating untuk Budi Waluyo, S.Pd.', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800)),
+            Text('Rating untuk $teacherName',
+                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800)),
             const SizedBox(height: 14),
             _buildRatingRow(0, 'Penguasaan Materi'),
             const SizedBox(height: 16),
-            _buildRatingRow(1, 'Cara Mengajar'),
+            _buildRatingRow(1, 'Cara Mengajar & Keterbukaan'),
             const SizedBox(height: 16),
             _buildRatingRow(2, 'Komunikasi dengan Orang Tua'),
             const SizedBox(height: 16),
-            const Text('Komentar (opsional)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppTheme.text2)),
+            const Text('Komentar & Masukan (opsional)',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppTheme.text2)),
             const SizedBox(height: 6),
             TextField(
+              controller: _commentController,
               maxLines: 3,
               style: const TextStyle(fontSize: 13),
               decoration: InputDecoration(
-                hintText: 'Tuliskan masukan Anda...',
+                hintText: 'Tuliskan apresiasi atau saran konstruktif Anda...',
                 hintStyle: const TextStyle(color: AppTheme.text3, fontSize: 13),
                 filled: true,
                 fillColor: AppTheme.bg2,
@@ -215,23 +325,11 @@ class _PagePenilaianState extends State<PagePenilaian> {
                 contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: (_isSubmitting || _isSuccess) ? null : () {
-                  setState(() {
-                    _isSubmitting = true;
-                  });
-                  Future.delayed(const Duration(milliseconds: 1500), () {
-                    if (mounted) {
-                      setState(() {
-                        _isSubmitting = false;
-                        _isSuccess = true;
-                      });
-                    }
-                  });
-                },
+                onPressed: (_isSubmitting || _isSuccess) ? null : _submitEvaluation,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _isSuccess ? AppTheme.teal : AppTheme.accent,
                   foregroundColor: Colors.white,
@@ -242,8 +340,11 @@ class _PagePenilaianState extends State<PagePenilaian> {
                   elevation: 0,
                 ),
                 child: Text(
-                  _isSubmitting ? '⏳ Mengirim...' : (_isSuccess ? '✅ Penilaian Terkirim!' : 'Kirim Penilaian'),
-                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, fontFamily: 'Nunito'),
+                  _isSubmitting
+                      ? '⏳ Mengirim Penilaian...'
+                      : (_isSuccess ? '✅ Penilaian Terkirim!' : 'Kirim Penilaian'),
+                  style: const TextStyle(
+                      fontSize: 15, fontWeight: FontWeight.w800, fontFamily: 'Nunito'),
                 ),
               ),
             ),
@@ -257,7 +358,8 @@ class _PagePenilaianState extends State<PagePenilaian> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppTheme.text)),
+        Text(label,
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppTheme.text)),
         const SizedBox(height: 8),
         Row(
           children: List.generate(5, (starIndex) {
@@ -271,7 +373,7 @@ class _PagePenilaianState extends State<PagePenilaian> {
               child: Padding(
                 padding: const EdgeInsets.only(right: 6),
                 child: ColorFiltered(
-                  colorFilter: isActive 
+                  colorFilter: isActive
                       ? const ColorFilter.mode(Colors.transparent, BlendMode.multiply)
                       : const ColorFilter.matrix([
                           0.33, 0.33, 0.33, 0, 0,

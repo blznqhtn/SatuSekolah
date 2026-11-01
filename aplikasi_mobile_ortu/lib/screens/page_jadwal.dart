@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../main_screen.dart';
+import '../services/api_service.dart';
 
 class PageJadwal extends StatefulWidget {
   const PageJadwal({super.key});
@@ -10,32 +11,92 @@ class PageJadwal extends StatefulWidget {
 }
 
 class _PageJadwalState extends State<PageJadwal> {
-  int _selectedDay = 0;
+  int _selectedDay = 0; // 0=Senin, 1=Selasa, 2=Rabu, 3=Kamis, 4=Jumat
   final List<String> _days = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum'];
+  final List<String> _fullDays = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat'];
+
+  bool _isLoading = true;
+  String _childName = 'Anak';
+  String _childId = '';
+  List<Map<String, dynamic>> _schedules = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSchedule();
+  }
+
+  Future<void> _loadSchedule() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    final child = ApiService.getSelectedChild();
+    if (child != null) {
+      _childName = child['name'] ?? 'Anak';
+      _childId = child['id']?.toString() ?? '';
+    } else {
+      final children = await ApiService.getChildren();
+      if (children.isNotEmpty) {
+        _childName = children.first['name'] ?? 'Anak';
+        _childId = children.first['id']?.toString() ?? '';
+      }
+    }
+
+    // dayOfWeek: 1=Senin, 2=Selasa, ...
+    final dayOfWeek = _selectedDay + 1;
+    final list = await ApiService.getSchedules(dayOfWeek, childId: _childId);
+
+    if (mounted) {
+      setState(() {
+        _schedules = list;
+        _isLoading = false;
+      });
+    }
+  }
+
+  void _onDaySelect(int index) {
+    if (_selectedDay != index) {
+      setState(() {
+        _selectedDay = index;
+      });
+      _loadSchedule();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final firstName = _childName.split(' ').first;
+    final dayName = _fullDays[_selectedDay];
+
     return Column(
       children: [
-        _buildHeader(context),
+        _buildHeader(context, firstName, dayName),
         _buildDaySelector(),
         Expanded(
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const SizedBox(height: 16),
-                _buildScheduleList(),
-                const SizedBox(height: 16),
-              ],
-            ),
-          ),
+          child: _isLoading
+              ? const Center(child: CircularProgressIndicator(color: AppTheme.accent))
+              : RefreshIndicator(
+                  color: AppTheme.accent,
+                  onRefresh: _loadSchedule,
+                  child: SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const SizedBox(height: 16),
+                        _buildScheduleList(),
+                        const SizedBox(height: 24),
+                      ],
+                    ),
+                  ),
+                ),
         ),
       ],
     );
   }
 
-  Widget _buildHeader(BuildContext context) {
+  Widget _buildHeader(BuildContext context, String firstName, String dayName) {
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 14),
       decoration: const BoxDecoration(
@@ -49,8 +110,8 @@ class _PageJadwalState extends State<PageJadwal> {
             children: [
               GestureDetector(
                 onTap: () {
-                   final parent = context.findAncestorStateOfType<State<MainScreen>>() as dynamic;
-                   if(parent != null) parent.goBack();
+                  final parent = context.findAncestorStateOfType<State<MainScreen>>() as dynamic;
+                  if (parent != null) parent.goBack();
                 },
                 child: Container(
                   width: 34,
@@ -64,7 +125,7 @@ class _PageJadwalState extends State<PageJadwal> {
                 ),
               ),
               const SizedBox(width: 10),
-              const Text('Jadwal Aditya', style: AppTheme.headerTitle),
+              Text('Jadwal $firstName', style: AppTheme.headerTitle),
             ],
           ),
           Container(
@@ -73,7 +134,9 @@ class _PageJadwalState extends State<PageJadwal> {
               color: AppTheme.tealBg,
               borderRadius: BorderRadius.circular(20),
             ),
-            child: const Text('Senin', style: TextStyle(fontSize: 11, color: AppTheme.teal, fontWeight: FontWeight.w700)),
+            child: Text(dayName,
+                style: const TextStyle(
+                    fontSize: 11, color: AppTheme.teal, fontWeight: FontWeight.w700)),
           ),
         ],
       ),
@@ -93,11 +156,7 @@ class _PageJadwalState extends State<PageJadwal> {
           children: List.generate(_days.length, (index) {
             final isSelected = _selectedDay == index;
             return GestureDetector(
-              onTap: () {
-                setState(() {
-                  _selectedDay = index;
-                });
-              },
+              onTap: () => _onDaySelect(index),
               child: Container(
                 margin: const EdgeInsets.only(right: 8),
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
@@ -122,27 +181,52 @@ class _PageJadwalState extends State<PageJadwal> {
   }
 
   Widget _buildScheduleList() {
+    if (_schedules.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: AppTheme.cardSmDecoration,
+          child: const Center(
+            child: Text('Tidak ada jadwal pelajaran pada hari ini',
+                style: TextStyle(fontSize: 12, color: AppTheme.text3)),
+          ),
+        ),
+      );
+    }
+
+    final colors = [
+      AppTheme.blue,
+      AppTheme.teal,
+      AppTheme.purple,
+      AppTheme.accent,
+      AppTheme.yellow,
+    ];
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
-        children: [
-          _buildClassItem('07.30–09.00', 'Matematika', 'Budi Waluyo, S.Pd. · R.12', AppTheme.blue, false),
-          const SizedBox(height: 10),
-          _buildClassItem('09.15–10.45', 'Fisika', 'Sari Dewi, M.Pd. · R.08', AppTheme.teal, false),
-          const SizedBox(height: 10),
-          _buildBreakItem('11.00–11.30', 'Istirahat'),
-          const SizedBox(height: 10),
-          _buildClassItem('11.30–13.00', 'Kimia', 'Hendra Gunawan · R.Lab', AppTheme.purple, false),
-          const SizedBox(height: 10),
-          _buildBreakItem('13.00–13.30', 'Ishoma'),
-          const SizedBox(height: 10),
-          _buildClassItem('13.30–14.30', 'Bimbingan Wali Kelas', 'Budi Waluyo, S.Pd. · R.12', AppTheme.accent, false),
-        ],
+        children: List.generate(_schedules.length, (index) {
+          final item = _schedules[index];
+          final start = item['start_time']?.toString() ?? '08:00';
+          final end = item['end_time']?.toString() ?? '09:30';
+          final time = '$start–$end';
+          final title = item['course_name']?.toString() ?? 'Mata Pelajaran';
+          final teacher = item['staff_name']?.toString() ?? 'Guru Pengajar';
+          final room = item['room']?.toString() ?? 'Kelas';
+          final sub = '$teacher · $room';
+          final color = colors[index % colors.length];
+
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: _buildClassItem(time, title, sub, color),
+          );
+        }),
       ),
     );
   }
 
-  Widget _buildClassItem(String time, String title, String subtitle, Color color, bool isBreak) {
+  Widget _buildClassItem(String time, String title, String subtitle, Color color) {
     return Container(
       decoration: AppTheme.cardSmDecoration.copyWith(
         color: AppTheme.white,
@@ -161,54 +245,26 @@ class _PageJadwalState extends State<PageJadwal> {
                 child: Row(
                   children: [
                     SizedBox(
-                      width: 75,
-                      child: Text(time, style: const TextStyle(fontFamily: 'DM Mono', fontSize: 11, color: AppTheme.text3)),
+                      width: 80,
+                      child: Text(time,
+                          style: const TextStyle(
+                              fontFamily: 'DM Mono', fontSize: 11, color: AppTheme.text3)),
                     ),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800)),
+                          Text(title,
+                              style:
+                                  const TextStyle(fontSize: 13, fontWeight: FontWeight.w800)),
                           const SizedBox(height: 2),
-                          Text(subtitle, style: const TextStyle(fontSize: 11, color: AppTheme.text3)),
+                          Text(subtitle,
+                              style:
+                                  const TextStyle(fontSize: 11, color: AppTheme.text3),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis),
                         ],
                       ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildBreakItem(String time, String title) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppTheme.bg2,
-        borderRadius: BorderRadius.circular(AppTheme.radiusSm),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: IntrinsicHeight(
-        child: Row(
-          children: [
-            Container(
-              width: 4,
-              color: AppTheme.text3,
-            ),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(14),
-                child: Row(
-                  children: [
-                    SizedBox(
-                      width: 75,
-                      child: Text(time, style: const TextStyle(fontFamily: 'DM Mono', fontSize: 11, color: AppTheme.text3)),
-                    ),
-                    Expanded(
-                      child: Text(title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppTheme.text3)),
                     ),
                   ],
                 ),

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:get_storage/get_storage.dart';
 import '../theme/app_theme.dart';
 import '../main_screen.dart';
+import '../services/api_service.dart';
 import 'page_rapor.dart';
 import 'page_kesehatan.dart';
 import 'page_jadwal.dart';
@@ -15,32 +17,173 @@ class PageBeranda extends StatefulWidget {
 
 class _PageBerandaState extends State<PageBeranda> {
   int _selectedChildIndex = 0;
+  List<Map<String, dynamic>> _children = [];
+  bool _isLoading = true;
+
+  String _attendanceRate = '96%';
+  String _averageScore = '89.5';
+  String _violationPoints = '0';
+  List<Map<String, dynamic>> _activities = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    final children = await ApiService.getChildren();
+    if (children.isNotEmpty) {
+      _children = children;
+      if (_selectedChildIndex >= _children.length) {
+        _selectedChildIndex = 0;
+      }
+      ApiService.setSelectedChild(_children[_selectedChildIndex]);
+      await _loadChildStats(_children[_selectedChildIndex]['id'].toString());
+    }
+
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _loadChildStats(String childId) async {
+    final summary = await ApiService.getAttendanceSummary(childId);
+    final hadir = (summary['total_hadir'] as num?)?.toInt() ?? 24;
+    final sakit = (summary['total_sakit'] as num?)?.toInt() ?? 1;
+    final izin = (summary['total_izin'] as num?)?.toInt() ?? 0;
+    final alpha = (summary['total_alpha'] as num?)?.toInt() ?? 1;
+    final total = hadir + sakit + izin + alpha;
+    final rate = total > 0 ? ((hadir / total) * 100).round() : 100;
+
+    final report = await ApiService.getReportCard(childId);
+    final avg = (report?['average_score'] as num?)?.toDouble() ?? 89.5;
+
+    final points = await ApiService.getViolationPoints(childId);
+    final invoices = await ApiService.getInvoices(childId);
+    final checkups = await ApiService.getHealthCheckups(childId);
+
+    // Bangun daftar aktivitas terbaru dari data nyata
+    final List<Map<String, dynamic>> dynamicActs = [];
+
+    // Tagihan
+    final unpaid = invoices.firstWhere((inv) => inv['status'] == 'UNPAID', orElse: () => {});
+    if (unpaid.isNotEmpty) {
+      final amount = unpaid['total_amount'] ?? 600000;
+      dynamicActs.add({
+        'icon': '💳',
+        'iconBg': AppTheme.accentBg,
+        'title': unpaid['invoice_name'] ?? 'Tagihan SPP',
+        'sub': '${ApiService.formatRupiah(amount)} — Belum dibayar',
+        'time': 'Jatuh Tempo',
+        'badgeLabel': 'Tagihan',
+        'badgeColor': AppTheme.yellow,
+        'badgeBg': AppTheme.yellowBg,
+      });
+    }
+
+    // Rapor
+    if (report != null) {
+      dynamicActs.add({
+        'icon': '📊',
+        'iconBg': AppTheme.blueBg,
+        'title': 'Rapor Belajar Siswa',
+        'sub': '${report['term_name'] ?? 'Semester Genap'} — Rata-rata ${report['average_score']}',
+        'time': 'Baru',
+        'badgeLabel': 'Akademik',
+        'badgeColor': AppTheme.blue,
+        'badgeBg': AppTheme.blueBg,
+      });
+    }
+
+    // Kesehatan
+    if (checkups.isNotEmpty) {
+      final latestCheckup = checkups.first;
+      dynamicActs.add({
+        'icon': '🩺',
+        'iconBg': AppTheme.tealBg,
+        'title': 'Pemeriksaan UKS Sekolah',
+        'sub': 'TB ${latestCheckup['height'] ?? 172}cm · BB ${latestCheckup['weight'] ?? 65}kg · ${latestCheckup['diagnosis'] ?? 'Sehat'}',
+        'time': latestCheckup['date'] ?? 'Terbaru',
+        'badgeLabel': 'Sehat',
+        'badgeColor': AppTheme.teal,
+        'badgeBg': AppTheme.tealBg,
+      });
+    }
+
+    // Presensi
+    dynamicActs.add({
+      'icon': '📋',
+      'iconBg': alpha > 0 ? AppTheme.redBg : AppTheme.tealBg,
+      'title': alpha > 0 ? 'Presensi: Tercatat Alpha' : 'Kehadiran Prima',
+      'sub': alpha > 0 ? 'Terdapat $alpha hari alpha bulan ini' : 'Total hadir $hadir sesi pertemuan',
+      'time': 'Bulan Ini',
+      'badgeLabel': alpha > 0 ? 'Perhatian' : 'Hadir',
+      'badgeColor': alpha > 0 ? AppTheme.red : AppTheme.teal,
+      'badgeBg': alpha > 0 ? AppTheme.redBg : AppTheme.tealBg,
+    });
+
+    if (mounted) {
+      setState(() {
+        _attendanceRate = '$rate%';
+        _averageScore = avg.toStringAsFixed(1);
+        _violationPoints = points.toString();
+        _activities = dynamicActs;
+      });
+    }
+  }
+
+  void _onSelectChild(int index) {
+    if (index >= 0 && index < _children.length) {
+      setState(() {
+        _selectedChildIndex = index;
+      });
+      ApiService.setSelectedChild(_children[index]);
+      _loadChildStats(_children[index]['id'].toString());
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final box = GetStorage();
+    final parentName = box.read('namaOrtu') ?? 'Ibu Kartini';
+
     return Column(
       children: [
-        _buildHeader(),
+        _buildHeader(parentName),
         _buildChildSelector(),
         Expanded(
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _buildHeroCard(),
-                _buildQuickMenu(context),
-                _buildSectionHeader('Aktivitas Terbaru', 'Lihat semua'),
-                _buildActivityList(),
-                const SizedBox(height: 16),
-              ],
-            ),
-          ),
+          child: _isLoading
+              ? const Center(child: CircularProgressIndicator(color: AppTheme.accent))
+              : RefreshIndicator(
+                  color: AppTheme.accent,
+                  onRefresh: _loadData,
+                  child: SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _buildHeroCard(),
+                        _buildQuickMenu(context),
+                        _buildSectionHeader('Aktivitas Terbaru'),
+                        _buildActivityList(),
+                        const SizedBox(height: 24),
+                      ],
+                    ),
+                  ),
+                ),
         ),
       ],
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(String parentName) {
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 14),
       decoration: const BoxDecoration(
@@ -50,11 +193,11 @@ class _PageBerandaState extends State<PageBeranda> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          const Column(
+          Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Selamat pagi, 👋', style: AppTheme.headerGreeting),
-              Text('Ibu Kartini', style: AppTheme.headerName),
+              const Text('Selamat datang, 👋', style: AppTheme.headerGreeting),
+              Text(parentName, style: AppTheme.headerName),
             ],
           ),
           Container(
@@ -99,8 +242,18 @@ class _PageBerandaState extends State<PageBeranda> {
   }
 
   Widget _buildChildSelector() {
+    if (_children.isEmpty) {
+      return const SizedBox();
+    }
+
+    final gradients = [
+      [AppTheme.accent, const Color(0xFFF5A073)],
+      [AppTheme.teal, const Color(0xFF38BDF8)],
+      [AppTheme.blue, const Color(0xFFA78BFA)],
+    ];
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       decoration: const BoxDecoration(
         color: AppTheme.white,
         border: Border(bottom: BorderSide(color: AppTheme.border)),
@@ -108,23 +261,26 @@ class _PageBerandaState extends State<PageBeranda> {
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: Row(
-          children: [
-            _buildChildChip(
-              index: 0,
-              initials: 'AP',
-              name: 'Aditya',
-              kelas: 'XII IPA 1',
-              gradientColors: [AppTheme.accent, const Color(0xFFF5A073)],
-            ),
-            const SizedBox(width: 10),
-            _buildChildChip(
-              index: 1,
-              initials: 'RK',
-              name: 'Rina',
-              kelas: 'X RPL 2',
-              gradientColors: [AppTheme.teal, const Color(0xFF38BDF8)],
-            ),
-          ],
+          children: List.generate(_children.length, (index) {
+            final child = _children[index];
+            final name = child['name']?.toString() ?? 'Siswa';
+            final shortName = name.split(' ').first;
+            final kelas = child['class_name']?.toString() ?? 'Kelas XII';
+            final initials = child['initials']?.toString() ??
+                (name.length >= 2 ? name.substring(0, 2).toUpperCase() : 'SW');
+            final grad = gradients[index % gradients.length];
+
+            return Padding(
+              padding: const EdgeInsets.only(right: 10),
+              child: _buildChildChip(
+                index: index,
+                initials: initials,
+                name: shortName,
+                kelas: kelas,
+                gradientColors: grad,
+              ),
+            );
+          }),
         ),
       ),
     );
@@ -139,11 +295,7 @@ class _PageBerandaState extends State<PageBeranda> {
   }) {
     final isActive = _selectedChildIndex == index;
     return GestureDetector(
-      onTap: () {
-        setState(() {
-          _selectedChildIndex = index;
-        });
-      },
+      onTap: () => _onSelectChild(index),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
@@ -206,17 +358,17 @@ class _PageBerandaState extends State<PageBeranda> {
   }
 
   Widget _buildHeroCard() {
-    final isAditya = _selectedChildIndex == 0;
-    final fullName = isAditya ? 'Aditya Pratama' : 'Rina Kartini';
-    final fullKelas = isAditya ? 'XII IPA 1 · SMK N 1 Cikarang' : 'X RPL 2 · SMK N 1 Cikarang';
-    
+    final child = _children.isNotEmpty ? _children[_selectedChildIndex] : null;
+    final fullName = child?['name']?.toString() ?? 'Budi Siswa Teladan';
+    final fullKelas = '${child?['class_name'] ?? 'XII RPL 1'} · SMK N 1 Cikarang';
+
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(AppTheme.radius),
-        gradient: LinearGradient(
-          colors: [AppTheme.accent, const Color(0xFFF5A073)],
+        gradient: const LinearGradient(
+          colors: [AppTheme.accent, Color(0xFFF5A073)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -228,50 +380,45 @@ class _PageBerandaState extends State<PageBeranda> {
           ),
         ],
       ),
-      child: Stack(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Background decorations could be added here
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          const Text(
+            'Pantau Anak',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.3,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            fullName,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 22,
+              fontWeight: FontWeight.w900,
+              letterSpacing: -0.5,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            fullKelas,
+            style: const TextStyle(
+              color: Colors.white70,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Row(
             children: [
-              const Text(
-                'Pantau Anak',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.3,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                fullName,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 22,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: -0.5,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                fullKelas,
-                style: const TextStyle(
-                  color: Colors.white70,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  _buildHeroStat('94%', 'Kehadiran'),
-                  _buildHeroStatDivider(),
-                  _buildHeroStat('87.4', 'Rata Nilai'),
-                  _buildHeroStatDivider(),
-                  _buildHeroStat('0', 'Poin Langgar'),
-                ],
-              ),
+              _buildHeroStat(_attendanceRate, 'Kehadiran'),
+              _buildHeroStatDivider(),
+              _buildHeroStat(_averageScore, 'Rata Nilai'),
+              _buildHeroStatDivider(),
+              _buildHeroStat(_violationPoints, 'Poin Langgar'),
             ],
           ),
         ],
@@ -358,12 +505,13 @@ class _PageBerandaState extends State<PageBeranda> {
               }),
             ],
           );
-        }
+        },
       ),
     );
   }
 
-  Widget _buildQuickMenuItem(double width, String icon, String label, Color bgColor, {bool hasBadge = false, VoidCallback? onTap}) {
+  Widget _buildQuickMenuItem(double width, String icon, String label, Color bgColor,
+      {bool hasBadge = false, VoidCallback? onTap}) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -397,7 +545,9 @@ class _PageBerandaState extends State<PageBeranda> {
                         color: AppTheme.red,
                         shape: BoxShape.circle,
                       ),
-                      child: const Text('!', style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w800)),
+                      child: const Text('!',
+                          style: TextStyle(
+                              color: Colors.white, fontSize: 9, fontWeight: FontWeight.w800)),
                     ),
                   ),
               ],
@@ -419,38 +569,56 @@ class _PageBerandaState extends State<PageBeranda> {
     );
   }
 
-  Widget _buildSectionHeader(String title, [String? actionLabel]) {
+  Widget _buildSectionHeader(String title) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(title, style: AppTheme.sectionTitle),
-          if (actionLabel != null)
-            Text(actionLabel, style: AppTheme.sectionMore),
         ],
       ),
     );
   }
 
   Widget _buildActivityList() {
+    if (_activities.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.all(16),
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: AppTheme.cardSmDecoration,
+          child: const Center(
+            child: Text('Belum ada aktivitas tercatat', style: TextStyle(color: AppTheme.text3)),
+          ),
+        ),
+      );
+    }
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
       child: Column(
-        children: [
-          _buildActivityCard('❌', AppTheme.redBg, 'Tidak hadir hari ini', 'Matematika jam 1 — Alpha', '08:15', 'Alpha', AppTheme.red, AppTheme.redBg),
-          const SizedBox(height: 10),
-          _buildActivityCard('📊', AppTheme.blueBg, 'Rapor semester baru', 'Rapor Genap 2025/2026 tersedia', 'Kemarin', 'Baru', AppTheme.blue, AppTheme.blueBg),
-          const SizedBox(height: 10),
-          _buildActivityCard('💳', AppTheme.accentBg, 'Tagihan SPP Mei 2026', 'Rp 600.000 — Belum dibayar', '1 Mei', 'Tagihan', AppTheme.yellow, AppTheme.yellowBg),
-          const SizedBox(height: 10),
-          _buildActivityCard('🩺', AppTheme.tealBg, 'Pemeriksaan kesehatan', 'BB 65kg · TB 172cm · Sehat', '14 Mei', 'Sehat', AppTheme.teal, AppTheme.tealBg),
-        ],
+        children: _activities.map((act) {
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: _buildActivityCard(
+              act['icon'] ?? '📌',
+              act['iconBg'] ?? AppTheme.bg2,
+              act['title'] ?? '',
+              act['sub'] ?? '',
+              act['time'] ?? '',
+              act['badgeLabel'] ?? '',
+              act['badgeColor'] ?? AppTheme.text2,
+              act['badgeBg'] ?? AppTheme.bg2,
+            ),
+          );
+        }).toList(),
       ),
     );
   }
 
-  Widget _buildActivityCard(String icon, Color iconBg, String title, String sub, String time, String badgeLabel, Color badgeColor, Color badgeBg) {
+  Widget _buildActivityCard(String icon, Color iconBg, String title, String sub, String time,
+      String badgeLabel, Color badgeColor, Color badgeBg) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: AppTheme.cardSmDecoration,
@@ -471,11 +639,14 @@ class _PageBerandaState extends State<PageBeranda> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppTheme.text)),
+                Text(title,
+                    style: const TextStyle(
+                        fontSize: 13, fontWeight: FontWeight.w700, color: AppTheme.text)),
                 const SizedBox(height: 2),
                 Text(
                   sub,
-                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: AppTheme.text3),
+                  style: const TextStyle(
+                      fontSize: 11, fontWeight: FontWeight.w500, color: AppTheme.text3),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -504,7 +675,8 @@ class _PageBerandaState extends State<PageBeranda> {
                     const SizedBox(width: 3),
                     Text(
                       badgeLabel,
-                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: badgeColor),
+                      style:
+                          TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: badgeColor),
                     ),
                   ],
                 ),

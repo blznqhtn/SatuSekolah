@@ -1,14 +1,155 @@
 import 'package:flutter/material.dart';
+import 'package:get_storage/get_storage.dart';
 import '../theme/app_theme.dart';
 import '../main_screen.dart';
-import 'package:get_storage/get_storage.dart';
+import '../services/api_service.dart';
 import '../auth/login_screen.dart';
 
-class PageProfil extends StatelessWidget {
+class PageProfil extends StatefulWidget {
   const PageProfil({super.key});
 
   @override
+  State<PageProfil> createState() => _PageProfilState();
+}
+
+class _PageProfilState extends State<PageProfil> {
+  String _parentName = 'Kartini Rahayu';
+  String _email = 'ortu@sekolah.id';
+  String _phone = '081234567890';
+  List<Map<String, dynamic>> _children = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProfile();
+  }
+
+  Future<void> _loadProfile() async {
+    final box = GetStorage();
+    final name = box.read('namaOrtu') ?? 'Kartini Rahayu';
+    final email = box.read('email') ?? 'ortu@sekolah.id';
+    final phone = box.read('phone') ?? '081234567890';
+
+    final children = await ApiService.getChildren();
+
+    if (mounted) {
+      setState(() {
+        _parentName = name;
+        _email = email;
+        _phone = phone;
+        _children = children;
+      });
+    }
+  }
+
+  void _showDataDiriDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Data Diri Orang Tua',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildDialogRow('Nama Lengkap', _parentName),
+            const Divider(height: 16),
+            _buildDialogRow('Email', _email),
+            const Divider(height: 16),
+            _buildDialogRow('Nomor WhatsApp', _phone),
+            const Divider(height: 16),
+            _buildDialogRow('Peran', 'Orang Tua / Wali Murid'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Tutup', style: TextStyle(fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showDataAnakDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Data Anak Terdaftar',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: _children.map((child) {
+            final name = child['name'] ?? 'Siswa';
+            final nisn = child['nisn'] ?? '-';
+            final kelas = child['class_name'] ?? 'Kelas XII';
+            return Container(
+              margin: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppTheme.bg2,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 36,
+                    height: 36,
+                    alignment: Alignment.center,
+                    decoration: const BoxDecoration(
+                      color: AppTheme.accentBg,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Text('🎓', style: TextStyle(fontSize: 18)),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(name,
+                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800)),
+                        Text('NISN: $nisn · $kelas',
+                            style: const TextStyle(fontSize: 11, color: AppTheme.text3)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }).toList(),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Tutup', style: TextStyle(fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDialogRow(String label, String value) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: const TextStyle(fontSize: 11, color: AppTheme.text3)),
+        const SizedBox(height: 2),
+        Text(value,
+            style: const TextStyle(
+                fontSize: 13, fontWeight: FontWeight.w700, color: AppTheme.text)),
+      ],
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final initials = _parentName.isNotEmpty
+        ? (_parentName.trim().split(' ').map((w) => w.isNotEmpty ? w[0] : '').take(2).join())
+        : 'KR';
+
     return Column(
       children: [
         _buildHeader(context),
@@ -17,7 +158,7 @@ class PageProfil extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                _buildHero(),
+                _buildHero(initials),
                 const SizedBox(height: 16),
                 _buildMenuList(context),
                 const SizedBox(height: 16),
@@ -51,8 +192,8 @@ class PageProfil extends StatelessWidget {
             children: [
               GestureDetector(
                 onTap: () {
-                   final parent = context.findAncestorStateOfType<State<MainScreen>>() as dynamic;
-                   if(parent != null) parent.goBack();
+                  final parent = context.findAncestorStateOfType<State<MainScreen>>() as dynamic;
+                  if (parent != null) parent.goBack();
                 },
                 child: Container(
                   width: 34,
@@ -69,13 +210,20 @@ class PageProfil extends StatelessWidget {
               const Text('Profil Saya', style: AppTheme.headerTitle),
             ],
           ),
-          const Text('Edit', style: TextStyle(fontSize: 13, color: AppTheme.accent, fontWeight: FontWeight.w700)),
+          GestureDetector(
+            onTap: _showDataDiriDialog,
+            child: const Text('Detail',
+                style: TextStyle(
+                    fontSize: 13, color: AppTheme.accent, fontWeight: FontWeight.w700)),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildHero() {
+  Widget _buildHero(String initials) {
+    final childrenCount = _children.isNotEmpty ? _children.length : 2;
+
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
       decoration: const BoxDecoration(
@@ -107,25 +255,33 @@ class PageProfil extends StatelessWidget {
                 ),
               ],
             ),
-            child: const Text('KR', style: TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.w900)),
+            child: Text(initials,
+                style: const TextStyle(
+                    color: Colors.white, fontSize: 32, fontWeight: FontWeight.w900)),
           ),
           const SizedBox(height: 12),
-          const Text('Kartini Rahayu', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: AppTheme.text)),
+          Text(_parentName,
+              style: const TextStyle(
+                  fontSize: 20, fontWeight: FontWeight.w900, color: AppTheme.text)),
           const SizedBox(height: 4),
-          const Text('kartini.r@email.com', style: TextStyle(fontSize: 12, color: AppTheme.text3, fontFamily: 'DM Mono')),
+          Text(_email,
+              style: const TextStyle(
+                  fontSize: 12, color: AppTheme.text3, fontFamily: 'DM Mono')),
           const SizedBox(height: 10),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
               color: AppTheme.accentBg,
               borderRadius: BorderRadius.circular(20),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
-              children: const [
-                Text('●', style: TextStyle(fontSize: 6, color: AppTheme.accent)),
-                SizedBox(width: 3),
-                Text('2 Anak Terdaftar', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppTheme.accent)),
+              children: [
+                const Text('●', style: TextStyle(fontSize: 6, color: AppTheme.accent)),
+                const SizedBox(width: 4),
+                Text('$childrenCount Anak Terdaftar',
+                    style: const TextStyle(
+                        fontSize: 11, fontWeight: FontWeight.w700, color: AppTheme.accent)),
               ],
             ),
           ),
@@ -139,11 +295,14 @@ class PageProfil extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
         children: [
-          _buildMenuItem(context, '👤', AppTheme.accentBg, 'Data Diri'),
+          _buildMenuItem(context, '👤', AppTheme.accentBg, 'Data Diri', onTap: _showDataDiriDialog),
           const SizedBox(height: 8),
-          _buildMenuItem(context, '👨‍👩‍👦', AppTheme.blueBg, 'Data Anak'),
+          _buildMenuItem(context, '👨‍👩‍👦', AppTheme.blueBg, 'Data Anak', onTap: _showDataAnakDialog),
           const SizedBox(height: 8),
-          _buildMenuItem(context, '💳', AppTheme.tealBg, 'Riwayat Pembayaran'),
+          _buildMenuItem(context, '💳', AppTheme.tealBg, 'Riwayat Pembayaran', onTap: () {
+            final parent = context.findAncestorStateOfType<State<MainScreen>>() as dynamic;
+            if (parent != null) parent.switchTab(2);
+          }),
           const SizedBox(height: 8),
           _buildMenuItem(context, '🔔', AppTheme.yellowBg, 'Pengaturan Notifikasi'),
           const SizedBox(height: 8),
@@ -151,53 +310,57 @@ class PageProfil extends StatelessWidget {
           const SizedBox(height: 8),
           _buildMenuItem(context, '❓', AppTheme.bg2, 'Bantuan & FAQ'),
           const SizedBox(height: 8),
-          _buildMenuItem(context, '🚪', AppTheme.redBg, 'Keluar', isLogout: true),
+          _buildMenuItem(context, '🚪', AppTheme.redBg, 'Keluar', isLogout: true, onTap: () {
+            final box = GetStorage();
+            box.remove('isLoggedIn');
+            box.remove('namaOrtu');
+            box.remove('token');
+            box.remove('userId');
+            Navigator.of(context, rootNavigator: true).pushReplacement(
+              MaterialPageRoute(builder: (context) => const LoginScreen()),
+            );
+          }),
         ],
       ),
     );
   }
 
-  Widget _buildMenuItem(BuildContext context, String icon, Color iconBg, String label, {bool isLogout = false}) {
+  Widget _buildMenuItem(
+      BuildContext context, String icon, Color iconBg, String label,
+      {bool isLogout = false, VoidCallback? onTap}) {
     return GestureDetector(
-      onTap: () {
-        if (isLogout) {
-          final box = GetStorage();
-          box.remove('isLoggedIn');
-          box.remove('namaOrtu');
-          Navigator.of(context, rootNavigator: true).pushReplacement(
-            MaterialPageRoute(builder: (context) => const LoginScreen()),
-          );
-        }
-      },
+      onTap: onTap,
       child: Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      decoration: AppTheme.cardSmDecoration,
-      child: Row(
-        children: [
-          Container(
-            width: 38,
-            height: 38,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: iconBg,
-              borderRadius: BorderRadius.circular(12),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: AppTheme.cardSmDecoration,
+        child: Row(
+          children: [
+            Container(
+              width: 38,
+              height: 38,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: iconBg,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(icon, style: const TextStyle(fontSize: 18)),
             ),
-            child: Text(icon, style: const TextStyle(fontSize: 18)),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Text(
-              label,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
-                color: isLogout ? AppTheme.red : AppTheme.text,
+            const SizedBox(width: 14),
+            Expanded(
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: isLogout ? AppTheme.red : AppTheme.text,
+                ),
               ),
             ),
-          ),
-          Text('›', style: TextStyle(fontSize: 16, color: isLogout ? AppTheme.red : AppTheme.text3)),
-        ],
+            Text('›',
+                style: TextStyle(fontSize: 16, color: isLogout ? AppTheme.red : AppTheme.text3)),
+          ],
+        ),
       ),
-    ));
+    );
   }
 }

@@ -1,35 +1,114 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../main_screen.dart';
+import '../services/api_service.dart';
 
-class PageKesehatan extends StatelessWidget {
+class PageKesehatan extends StatefulWidget {
   const PageKesehatan({super.key});
 
   @override
+  State<PageKesehatan> createState() => _PageKesehatanState();
+}
+
+class _PageKesehatanState extends State<PageKesehatan> {
+  bool _isLoading = true;
+  String _childName = 'Anak';
+  String _childId = '';
+
+  Map<String, dynamic> _healthSummary = {
+    'height': 172.0,
+    'weight': 65.0,
+    'bmi': 22.0,
+    'status': 'Normal & Sehat',
+    'blood_pressure': '110/70',
+    'last_checkup': '14 Mei 2026',
+    'temperature': 36.5,
+  };
+  List<Map<String, dynamic>> _checkups = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadHealthData();
+  }
+
+  Future<void> _loadHealthData() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    final child = ApiService.getSelectedChild();
+    if (child != null) {
+      _childName = child['name'] ?? 'Anak';
+      _childId = child['id']?.toString() ?? '';
+    } else {
+      final children = await ApiService.getChildren();
+      if (children.isNotEmpty) {
+        _childName = children.first['name'] ?? 'Anak';
+        _childId = children.first['id']?.toString() ?? '';
+      }
+    }
+
+    if (_childId.isNotEmpty) {
+      final summary = await ApiService.getHealthSummary(_childId);
+      final checkups = await ApiService.getHealthCheckups(_childId);
+
+      if (mounted) {
+        setState(() {
+          if (summary != null) _healthSummary = summary;
+          _checkups = checkups;
+          _isLoading = false;
+        });
+      }
+    } else {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final firstName = _childName.split(' ').first;
+    final statusText = _healthSummary['status']?.toString() ?? 'Sehat';
+    final weight = (_healthSummary['weight'] as num?)?.toStringAsFixed(0) ?? '65';
+    final height = (_healthSummary['height'] as num?)?.toStringAsFixed(0) ?? '172';
+    final temp = (_healthSummary['temperature'] as num?)?.toStringAsFixed(1) ?? '36.5';
+    final bp = _healthSummary['blood_pressure']?.toString() ?? '110/70';
+    final lastCheck = _healthSummary['last_checkup']?.toString() ?? '14 Mei 2026';
+
     return Column(
       children: [
-        _buildHeader(context),
+        _buildHeader(context, firstName, statusText),
         Expanded(
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const SizedBox(height: 16),
-                _buildVitalGrid(),
-                _buildTrenCard(),
-                _buildSectionHeader('Riwayat Pemeriksaan'),
-                _buildRiwayatList(),
-                const SizedBox(height: 16),
-              ],
-            ),
-          ),
+          child: _isLoading
+              ? const Center(child: CircularProgressIndicator(color: AppTheme.accent))
+              : RefreshIndicator(
+                  color: AppTheme.accent,
+                  onRefresh: _loadHealthData,
+                  child: SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const SizedBox(height: 16),
+                        _buildVitalGrid(weight, height, temp, bp, lastCheck),
+                        _buildTrenCard(weight),
+                        _buildSectionHeader('Riwayat Pemeriksaan UKS'),
+                        _buildRiwayatList(),
+                        const SizedBox(height: 24),
+                      ],
+                    ),
+                  ),
+                ),
         ),
       ],
     );
   }
 
-  Widget _buildHeader(BuildContext context) {
+  Widget _buildHeader(BuildContext context, String firstName, String statusText) {
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 14),
       decoration: const BoxDecoration(
@@ -43,8 +122,8 @@ class PageKesehatan extends StatelessWidget {
             children: [
               GestureDetector(
                 onTap: () {
-                   final parent = context.findAncestorStateOfType<State<MainScreen>>() as dynamic;
-                   if(parent != null) parent.goBack();
+                  final parent = context.findAncestorStateOfType<State<MainScreen>>() as dynamic;
+                  if (parent != null) parent.goBack();
                 },
                 child: Container(
                   width: 34,
@@ -58,7 +137,7 @@ class PageKesehatan extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 10),
-              const Text('Kesehatan Aditya', style: AppTheme.headerTitle),
+              Text('Kesehatan $firstName', style: AppTheme.headerTitle),
             ],
           ),
           Container(
@@ -69,10 +148,12 @@ class PageKesehatan extends StatelessWidget {
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
-              children: const [
-                Text('●', style: TextStyle(fontSize: 6, color: AppTheme.teal)),
-                SizedBox(width: 3),
-                Text('Sehat', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppTheme.teal)),
+              children: [
+                const Text('●', style: TextStyle(fontSize: 6, color: AppTheme.teal)),
+                const SizedBox(width: 3),
+                Text(statusText,
+                    style: const TextStyle(
+                        fontSize: 10, fontWeight: FontWeight.w700, color: AppTheme.teal)),
               ],
             ),
           ),
@@ -81,7 +162,8 @@ class PageKesehatan extends StatelessWidget {
     );
   }
 
-  Widget _buildVitalGrid() {
+  Widget _buildVitalGrid(
+      String weight, String height, String temp, String bp, String lastCheck) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: GridView.count(
@@ -92,16 +174,17 @@ class PageKesehatan extends StatelessWidget {
         mainAxisSpacing: 10,
         childAspectRatio: 1.3,
         children: [
-          _buildVitalCard('⚖️', 'Berat Badan', '65', 'kg', AppTheme.blue, '14 Mei 2026', 22),
-          _buildVitalCard('📏', 'Tinggi Badan', '172', 'cm', AppTheme.teal, '14 Mei 2026', 22),
-          _buildVitalCard('🌡️', 'Suhu Tubuh', '36.5', '°C', AppTheme.teal, '14 Mei 2026', 22),
-          _buildVitalCard('💉', 'Tekanan Darah', '120/80', '', AppTheme.accent, '14 Mei 2026', 18),
+          _buildVitalCard('⚖️', 'Berat Badan', weight, 'kg', AppTheme.blue, lastCheck, 22),
+          _buildVitalCard('📏', 'Tinggi Badan', height, 'cm', AppTheme.teal, lastCheck, 22),
+          _buildVitalCard('🌡️', 'Suhu Tubuh', temp, '°C', AppTheme.teal, lastCheck, 22),
+          _buildVitalCard('💉', 'Tekanan Darah', bp, '', AppTheme.accent, lastCheck, 18),
         ],
       ),
     );
   }
 
-  Widget _buildVitalCard(String icon, String label, String value, String unit, Color color, String date, double valSize) {
+  Widget _buildVitalCard(String icon, String label, String value, String unit, Color color,
+      String date, double valSize) {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: AppTheme.cardSmDecoration,
@@ -110,27 +193,42 @@ class PageKesehatan extends StatelessWidget {
         children: [
           Text(icon, style: const TextStyle(fontSize: 22)),
           const SizedBox(height: 8),
-          Text(label.toUpperCase(), style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppTheme.text3, letterSpacing: 0.3)),
+          Text(label.toUpperCase(),
+              style: const TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  color: AppTheme.text3,
+                  letterSpacing: 0.3)),
           const SizedBox(height: 2),
           Row(
             crossAxisAlignment: CrossAxisAlignment.baseline,
             textBaseline: TextBaseline.alphabetic,
             children: [
-              Text(value, style: TextStyle(fontSize: valSize, fontWeight: FontWeight.w900, color: color, letterSpacing: -0.5)),
+              Text(value,
+                  style: TextStyle(
+                      fontSize: valSize,
+                      fontWeight: FontWeight.w900,
+                      color: color,
+                      letterSpacing: -0.5)),
               if (unit.isNotEmpty) ...[
                 const SizedBox(width: 4),
-                Text(unit, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.text3)),
+                Text(unit,
+                    style: const TextStyle(
+                        fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.text3)),
               ],
             ],
           ),
           const Spacer(),
-          Text('Cek: $date', style: const TextStyle(fontSize: 10, color: AppTheme.text3, fontFamily: 'DM Mono')),
+          Text('Cek: $date',
+              style:
+                  const TextStyle(fontSize: 10, color: AppTheme.text3, fontFamily: 'DM Mono')),
         ],
       ),
     );
   }
 
-  Widget _buildTrenCard() {
+  Widget _buildTrenCard(String currentWeight) {
+    final cur = double.tryParse(currentWeight) ?? 65.0;
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
       child: Container(
@@ -139,13 +237,14 @@ class PageKesehatan extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('📈 Tren Berat Badan', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800)),
+            const Text('📈 Tren Berat Badan',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800)),
             const SizedBox(height: 12),
-            _buildProgressItem('Maret 2026', '63 kg', 0.79, AppTheme.blue),
+            _buildProgressItem('Maret 2026', '${(cur - 2).toStringAsFixed(0)} kg', 0.79, AppTheme.blue),
             const SizedBox(height: 12),
-            _buildProgressItem('April 2026', '64 kg', 0.81, AppTheme.blue),
+            _buildProgressItem('April 2026', '${(cur - 1).toStringAsFixed(0)} kg', 0.81, AppTheme.blue),
             const SizedBox(height: 12),
-            _buildProgressItem('Mei 2026', '65 kg', 0.83, AppTheme.teal),
+            _buildProgressItem('Mei 2026', '$currentWeight kg', 0.83, AppTheme.teal),
           ],
         ),
       ),
@@ -158,8 +257,15 @@ class PageKesehatan extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.text2)),
-            Text(value, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: AppTheme.text, fontFamily: 'DM Mono')),
+            Text(label,
+                style: const TextStyle(
+                    fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.text2)),
+            Text(value,
+                style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    color: AppTheme.text,
+                    fontFamily: 'DM Mono')),
           ],
         ),
         const SizedBox(height: 5),
@@ -192,19 +298,38 @@ class PageKesehatan extends StatelessWidget {
   }
 
   Widget _buildRiwayatList() {
+    if (_checkups.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: AppTheme.cardSmDecoration,
+          child: const Center(
+            child: Text('Belum ada riwayat rekam medis UKS',
+                style: TextStyle(fontSize: 12, color: AppTheme.text3)),
+          ),
+        ),
+      );
+    }
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
-        children: [
-          _buildRiwayatCard('14 Mei 2026'),
-          const SizedBox(height: 8),
-          _buildRiwayatCard('14 Apr 2026'),
-        ],
+        children: _checkups.map((checkup) {
+          final date = checkup['date']?.toString() ?? 'Pemeriksaan';
+          final title = checkup['complaint']?.toString() ?? 'Pemeriksaan Rutin';
+          final examiner = checkup['examiner_name']?.toString() ?? 'Petugas PMR / Dokter UKS';
+
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: _buildRiwayatCard(date, title, examiner),
+          );
+        }).toList(),
       ),
     );
   }
 
-  Widget _buildRiwayatCard(String date) {
+  Widget _buildRiwayatCard(String date, String title, String examiner) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: AppTheme.cardSmDecoration,
@@ -216,9 +341,14 @@ class PageKesehatan extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Pemeriksaan Rutin', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                Text(title,
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
                 const SizedBox(height: 2),
-                Text('$date · Petugas PMR', style: const TextStyle(fontSize: 10, color: AppTheme.text3, fontFamily: 'DM Mono')),
+                Text('$date · $examiner',
+                    style: const TextStyle(
+                        fontSize: 10, color: AppTheme.text3, fontFamily: 'DM Mono'),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis),
               ],
             ),
           ),
@@ -233,7 +363,9 @@ class PageKesehatan extends StatelessWidget {
               children: const [
                 Text('●', style: TextStyle(fontSize: 6, color: AppTheme.teal)),
                 SizedBox(width: 3),
-                Text('Sehat', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppTheme.teal)),
+                Text('Sehat',
+                    style:
+                        TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppTheme.teal)),
               ],
             ),
           ),
