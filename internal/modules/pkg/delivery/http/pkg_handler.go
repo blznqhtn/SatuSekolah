@@ -82,9 +82,13 @@ func (h *PkgHandler) SubmitDocument(c *fiber.Ctx) error {
 func (h *PkgHandler) GetMySubmissions(c *fiber.Ctx) error {
 	claims := c.Locals("claims").(*middleware.Claims)
 	StaffID, _ := uuid.Parse(claims.UserID)
-	periodID, err := uuid.Parse(c.Query("period_id"))
+	periodStr := c.Query("period_id")
+	if periodStr == "" {
+		return c.Status(fiber.StatusOK).JSON(fiber.Map{"data": []*domain.PkgSubmission{}})
+	}
+	periodID, err := uuid.Parse(periodStr)
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "period_id query param is required"})
+		return c.Status(fiber.StatusOK).JSON(fiber.Map{"data": []*domain.PkgSubmission{}})
 	}
 
 	subs, err := h.uc.GetMySubmissions(c.Context(), StaffID, periodID)
