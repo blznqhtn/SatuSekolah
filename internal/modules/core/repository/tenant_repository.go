@@ -602,11 +602,12 @@ func (r *coreRepository) GetFaqs(ctx context.Context) ([]*domain.Faq, error) {
 
 func (r *coreRepository) GetChildrenByParentID(ctx context.Context, parentID uuid.UUID) ([]*domain.User, error) {
 	query := `
-		SELECT id, name, COALESCE(avatar_url, ''), COALESCE(nisn, ''), 'student' as category
-		FROM users
-		WHERE parent_id = ? AND category = 'student'
+		SELECT u.id, u.name, COALESCE(u.avatar_url, ''), COALESCE(u.nisn, ''), 'student' as category, COALESCE(c.name, 'XII RPL 1') as class_name
+		FROM users u
+		LEFT JOIN classes c ON c.id = u.class_id
+		WHERE u.parent_id = ? AND u.category = 'student'
 		UNION ALL
-		SELECT id, student_name as name, COALESCE(photo_url, ''), COALESCE(nisn, ''), 'spmb' as category
+		SELECT id, student_name as name, COALESCE(photo_url, ''), COALESCE(nisn, ''), 'spmb' as category, 'Calon Siswa' as class_name
 		FROM spmb_registrations
 		WHERE parent_id = ? AND registration_status != 'DITERIMA'
 	`
@@ -619,9 +620,11 @@ func (r *coreRepository) GetChildrenByParentID(ctx context.Context, parentID uui
 	var children []*domain.User
 	for rows.Next() {
 		var u domain.User
-		if err := rows.Scan(&u.ID, &u.Name, &u.AvatarURL, &u.Nisn, &u.Category); err != nil {
+		var className string
+		if err := rows.Scan(&u.ID, &u.Name, &u.AvatarURL, &u.Nisn, &u.Category, &className); err != nil {
 			return nil, err
 		}
+		u.ClassName = &className
 		children = append(children, &u)
 	}
 	return children, nil

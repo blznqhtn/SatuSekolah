@@ -267,13 +267,38 @@ func main() {
 		log.Printf("Linked student %s to parent %s\n", student.Name, parent.Name)
 	}
 
+	// Second Child: Rina Kartini
+	rinaEmail := "rina@sekolah.id"
+	rinaNisn := "0098765432"
+	rina, _ := repo.GetUserByLoginIdentifier(ctx, rinaEmail)
+	if rina == nil {
+		rina = &domain.User{
+			TenantID: tenant.ID,
+			Category: "student",
+			Name:     "Rina Kartini",
+			Email:    rinaEmail,
+			Nisn:     &rinaNisn,
+			Password: "siswa123",
+		}
+		if err := repo.CreateUser(ctx, rina); err == nil {
+			_, _ = db.ExecContext(ctx, "UPDATE users SET parent_id = $1 WHERE id = $2", parent.ID, rina.ID)
+			log.Println("Created second child: Rina Kartini (NISN: 0098765432)")
+		}
+	} else {
+		_, _ = db.ExecContext(ctx, "UPDATE users SET parent_id = $1 WHERE id = $2", parent.ID, rina.ID)
+	}
+
 	// 8. Seed Comprehensive Student & Academic Records for Mobile App
-	seedComprehensiveStudentData(ctx, db, tenant.ID.String(), student.ID.String(), staff.ID.String())
+	var rinaIDStr string
+	if rina != nil {
+		rinaIDStr = rina.ID.String()
+	}
+	seedComprehensiveStudentData(ctx, db, tenant.ID.String(), student.ID.String(), staff.ID.String(), rinaIDStr)
 
 	log.Println("Seeding completed successfully!")
 }
 
-func seedComprehensiveStudentData(ctx context.Context, db *sql.DB, tenantID, studentID, staffID string) {
+func seedComprehensiveStudentData(ctx context.Context, db *sql.DB, tenantID, studentID, staffID, rinaID string) {
 	log.Println("Seeding comprehensive database records for mobile app...")
 
 	// Clean up old invalid IDs if any
@@ -297,7 +322,7 @@ func seedComprehensiveStudentData(ctx context.Context, db *sql.DB, tenantID, stu
 		DELETE FROM academic_years;
 	`, studentID)
 
-	// 1. Classes & update student
+	// 1. Classes & update students
 	classID := "c1111111-1111-1111-1111-111111111111"
 	_, _ = db.ExecContext(ctx, `
 		INSERT INTO classes (id, tenant_id, name, grade_level, staff_id)
@@ -305,10 +330,24 @@ func seedComprehensiveStudentData(ctx context.Context, db *sql.DB, tenantID, stu
 		ON CONFLICT (id) DO UPDATE SET staff_id = EXCLUDED.staff_id
 	`, classID, tenantID, staffID)
 
+	classRina := "c2222222-2222-2222-2222-222222222222"
+	_, _ = db.ExecContext(ctx, `
+		INSERT INTO classes (id, tenant_id, name, grade_level, staff_id)
+		VALUES ($1, $2, 'X RPL 2', 10, $3)
+		ON CONFLICT (id) DO UPDATE SET staff_id = EXCLUDED.staff_id
+	`, classRina, tenantID, staffID)
+
 	_, _ = db.ExecContext(ctx, `
 		UPDATE users SET class_id = $1, phone = '081234567890', address = 'Jl. Sukajadi No. 123, Bandung'
 		WHERE id = $2
 	`, classID, studentID)
+
+	if rinaID != "" {
+		_, _ = db.ExecContext(ctx, `
+			UPDATE users SET class_id = $1, phone = '081234567891', address = 'Jl. Sukajadi No. 123, Bandung'
+			WHERE id = $2
+		`, classRina, rinaID)
+	}
 
 	// 2. Courses (valid hex UUIDs)
 	courseMath := "c0000001-1111-1111-1111-111111111111"
@@ -639,6 +678,74 @@ func seedComprehensiveStudentData(ctx context.Context, db *sql.DB, tenantID, stu
 			ON CONFLICT (id) DO NOTHING
 		`, n.id, tenantID, studentID, n.title, n.content, n.notifType, n.isRead)
 	}
+
+	// 15. Student Invoices (Tagihan SPP)
+	_, _ = db.ExecContext(ctx, `
+		CREATE TABLE IF NOT EXISTS student_invoices (
+			id VARCHAR(36) PRIMARY KEY,
+			tenant_id VARCHAR(36) NOT NULL,
+			student_id VARCHAR(36) NOT NULL,
+			fee_id VARCHAR(36),
+			invoice_name VARCHAR(255) NOT NULL,
+			total_amount DECIMAL(15,2) NOT NULL,
+			status VARCHAR(50) DEFAULT 'UNPAID',
+			can_installment BOOLEAN DEFAULT FALSE,
+			minimum_installment DECIMAL(15,2) DEFAULT 0,
+			dynamic_qr_code VARCHAR(255),
+			rfid_payment_code VARCHAR(50),
+			transfer_target_account VARCHAR(100),
+			due_date DATE,
+			paid_at TIMESTAMP,
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			updated_at TIMESTAMP
+		);
+		INSERT INTO student_invoices (id, tenant_id, student_id, invoice_name, total_amount, status, can_installment, minimum_installment, dynamic_qr_code, transfer_target_account, due_date)
+		VALUES 
+			('in000001-1111-1111-1111-111111111111', $1, $2, 'Tagihan SPP Mei 2026', 600000, 'UNPAID', false, 0, 'QR-SPP-MEI-2026', 'VA-88880012345678', '2026-05-10'),
+			('in000002-1111-1111-1111-111111111111', $1, $2, 'Tagihan SPP April 2026', 600000, 'PAID', false, 0, 'QR-SPP-APR-2026', 'VA-88880012345678', '2026-04-10'),
+			('in000003-1111-1111-1111-111111111111', $1, $2, 'Tagihan SPP Maret 2026', 600000, 'PAID', false, 0, 'QR-SPP-MAR-2026', 'VA-88880012345678', '2026-03-10')
+		ON CONFLICT (id) DO NOTHING;
+	`, tenantID, studentID)
+
+	// 16. UKS Health Checkups & Medical History
+	_, _ = db.ExecContext(ctx, `
+		CREATE TABLE IF NOT EXISTS health_checkups (
+			id VARCHAR(36) PRIMARY KEY,
+			tenant_id VARCHAR(36) NOT NULL,
+			student_id VARCHAR(36) NOT NULL,
+			examiner_id VARCHAR(36),
+			date DATE NOT NULL,
+			temperature DECIMAL(4,1),
+			blood_pressure VARCHAR(20),
+			weight DECIMAL(5,2),
+			height DECIMAL(5,2),
+			complaint TEXT,
+			diagnosis TEXT,
+			treatment TEXT,
+			notes TEXT,
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			updated_at TIMESTAMP
+		);
+		CREATE TABLE IF NOT EXISTS health_medical_history (
+			id VARCHAR(36) PRIMARY KEY,
+			tenant_id VARCHAR(36) NOT NULL,
+			student_id VARCHAR(36) NOT NULL,
+			blood_type VARCHAR(10),
+			allergies TEXT,
+			chronic_diseases TEXT,
+			special_conditions TEXT,
+			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			CONSTRAINT uq_student_medical UNIQUE(tenant_id, student_id)
+		);
+		INSERT INTO health_checkups (id, tenant_id, student_id, examiner_id, date, temperature, blood_pressure, weight, height, complaint, diagnosis, treatment, notes)
+		VALUES 
+			('he000001-1111-1111-1111-111111111111', $1, $2, $3, '2026-05-14', 36.5, '110/70', 65.0, 172.0, 'Pemeriksaan fisik berkala UKS', 'Kondisi fisik prima dan sehat', 'Diberikan suplemen vitamin C', 'IMT 22.0 (Normal), Penglihatan & Pendengaran baik'),
+			('he000002-1111-1111-1111-111111111111', $1, $2, $3, '2026-04-10', 36.6, '115/75', 64.5, 171.8, 'Keluhan pusing ringan', 'Kelelahan setelah olahraga', 'Istirahat 30 menit & teh hangat', 'Tekanan darah normal')
+		ON CONFLICT (id) DO NOTHING;
+		INSERT INTO health_medical_history (id, tenant_id, student_id, blood_type, allergies, chronic_diseases, special_conditions)
+		VALUES ('hm000001-1111-1111-1111-111111111111', $1, $2, 'O+', 'Tidak ada', 'Tidak ada', 'Tidak ada')
+		ON CONFLICT (id) DO NOTHING;
+	`, tenantID, studentID, staffID)
 
 	log.Println("Comprehensive database seeding finished successfully! ✅")
 }

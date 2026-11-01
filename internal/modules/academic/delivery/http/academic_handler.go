@@ -145,6 +145,16 @@ func (h *AcademicHandler) GetStudentSchedules(c *fiber.Ctx) error {
 	studentID, _ := uuid.Parse(claims.UserID)
 	tenantID, _ := uuid.Parse(claims.TenantID)
 
+	if childParam := c.Query("child_id"); childParam != "" {
+		if parsed, err := uuid.Parse(childParam); err == nil {
+			studentID = parsed
+		}
+	} else if studentParam := c.Query("student_id"); studentParam != "" {
+		if parsed, err := uuid.Parse(studentParam); err == nil {
+			studentID = parsed
+		}
+	}
+
 	dayOfWeek, err := c.ParamsInt("dayOfWeek")
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid dayOfWeek param"})
