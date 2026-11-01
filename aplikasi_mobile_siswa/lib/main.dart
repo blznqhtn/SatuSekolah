@@ -20,12 +20,25 @@ void main() async {
   // Pastikan binding Flutter siap sebelum memanggil kode native
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Inisialisasi Firebase & GetStorage
-  await Firebase.initializeApp();
-  await GetStorage.init();
+  // Inisialisasi Firebase & GetStorage (dengan proteksi jika belum terkonfigurasi di platform web/desktop)
+  try {
+    await Firebase.initializeApp();
+  } catch (e) {
+    debugPrint('Firebase not initialized: $e');
+  }
+
+  try {
+    await GetStorage.init();
+  } catch (e) {
+    debugPrint('GetStorage init error: $e');
+  }
 
   // Inisialisasi push notification (channel Android, minta izin, dll)
-  await NotificationService().initialize();
+  try {
+    await NotificationService().initialize();
+  } catch (e) {
+    debugPrint('NotificationService init error: $e');
+  }
 
   runApp(const MyApp());
 }
