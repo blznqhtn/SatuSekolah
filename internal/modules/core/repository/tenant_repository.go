@@ -284,10 +284,10 @@ func (r *coreRepository) CreateUser(ctx context.Context, user *domain.User) erro
 	user.ID = uuid.New()
 
 	query := `
-		INSERT INTO users (id, tenant_id, account_number, category, name, email, username, nisn, npk, password_hash)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO users (id, tenant_id, account_number, category, name, email, phone, username, nisn, npk, password_hash)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
-	_, err = r.exec(ctx, query, user.ID, user.TenantID, user.AccountNumber, user.Category, user.Name, user.Email, user.Username, user.Nisn, user.Npk, string(hashed))
+	_, err = r.exec(ctx, query, user.ID, user.TenantID, user.AccountNumber, user.Category, user.Name, user.Email, user.Phone, user.Username, user.Nisn, user.Npk, string(hashed))
 	return err
 }
 
@@ -309,11 +309,11 @@ func (r *coreRepository) GetUserByLoginIdentifier(ctx context.Context, identifie
 	query := `
 		SELECT id, tenant_id, category, name, email, phone, address, avatar_url, password_hash, created_at
 		FROM users 
-		WHERE (email = ? OR username = ? OR nisn = ? OR npk = ?) AND deleted_at IS NULL
+		WHERE (email = ? OR username = ? OR nisn = ? OR npk = ? OR phone = ?) AND deleted_at IS NULL
 		LIMIT 1
 	`
 	var user domain.User
-	err := r.db.QueryRowContext(ctx, query, identifier, identifier, identifier, identifier).Scan(
+	err := r.db.QueryRowContext(ctx, query, identifier, identifier, identifier, identifier, identifier).Scan(
 		&user.ID, &user.TenantID, &user.Category, &user.Name, &user.Email, &user.Phone, &user.Address, &user.AvatarURL, &user.Password, &user.CreatedAt,
 	)
 	if err != nil {

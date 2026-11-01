@@ -100,7 +100,7 @@ func main() {
 	}
 
 	// 5. Seed Roles
-	roles := []string{"Admin", "Staff"}
+	roles := []string{"Admin", "Staff", "Parent"}
 	roleMap := make(map[string]*domain.Role)
 
 	for _, roleName := range roles {
@@ -228,6 +228,43 @@ func main() {
 		log.Println("Created Student user: 0012345678 / siswa@sekolah.id (password: siswa123)")
 	} else {
 		log.Println("Student user already exists.")
+	}
+
+	// Parent User (untuk login di aplikasi_mobile_ortu)
+	parentEmail := "ortu@sekolah.id"
+	parentPhone := "081234567890"
+	parent, err := repo.GetUserByLoginIdentifier(ctx, parentEmail)
+	if err != nil {
+		log.Fatalf("Error checking parent user: %v", err)
+	}
+
+	if parent == nil {
+		parent = &domain.User{
+			TenantID: tenant.ID,
+			Category: "parent",
+			Name:     "Kartini Rahayu",
+			Email:    parentEmail,
+			Phone:    &parentPhone,
+			Password: "ortu123", // Will be hashed in CreateUser
+		}
+		if err := repo.CreateUser(ctx, parent); err != nil {
+			log.Fatalf("Failed to create parent user: %v", err)
+		}
+		log.Println("Created Parent user: ortu@sekolah.id / 081234567890 (password: ortu123)")
+
+		if roleMap["Parent"] != nil {
+			if err := repo.AssignRoleToUser(ctx, parent.ID, roleMap["Parent"].ID); err != nil {
+				log.Printf("Warning: Failed to assign role to parent: %v", err)
+			}
+		}
+	} else {
+		log.Println("Parent user already exists.")
+	}
+
+	// Link student to parent
+	if student != nil && parent != nil {
+		_, _ = db.ExecContext(ctx, "UPDATE users SET parent_id = $1 WHERE id = $2", parent.ID, student.ID)
+		log.Printf("Linked student %s to parent %s\n", student.Name, parent.Name)
 	}
 
 	// 8. Seed Comprehensive Student & Academic Records for Mobile App

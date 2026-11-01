@@ -438,7 +438,12 @@ func SetupRouter(db *sql.DB, cfg *config.Config) *fiber.App {
 	})
 	apiV1.Post("/users/register", usersHandler.RegisterParent)
 	apiV1.Post("/users/login", loginLimiter, usersHandler.Login)
+	apiV1.Post("/users/login/ortu", loginLimiter, usersHandler.LoginOrtu)
 	apiV1.Post("/users/auth/google", usersHandler.GoogleLogin)
+
+	// Mobile Parent legacy/direct compatibility endpoints
+	app.Post("/api/login/ortu", loginLimiter, usersHandler.LoginOrtu)
+	app.Post("/api/login/google/ortu", usersHandler.GoogleLoginOrtu)
 	apiV1.Get("/users/profile", jwtAuth, usersHandler.GetProfile)
 	apiV1.Put("/users/profile", jwtAuth, usersHandler.UpdateProfile)
 	userGroup := apiV1.Group("/users", jwtAuth)

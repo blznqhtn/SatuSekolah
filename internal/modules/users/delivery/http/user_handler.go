@@ -706,3 +706,170 @@ func (h *UserHandler) UpdateUserAccess(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{"message": "access updated successfully"})
 }
 
+// LoginOrtuRequest is the request body for POST /api/login/ortu.
+type LoginOrtuRequest struct {
+	Identifier string `json:"identifier"`
+	Password   string `json:"password"`
+}
+
+// LoginOrtu authenticates a parent user and returns the format expected by aplikasi_mobile_ortu.
+// POST /api/login/ortu
+func (h *UserHandler) LoginOrtu(c *fiber.Ctx) error {
+	var req LoginOrtuRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": "format data tidak valid",
+		})
+	}
+	if req.Identifier == "" || req.Password == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": "Email/Nomor HP dan kata sandi harus diisi",
+		})
+	}
+
+	user, err := h.repo.GetUserByLoginIdentifier(c.Context(), req.Identifier)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"success": false,
+			"message": "Terjadi kesalahan pada server",
+		})
+	}
+	if user == nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"success": false,
+			"message": "Email/No HP atau kata sandi salah",
+		})
+	}
+
+	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password)); err != nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"success": false,
+			"message": "Email/No HP atau kata sandi salah",
+		})
+	}
+
+	roleName, err := h.repo.GetUserRoleName(c.Context(), user.ID)
+	if err != nil || roleName == "" {
+		roleName = "Parent"
+	}
+
+	claims := middleware.Claims{
+		UserID:   user.ID.String(),
+		TenantID: user.TenantID.String(),
+		Role:     roleName,
+		Name:     user.Name,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+		},
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	signed, err := token.SignedString([]byte(h.cfg.JWT.Secret))
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"success": false,
+			"message": "could not sign token",
+		})
+	}
+
+	phoneStr := ""
+	if user.Phone != nil {
+		phoneStr = *user.Phone
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"success": true,
+		"message": "Login berhasil",
+		"token":   signed,
+		"data": fiber.Map{
+			"id":        user.ID,
+			"nama":      user.Name,
+			"email":     user.Email,
+			"phone":     phoneStr,
+			"role":      roleName,
+			"category":  user.Category,
+			"tenant_id": user.TenantID,
+		},
+	})
+}
+
+// GoogleLoginOrtu handles google login for parent mobile app.
+// POST /api/login/google/ortu
+func (h *UserHandler) GoogleLoginOrtu(c *fiber.Ctx) error {
+	var req struct {
+		Email    string `json:"email"`
+		GoogleID string `json:"google_id"`
+		Nama     string `json:"nama"`
+	}
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": "format data tidak valid",
+		})
+	}
+	if req.Email == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": "email tidak boleh kosong",
+		})
+	}
+
+	user, err := h.repo.GetUserByLoginIdentifier(c.Context(), req.Email)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"success": false,
+			"message": "Terjadi kesalahan pada server",
+		})
+	}
+
+	if user == nil {
+		defaultTenant, err := h.repo.GetFirstTenant(c.Context())
+		if err != nil || defaultTenant == nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"success": false,
+				"message": "Tenant tidak ditemukan",
+			})
+		}
+		nama := req.Nama
+		if nama == "" {
+			nama = "Orang Tua Siswa"
+		}
+		user = &domain.User{
+			TenantID:  defaultTenant.ID,
+			Category:  "parent",
+			Name:      nama,
+			Email:     req.Email,
+			Password:  "google_oauth_" + req.GoogleID,
+			CreatedAt: time.Now(),
+		}
+		if err := h.repo.CreateUser(c.Context(), user); err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"success": false,
+				"message": "Gagal membuat akun: " + err.Error(),
+			})
+		}
+	}
+
+	phoneStr := ""
+	if user.Phone != nil {
+		phoneStr = *user.Phone
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"success": true,
+		"message": "Login berhasil",
+		"data": fiber.Map{
+			"id":        user.ID,
+			"nama":      user.Name,
+			"email":     user.Email,
+			"phone":     phoneStr,
+			"role":      "Parent",
+			"category":  user.Category,
+			"tenant_id": user.TenantID,
+		},
+	})
+}
+
+
