@@ -94,7 +94,7 @@ class _PageBerandaState extends State<PageBeranda> {
         'icon': '📊',
         'iconBg': AppTheme.blueBg,
         'title': 'Rapor Belajar Siswa',
-        'sub': '${report['term_name'] ?? 'Semester Genap'} — Rata-rata ${report['average_score']}',
+        'sub': '${report['term_name'] ?? 'Semester Genap'} — Rata-rata ${avg.toStringAsFixed(1)}',
         'time': 'Baru',
         'badgeLabel': 'Akademik',
         'badgeColor': AppTheme.blue,
@@ -155,6 +155,7 @@ class _PageBerandaState extends State<PageBeranda> {
     final parentName = box.read('namaOrtu') ?? 'Ibu Kartini';
 
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _buildHeader(parentName),
         _buildChildSelector(),
@@ -185,10 +186,10 @@ class _PageBerandaState extends State<PageBeranda> {
 
   Widget _buildHeader(String parentName) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 14),
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
       decoration: const BoxDecoration(
         color: AppTheme.surface,
-        border: Border(bottom: BorderSide(color: AppTheme.border)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -253,13 +254,15 @@ class _PageBerandaState extends State<PageBeranda> {
     ];
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(20, 2, 20, 14),
       decoration: const BoxDecoration(
-        color: AppTheme.white,
+        color: AppTheme.surface,
         border: Border(bottom: BorderSide(color: AppTheme.border)),
       ),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
         child: Row(
           children: List.generate(_children.length, (index) {
             final child = _children[index];

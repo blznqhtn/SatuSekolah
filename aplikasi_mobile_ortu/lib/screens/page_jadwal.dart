@@ -70,6 +70,7 @@ class _PageJadwalState extends State<PageJadwal> {
     final dayName = _fullDays[_selectedDay];
 
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _buildHeader(context, firstName, dayName),
         _buildDaySelector(),
@@ -98,6 +99,7 @@ class _PageJadwalState extends State<PageJadwal> {
 
   Widget _buildHeader(BuildContext context, String firstName, String dayName) {
     return Container(
+      width: double.infinity,
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 14),
       decoration: const BoxDecoration(
         color: AppTheme.surface,
@@ -145,6 +147,7 @@ class _PageJadwalState extends State<PageJadwal> {
 
   Widget _buildDaySelector() {
     return Container(
+      width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: const BoxDecoration(
         color: AppTheme.white,
