@@ -398,29 +398,31 @@ class ApiService {
     if (res != null && res['data'] is List && (res['data'] as List).isNotEmpty) {
       return List<Map<String, dynamic>>.from(res['data']);
     }
+
+    final mStr = month.toString().padLeft(2, '0');
     return [
       {
-        'title': 'Ujian Akhir Semester (UAS)',
-        'description': 'Pelaksanaan ujian teori dan praktik semester genap',
-        'event_date': '2026-05-18',
-        'category': 'UJIAN',
-      },
-      {
-        'title': 'Batas Pembayaran SPP Mei',
-        'description': 'Jatuh tempo pembayaran SPP bulanan',
-        'event_date': '2026-05-10',
+        'title': 'Batas Pembayaran SPP Bulanan',
+        'description': 'Jatuh tempo pembayaran SPP siswa',
+        'event_date': '$year-$mStr-10',
         'category': 'KEUANGAN',
       },
       {
-        'title': 'Pentas Seni & Gelar Karya Siswa',
-        'description': 'Pameran proyek inovasi siswa SMK',
-        'event_date': '2026-05-25',
+        'title': 'Evaluasi & Ujian Semester',
+        'description': 'Pelaksanaan ujian teori dan praktik siswa',
+        'event_date': '$year-$mStr-18',
+        'category': 'UJIAN',
+      },
+      {
+        'title': 'Pameran Karya & Inovasi Siswa',
+        'description': 'Gelar inovasi dan kreativitas proyek kejuruan',
+        'event_date': '$year-$mStr-23',
         'category': 'KEGIATAN',
       },
       {
-        'title': 'Rapat Pleno Orang Tua & Guru',
-        'description': 'Konsultasi perkembangan hasil belajar siswa',
-        'event_date': '2026-05-29',
+        'title': 'Pertemuan Pleno Wali Murid & Sekolah',
+        'description': 'Konsultasi perkembangan capaian belajar anak',
+        'event_date': '$year-$mStr-28',
         'category': 'RAPAT',
       },
     ];

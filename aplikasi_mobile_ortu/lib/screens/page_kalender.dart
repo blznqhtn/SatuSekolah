@@ -11,8 +11,9 @@ class PageKalender extends StatefulWidget {
 }
 
 class _PageKalenderState extends State<PageKalender> {
-  int _currentYear = 2026;
-  int _currentMonth = 5;
+  late int _currentYear;
+  late int _currentMonth;
+  int? _selectedDay;
 
   bool _isLoading = true;
   List<Map<String, dynamic>> _events = [];
@@ -33,9 +34,14 @@ class _PageKalenderState extends State<PageKalender> {
     'Desember'
   ];
 
+  final List<String> _weekDays = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
+
   @override
   void initState() {
     super.initState();
+    final now = DateTime.now();
+    _currentYear = now.year;
+    _currentMonth = now.month;
     _loadEvents();
   }
 
@@ -55,6 +61,7 @@ class _PageKalenderState extends State<PageKalender> {
 
   void _prevMonth() {
     setState(() {
+      _selectedDay = null;
       if (_currentMonth == 1) {
         _currentMonth = 12;
         _currentYear--;
@@ -67,6 +74,7 @@ class _PageKalenderState extends State<PageKalender> {
 
   void _nextMonth() {
     setState(() {
+      _selectedDay = null;
       if (_currentMonth == 12) {
         _currentMonth = 1;
         _currentYear++;
@@ -77,11 +85,84 @@ class _PageKalenderState extends State<PageKalender> {
     _loadEvents();
   }
 
+  void _jumpToToday() {
+    final now = DateTime.now();
+    setState(() {
+      _currentYear = now.year;
+      _currentMonth = now.month;
+      _selectedDay = now.day;
+    });
+    _loadEvents();
+  }
+
+  bool _dayHasEvent(int day) {
+    for (final ev in _events) {
+      final dateStr = ev['event_date']?.toString() ?? '';
+      final parsed = DateTime.tryParse(dateStr);
+      if (parsed != null) {
+        if (parsed.year == _currentYear && parsed.month == _currentMonth && parsed.day == day) {
+          return true;
+        }
+      } else if (dateStr.contains('-')) {
+        final parts = dateStr.split('-');
+        if (parts.length >= 3) {
+          final y = int.tryParse(parts[0]);
+          final m = int.tryParse(parts[1]);
+          final d = int.tryParse(parts[2].split('T').first.split(' ').first);
+          if (y == _currentYear && m == _currentMonth && d == day) {
+            return true;
+          }
+        }
+      }
+    }
+    return false;
+  }
+
+  bool _dayIsHoliday(int day) {
+    final dt = DateTime(_currentYear, _currentMonth, day);
+    if (dt.weekday == DateTime.sunday) return true;
+
+    for (final ev in _events) {
+      final cat = ev['category']?.toString().toUpperCase() ?? '';
+      if (cat == 'LIBUR' || cat == 'HOLIDAY') {
+        final dateStr = ev['event_date']?.toString() ?? '';
+        final parsed = DateTime.tryParse(dateStr);
+        if (parsed != null &&
+            parsed.year == _currentYear &&
+            parsed.month == _currentMonth &&
+            parsed.day == day) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  List<Map<String, dynamic>> _getEventsForDay(int day) {
+    return _events.where((ev) {
+      final dateStr = ev['event_date']?.toString() ?? '';
+      final parsed = DateTime.tryParse(dateStr);
+      if (parsed != null) {
+        return parsed.year == _currentYear && parsed.month == _currentMonth && parsed.day == day;
+      } else if (dateStr.contains('-')) {
+        final parts = dateStr.split('-');
+        if (parts.length >= 3) {
+          final y = int.tryParse(parts[0]);
+          final m = int.tryParse(parts[1]);
+          final d = int.tryParse(parts[2].split('T').first.split(' ').first);
+          return y == _currentYear && m == _currentMonth && d == day;
+        }
+      }
+      return false;
+    }).toList();
+  }
+
   @override
   Widget build(BuildContext context) {
     final monthLabel = '${_monthNames[_currentMonth]} $_currentYear';
 
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _buildHeader(context),
         Expanded(
@@ -99,8 +180,8 @@ class _PageKalenderState extends State<PageKalender> {
                         _buildCalendarNav(monthLabel),
                         _buildCalendarGrid(),
                         _buildLegend(),
-                        _buildSectionHeader('Agenda $monthLabel'),
-                        _buildAgendaList(),
+                        _buildSectionHeader(monthLabel),
+                        _buildAgendaList(monthLabel),
                         const SizedBox(height: 24),
                       ],
                     ),
@@ -113,31 +194,56 @@ class _PageKalenderState extends State<PageKalender> {
 
   Widget _buildHeader(BuildContext context) {
     return Container(
+      width: double.infinity,
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 14),
       decoration: const BoxDecoration(
         color: AppTheme.surface,
         border: Border(bottom: BorderSide(color: AppTheme.border)),
       ),
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          GestureDetector(
-            onTap: () {
-              final parent = context.findAncestorStateOfType<State<MainScreen>>() as dynamic;
-              if (parent != null) parent.goBack();
-            },
-            child: Container(
-              width: 34,
-              height: 34,
-              alignment: Alignment.center,
-              decoration: const BoxDecoration(
-                color: AppTheme.bg2,
-                shape: BoxShape.circle,
+          Row(
+            children: [
+              GestureDetector(
+                onTap: () {
+                  final parent = context.findAncestorStateOfType<State<MainScreen>>() as dynamic;
+                  if (parent != null) parent.goBack();
+                },
+                child: Container(
+                  width: 34,
+                  height: 34,
+                  alignment: Alignment.center,
+                  decoration: const BoxDecoration(
+                    color: AppTheme.bg2,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.arrow_back, size: 16, color: AppTheme.text),
+                ),
               ),
-              child: const Icon(Icons.arrow_back, size: 16, color: AppTheme.text),
+              const SizedBox(width: 10),
+              const Text('Kalender Akademik', style: AppTheme.headerTitle),
+            ],
+          ),
+          GestureDetector(
+            onTap: _jumpToToday,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: AppTheme.accentBg,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppTheme.accent.withOpacity(0.3)),
+              ),
+              child: const Text(
+                'Hari Ini',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: AppTheme.accent,
+                ),
+              ),
             ),
           ),
-          const SizedBox(width: 10),
-          const Text('Kalender Akademik', style: AppTheme.headerTitle),
         ],
       ),
     );
@@ -150,15 +256,21 @@ class _PageKalenderState extends State<PageKalender> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           IconButton(
-            icon: const Text('‹',
-                style: TextStyle(fontSize: 24, color: AppTheme.text, fontWeight: FontWeight.bold)),
+            icon: const Text(
+              '‹',
+              style: TextStyle(fontSize: 26, color: AppTheme.text, fontWeight: FontWeight.bold),
+            ),
             onPressed: _prevMonth,
           ),
-          Text(monthLabel,
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppTheme.text)),
+          Text(
+            monthLabel,
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppTheme.text),
+          ),
           IconButton(
-            icon: const Text('›',
-                style: TextStyle(fontSize: 24, color: AppTheme.text, fontWeight: FontWeight.bold)),
+            icon: const Text(
+              '›',
+              style: TextStyle(fontSize: 26, color: AppTheme.text, fontWeight: FontWeight.bold),
+            ),
             onPressed: _nextMonth,
           ),
         ],
@@ -167,102 +279,110 @@ class _PageKalenderState extends State<PageKalender> {
   }
 
   Widget _buildCalendarGrid() {
-    final List<String> days = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
-    final List<Map<String, dynamic>> dates = [
-      {'val': '', 'type': 'empty'},
-      {'val': '', 'type': 'empty'},
-      {'val': '1', 'type': 'normal'},
-      {'val': '2', 'type': 'normal'},
-      {'val': '3', 'type': 'event'},
-      {'val': '4', 'type': 'normal'},
-      {'val': '5', 'type': 'normal'},
-      {'val': '6', 'type': 'normal'},
-      {'val': '7', 'type': 'normal'},
-      {'val': '8', 'type': 'normal'},
-      {'val': '9', 'type': 'normal'},
-      {'val': '10', 'type': 'event'},
-      {'val': '11', 'type': 'holiday'},
-      {'val': '12', 'type': 'holiday'},
-      {'val': '13', 'type': 'normal'},
-      {'val': '14', 'type': 'normal'},
-      {'val': '15', 'type': 'normal'},
-      {'val': '16', 'type': 'today'},
-      {'val': '17', 'type': 'event'},
-      {'val': '18', 'type': 'normal'},
-      {'val': '19', 'type': 'normal'},
-      {'val': '20', 'type': 'event'},
-      {'val': '21', 'type': 'normal'},
-      {'val': '22', 'type': 'normal'},
-      {'val': '23', 'type': 'event'},
-      {'val': '24', 'type': 'normal'},
-      {'val': '25', 'type': 'holiday'},
-      {'val': '26', 'type': 'holiday'},
-      {'val': '27', 'type': 'normal'},
-      {'val': '28', 'type': 'normal'},
-      {'val': '29', 'type': 'event'},
-      {'val': '30', 'type': 'normal'},
-      {'val': '31', 'type': 'normal'},
-    ];
+    final now = DateTime.now();
+
+    // Hari pertama dalam bulan ini: 1 = Senin, ..., 7 = Minggu
+    final firstDayWeekday = DateTime(_currentYear, _currentMonth, 1).weekday;
+    final emptyLeadingDays = firstDayWeekday - 1;
+
+    // Total hari dalam bulan ini (mendukung tahun kabisat otomatis)
+    final totalDaysInMonth = DateTime(_currentYear, _currentMonth + 1, 0).day;
+    final totalCells = emptyLeadingDays + totalDaysInMonth;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
         children: [
+          // Nama-nama hari: Sen, Sel, Rab, Kam, Jum, Sab, Min
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: days
-                .map((day) => Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: Text(day.toUpperCase(),
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                                fontSize: 9,
-                                fontWeight: FontWeight.w700,
-                                color: AppTheme.text3)),
-                      ),
-                    ))
-                .toList(),
+            children: _weekDays.map((day) {
+              final isSun = day == 'Min';
+              return Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Text(
+                    day.toUpperCase(),
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 9,
+                      fontWeight: FontWeight.w700,
+                      color: isSun ? AppTheme.red.withOpacity(0.8) : AppTheme.text3,
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
           ),
+          const SizedBox(height: 6),
+
+          // Grid tanggal dinamis sesuai kalender riil
           GridView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            itemCount: dates.length,
+            itemCount: totalCells,
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 7,
               crossAxisSpacing: 4,
               mainAxisSpacing: 4,
+              childAspectRatio: 1.0,
             ),
             itemBuilder: (context, index) {
-              final date = dates[index];
-              if (date['type'] == 'empty') {
+              if (index < emptyLeadingDays) {
                 return const SizedBox();
               }
+
+              final dayNumber = index - emptyLeadingDays + 1;
+              final isToday = now.year == _currentYear &&
+                  now.month == _currentMonth &&
+                  now.day == dayNumber;
+              final isSelected = _selectedDay == dayNumber;
+              final hasEvent = _dayHasEvent(dayNumber);
+              final isHoliday = _dayIsHoliday(dayNumber);
 
               Color bgColor = Colors.transparent;
               Color textColor = AppTheme.text;
               FontWeight weight = FontWeight.w600;
+              Border? border;
 
-              if (date['type'] == 'today') {
+              if (isToday) {
                 bgColor = AppTheme.accent;
                 textColor = Colors.white;
                 weight = FontWeight.w900;
-              } else if (date['type'] == 'event') {
+              } else if (isSelected) {
+                bgColor = AppTheme.accentBg;
+                textColor = AppTheme.accent;
+                border = Border.all(color: AppTheme.accent, width: 2);
+                weight = FontWeight.w900;
+              } else if (hasEvent) {
                 textColor = AppTheme.teal;
                 weight = FontWeight.w800;
-              } else if (date['type'] == 'holiday') {
+              } else if (isHoliday) {
                 textColor = AppTheme.red;
+                weight = FontWeight.w700;
               }
 
-              return Container(
-                decoration: BoxDecoration(
-                  color: bgColor,
-                  shape: BoxShape.circle,
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  date['val'],
-                  style: TextStyle(fontSize: 12, fontWeight: weight, color: textColor),
+              return GestureDetector(
+                onTap: () {
+                  setState(() {
+                    _selectedDay = _selectedDay == dayNumber ? null : dayNumber;
+                  });
+                },
+                child: Center(
+                  child: Container(
+                    width: 38,
+                    height: 38,
+                    decoration: BoxDecoration(
+                      color: bgColor,
+                      shape: BoxShape.circle,
+                      border: border,
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      dayNumber.toString(),
+                      style: TextStyle(fontSize: 13, fontWeight: weight, color: textColor),
+                    ),
+                  ),
                 ),
               );
             },
@@ -278,9 +398,9 @@ class _PageKalenderState extends State<PageKalender> {
       child: Row(
         children: [
           _buildLegendItem(AppTheme.accent, 'Hari ini'),
-          const SizedBox(width: 12),
+          const SizedBox(width: 14),
           _buildLegendItem(AppTheme.teal, 'Ada event'),
-          const SizedBox(width: 12),
+          const SizedBox(width: 14),
           _buildLegendItem(AppTheme.red, 'Libur'),
         ],
       ),
@@ -300,30 +420,62 @@ class _PageKalenderState extends State<PageKalender> {
           ),
         ),
         const SizedBox(width: 6),
-        Text(label,
-            style: const TextStyle(
-                fontSize: 11, fontWeight: FontWeight.w700, color: AppTheme.text2)),
+        Text(
+          label,
+          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppTheme.text2),
+        ),
       ],
     );
   }
 
-  Widget _buildSectionHeader(String title) {
+  Widget _buildSectionHeader(String monthLabel) {
+    final title = _selectedDay != null
+        ? 'Agenda $_selectedDay $monthLabel'
+        : 'Agenda $monthLabel';
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
-      child: Text(title, style: AppTheme.sectionTitle),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(title, style: AppTheme.sectionTitle),
+          if (_selectedDay != null)
+            GestureDetector(
+              onTap: () {
+                setState(() {
+                  _selectedDay = null;
+                });
+              },
+              child: const Text('Lihat Semua', style: AppTheme.sectionMore),
+            ),
+        ],
+      ),
     );
   }
 
-  Widget _buildAgendaList() {
-    if (_events.isEmpty) {
+  Widget _buildAgendaList(String monthLabel) {
+    List<Map<String, dynamic>> displayedEvents = _events;
+
+    if (_selectedDay != null) {
+      displayedEvents = _getEventsForDay(_selectedDay!);
+    }
+
+    if (displayedEvents.isEmpty) {
+      final msg = _selectedDay != null
+          ? 'Tidak ada agenda kegiatan pada tanggal $_selectedDay $monthLabel'
+          : 'Tidak ada agenda kegiatan pada bulan $monthLabel';
+
       return Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16),
         child: Container(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(22),
           decoration: AppTheme.cardDecoration,
-          child: const Center(
-            child: Text('Tidak ada agenda acara pada bulan ini',
-                style: TextStyle(fontSize: 12, color: AppTheme.text3)),
+          child: Center(
+            child: Text(
+              msg,
+              style: const TextStyle(fontSize: 12, color: AppTheme.text3),
+              textAlign: TextAlign.center,
+            ),
           ),
         ),
       );
@@ -334,6 +486,7 @@ class _PageKalenderState extends State<PageKalender> {
       AppTheme.teal,
       AppTheme.accent,
       AppTheme.purple,
+      AppTheme.yellow,
     ];
 
     return Padding(
@@ -341,17 +494,30 @@ class _PageKalenderState extends State<PageKalender> {
       child: Container(
         decoration: AppTheme.cardDecoration,
         child: Column(
-          children: List.generate(_events.length, (index) {
-            final ev = _events[index];
+          children: List.generate(displayedEvents.length, (index) {
+            final ev = displayedEvents[index];
             final title = ev['title']?.toString() ?? 'Acara Sekolah';
-            final date = ev['event_date']?.toString() ?? 'Mei 2026';
+            final rawDate = ev['event_date']?.toString() ?? '';
             final badge = ev['category']?.toString() ?? 'Kegiatan';
             final color = colors[index % colors.length];
+
+            String formattedDate = rawDate;
+            final parsed = DateTime.tryParse(rawDate);
+            if (parsed != null) {
+              formattedDate = '${parsed.day} ${_monthNames[parsed.month]} ${parsed.year}';
+            }
 
             return Column(
               children: [
                 if (index > 0) const Divider(height: 1, color: AppTheme.border),
-                _buildAgendaItem(color, title, date, badge, color, color.withOpacity(0.12)),
+                _buildAgendaItem(
+                  color,
+                  title,
+                  formattedDate,
+                  badge,
+                  color,
+                  color.withOpacity(0.12),
+                ),
               ],
             );
           }),
@@ -361,7 +527,13 @@ class _PageKalenderState extends State<PageKalender> {
   }
 
   Widget _buildAgendaItem(
-      Color dotColor, String title, String date, String badge, Color badgeColor, Color badgeBg) {
+    Color dotColor,
+    String title,
+    String date,
+    String badge,
+    Color badgeColor,
+    Color badgeBg,
+  ) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
@@ -379,13 +551,15 @@ class _PageKalenderState extends State<PageKalender> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title,
-                    style: const TextStyle(
-                        fontSize: 13, fontWeight: FontWeight.w700, color: AppTheme.text)),
+                Text(
+                  title,
+                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppTheme.text),
+                ),
                 const SizedBox(height: 2),
-                Text(date,
-                    style: const TextStyle(
-                        fontSize: 11, color: AppTheme.text3, fontFamily: 'DM Mono')),
+                Text(
+                  date,
+                  style: const TextStyle(fontSize: 11, color: AppTheme.text3, fontFamily: 'DM Mono'),
+                ),
               ],
             ),
           ),
@@ -395,9 +569,10 @@ class _PageKalenderState extends State<PageKalender> {
               color: badgeBg,
               borderRadius: BorderRadius.circular(20),
             ),
-            child: Text(badge,
-                style:
-                    TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: badgeColor)),
+            child: Text(
+              badge,
+              style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: badgeColor),
+            ),
           ),
         ],
       ),
