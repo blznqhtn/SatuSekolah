@@ -324,26 +324,38 @@ class _PageBerandaState extends State<PageBeranda> {
             spacing: 10,
             runSpacing: 10,
             children: [
-              _buildQuickMenuItem(itemWidth, '📋', 'Presensi', AppTheme.tealBg, onTap: () {}), // Handled by bottom nav normally, but dummy here
+              _buildQuickMenuItem(itemWidth, '📋', 'Presensi', AppTheme.tealBg, onTap: () {
+                final parent = context.findAncestorStateOfType<State<MainScreen>>() as dynamic;
+                if (parent != null) parent.switchTab(1);
+              }),
               _buildQuickMenuItem(itemWidth, '📊', 'Rapor', AppTheme.blueBg, onTap: () {
                 final parent = context.findAncestorStateOfType<State<MainScreen>>() as dynamic;
-                if(parent != null) parent.navigateToSubPage(const PageRapor());
+                if (parent != null) parent.navigateToSubPage(const PageRapor());
               }),
-              _buildQuickMenuItem(itemWidth, '💳', 'Bayar SPP', AppTheme.accentBg, hasBadge: true, onTap: () {}),
+              _buildQuickMenuItem(itemWidth, '💳', 'Bayar SPP', AppTheme.accentBg, hasBadge: true, onTap: () {
+                final parent = context.findAncestorStateOfType<State<MainScreen>>() as dynamic;
+                if (parent != null) parent.switchTab(2);
+              }),
               _buildQuickMenuItem(itemWidth, '🩺', 'Kesehatan', AppTheme.redBg, onTap: () {
                 final parent = context.findAncestorStateOfType<State<MainScreen>>() as dynamic;
-                if(parent != null) parent.navigateToSubPage(const PageKesehatan());
+                if (parent != null) parent.navigateToSubPage(const PageKesehatan());
               }),
               _buildQuickMenuItem(itemWidth, '📅', 'Jadwal', AppTheme.purpleBg, onTap: () {
                 final parent = context.findAncestorStateOfType<State<MainScreen>>() as dynamic;
-                if(parent != null) parent.navigateToSubPage(const PageJadwal());
+                if (parent != null) parent.navigateToSubPage(const PageJadwal());
               }),
               _buildQuickMenuItem(itemWidth, '⭐', 'Nilai Guru', AppTheme.yellowBg, onTap: () {
                 final parent = context.findAncestorStateOfType<State<MainScreen>>() as dynamic;
-                if(parent != null) parent.navigateToSubPage(const PagePenilaian());
+                if (parent != null) parent.navigateToSubPage(const PagePenilaian());
               }),
-              _buildQuickMenuItem(itemWidth, '🗓️', 'Kalender', AppTheme.tealBg, onTap: () {}),
-              _buildQuickMenuItem(itemWidth, '👤', 'Profil', AppTheme.bg2, onTap: () {}),
+              _buildQuickMenuItem(itemWidth, '🗓️', 'Kalender', AppTheme.tealBg, onTap: () {
+                final parent = context.findAncestorStateOfType<State<MainScreen>>() as dynamic;
+                if (parent != null) parent.switchTab(3);
+              }),
+              _buildQuickMenuItem(itemWidth, '👤', 'Profil', AppTheme.bg2, onTap: () {
+                final parent = context.findAncestorStateOfType<State<MainScreen>>() as dynamic;
+                if (parent != null) parent.switchTab(4);
+              }),
             ],
           );
         }

@@ -5,10 +5,6 @@ import 'screens/page_presensi.dart';
 import 'screens/page_bayar.dart';
 import 'screens/page_kalender.dart';
 import 'screens/page_profil.dart';
-import 'screens/page_rapor.dart';
-import 'screens/page_kesehatan.dart';
-import 'screens/page_jadwal.dart';
-import 'screens/page_penilaian.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -38,6 +34,13 @@ class _MainScreenState extends State<MainScreen> {
     });
   }
 
+  void switchTab(int index) {
+    setState(() {
+      _currentIndex = index;
+      _subPage = null;
+    });
+  }
+
   void navigateToSubPage(Widget page) {
     setState(() {
       _subPage = page;
@@ -46,7 +49,11 @@ class _MainScreenState extends State<MainScreen> {
   
   void goBack() {
     setState(() {
-      _subPage = null;
+      if (_subPage != null) {
+        _subPage = null;
+      } else {
+        _currentIndex = 0;
+      }
     });
   }
 

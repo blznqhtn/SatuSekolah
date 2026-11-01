@@ -39,6 +39,23 @@ class PageKalender extends StatelessWidget {
       ),
       child: Row(
         children: [
+          GestureDetector(
+            onTap: () {
+              final parent = context.findAncestorStateOfType<State<MainScreen>>() as dynamic;
+              if (parent != null) parent.goBack();
+            },
+            child: Container(
+              width: 34,
+              height: 34,
+              alignment: Alignment.center,
+              decoration: const BoxDecoration(
+                color: AppTheme.bg2,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.arrow_back, size: 16, color: AppTheme.text),
+            ),
+          ),
+          const SizedBox(width: 10),
           const Text('Kalender Akademik', style: AppTheme.headerTitle),
         ],
       ),
