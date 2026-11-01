@@ -74,13 +74,14 @@ func (h *BillingHandler) GetMyInvoices(c *fiber.Ctx) error {
 
 // POST /api/v1/finance/invoices/pay-dynamic-qr
 // Role: Siswa / Orang Tua
-// Bayar tagihan dengan scan QR Dinamis. Bisa bayar penuh atau mencicil (jika diizinkan).
-// Body: { "dynamic_qr_code": "...", "amount": 500000, "pin": "..." }
+// Bayar tagihan dengan scan QR Dinamis atau langsung via ID tagihan.
+// Body: { "invoice_id": "...", "dynamic_qr_code": "...", "amount": 500000, "pin": "..." }
 func (h *BillingHandler) PayInvoiceDynamicQR(c *fiber.Ctx) error {
 	claims := c.Locals("claims").(*middleware.Claims)
 	payerID, _ := uuid.Parse(claims.UserID)
 
 	var body struct {
+		InvoiceID     string  `json:"invoice_id"`
 		DynamicQRCode string  `json:"dynamic_qr_code"`
 		Amount        float64 `json:"amount"`
 		PIN           string  `json:"pin"`
@@ -88,11 +89,16 @@ func (h *BillingHandler) PayInvoiceDynamicQR(c *fiber.Ctx) error {
 	if err := c.BodyParser(&body); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "request tidak valid"})
 	}
-	if body.DynamicQRCode == "" || body.Amount <= 0 || body.PIN == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "dynamic_qr_code, amount, dan pin wajib diisi"})
+
+	qrOrID := body.DynamicQRCode
+	if qrOrID == "" {
+		qrOrID = body.InvoiceID
+	}
+	if qrOrID == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invoice_id atau dynamic_qr_code wajib diisi"})
 	}
 
-	if err := h.usecase.PayInvoiceDynamicQR(c.Context(), payerID, body.DynamicQRCode, body.Amount, body.PIN); err != nil {
+	if err := h.usecase.PayInvoiceDynamicQR(c.Context(), payerID, qrOrID, body.Amount, body.PIN); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
 	}
 

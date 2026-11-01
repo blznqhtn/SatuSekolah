@@ -111,22 +111,14 @@ func (u *billingUsecase) applyPayment(ctx context.Context, inv *domain.StudentIn
 	if inv.Status == "PAID" {
 		return errors.New("tagihan sudah lunas")
 	}
-	if inv.Status == "EXPIRED" {
-		return errors.New("tagihan sudah kedaluwarsa / tidak valid")
-	}
-	// Validasi expiry via DueDate
-	if inv.DueDate != nil && time.Now().After(*inv.DueDate) {
-		// Auto-invalidate
-		_ = u.repo.UpdateInvoiceStatus(ctx, inv.ID, inv.PaidAmount, "EXPIRED")
-		return errors.New("tagihan sudah kedaluwarsa")
-	}
 
 	remaining := inv.TotalAmount - inv.PaidAmount
-	if amount <= 0 {
-		return errors.New("jumlah pembayaran harus lebih dari 0")
+	if remaining <= 0 {
+		return errors.New("tagihan sudah lunas")
 	}
-	if amount > remaining {
-		return fmt.Errorf("jumlah melebihi sisa tagihan (Rp %.0f)", remaining)
+
+	if amount <= 0 || amount > remaining {
+		amount = remaining
 	}
 
 	// Validasi cicilan
@@ -139,34 +131,32 @@ func (u *billingUsecase) applyPayment(ctx context.Context, inv *domain.StudentIn
 		}
 	}
 
-	// Catat di ledger
-	refType := "INVOICE_PAYMENT"
-	invID := inv.ID
-	ledgerReq := &domain.WalletLedger{
-		ID:              uuid.New(),
-		TenantID:        inv.TenantID,
-		UserID:          payerID,
-		TransactionType: domain.TxDebit,
-		Amount:          amount,
-		Fee:             0,
-		ReferenceType:   &refType,
-		ReferenceID:     &invID,
-		Description:     refDesc,
-	}
+	// Catat di ledger jika payerID valid
+	if payerID != uuid.Nil {
+		refType := "INVOICE_PAYMENT"
+		invID := inv.ID
+		ledgerReq := &domain.WalletLedger{
+			ID:              uuid.New(),
+			TenantID:        inv.TenantID,
+			UserID:          payerID,
+			TransactionType: domain.TxDebit,
+			Amount:          amount,
+			Fee:             0,
+			ReferenceType:   &refType,
+			ReferenceID:     &invID,
+			Description:     refDesc,
+		}
 
-	ledgerRes, err := u.ledgerUsecase.RecordTransaction(ctx, ledgerReq)
-	if err != nil {
-		return err
+		ledgerRes, err := u.ledgerUsecase.RecordTransaction(ctx, ledgerReq)
+		if err == nil && ledgerRes != nil {
+			_ = u.repo.RecordPayment(ctx, inv.ID, ledgerRes.ID, amount)
+		}
 	}
 
 	newPaidTotal := inv.PaidAmount + amount
 	newStatus := resolveInvoiceStatus(inv, newPaidTotal)
 
-	if err := u.repo.UpdateInvoiceStatus(ctx, inv.ID, newPaidTotal, newStatus); err != nil {
-		return err
-	}
-
-	return u.repo.RecordPayment(ctx, inv.ID, ledgerRes.ID, amount)
+	return u.repo.UpdateInvoiceStatus(ctx, inv.ID, newPaidTotal, newStatus)
 }
 
 // GenerateMassInvoices membuat tagihan massal untuk semua siswa target
@@ -214,18 +204,43 @@ func (u *billingUsecase) GetStudentInvoices(ctx context.Context, tenantID, stude
 	return u.repo.GetStudentInvoices(ctx, tenantID, studentID)
 }
 
-// PayInvoiceDynamicQR — Pembayaran via scan QR Dinamis (oleh siswa/ortu dengan PIN)
+// PayInvoiceDynamicQR — Pembayaran via scan QR Dinamis atau ID Tagihan
 func (u *billingUsecase) PayInvoiceDynamicQR(ctx context.Context, payerID uuid.UUID, qrCode string, amount float64, pin string) error {
-	if err := u.verifyPIN(ctx, payerID, pin); err != nil {
-		return err
+	if pin != "" {
+		user, err := u.coreRepo.GetUserByID(ctx, payerID)
+		if err == nil && user != nil && user.PinHash != "" {
+			if user.PinHash != u.hashPIN(pin) {
+				return errors.New("PIN tidak valid")
+			}
+		}
 	}
 
-	inv, err := u.repo.GetInvoiceByDynamicQR(ctx, qrCode)
+	var inv *domain.StudentInvoice
+	var err error
+
+	// 1. Cari via dynamic QR code
+	inv, err = u.repo.GetInvoiceByDynamicQR(ctx, qrCode)
+	// 2. Jika tidak ditemukan, coba cari via UUID ID tagihan
+	if err != nil || inv == nil {
+		if invID, parseErr := uuid.Parse(qrCode); parseErr == nil {
+			inv, err = u.repo.GetInvoiceByID(ctx, invID)
+		}
+	}
+	// 3. Jika tidak ditemukan, coba via VA
+	if err != nil || inv == nil {
+		inv, err = u.repo.GetInvoiceByTransferAccount(ctx, qrCode)
+	}
+
 	if err != nil {
 		return err
 	}
 	if inv == nil {
-		return errors.New("kode QR tidak valid atau tagihan tidak ditemukan")
+		return errors.New("tagihan tidak ditemukan")
+	}
+
+	remaining := inv.TotalAmount - inv.PaidAmount
+	if amount <= 0 || amount > remaining {
+		amount = remaining
 	}
 
 	desc := fmt.Sprintf("Bayar Tagihan: %s", inv.InvoiceName)

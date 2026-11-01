@@ -164,7 +164,12 @@ func (r *billingRepository) GetInvoiceByMidtransOrderID(ctx context.Context, ord
 }
 
 func (r *billingRepository) UpdateInvoiceStatus(ctx context.Context, invoiceID uuid.UUID, paidAmount float64, status string) error {
-	query := `UPDATE student_invoices SET paid_amount = ?, status = ?, updated_at = NOW() WHERE id = ?`
+	var query string
+	if status == "PAID" {
+		query = `UPDATE student_invoices SET paid_amount = ?, status = ?, paid_at = NOW(), updated_at = NOW() WHERE id = ?`
+	} else {
+		query = `UPDATE student_invoices SET paid_amount = ?, status = ?, updated_at = NOW() WHERE id = ?`
+	}
 	_, err := r.db.ExecContext(ctx, query, paidAmount, status, invoiceID)
 	return err
 }

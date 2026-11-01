@@ -699,12 +699,19 @@ func seedComprehensiveStudentData(ctx context.Context, db *sql.DB, tenantID, stu
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 			updated_at TIMESTAMP
 		);
-		INSERT INTO student_invoices (id, tenant_id, student_id, invoice_name, total_amount, status, can_installment, minimum_installment, dynamic_qr_code, transfer_target_account, due_date)
+		ALTER TABLE student_invoices ADD COLUMN IF NOT EXISTS paid_at TIMESTAMP;
+		INSERT INTO student_invoices (id, tenant_id, student_id, invoice_name, total_amount, paid_amount, status, can_installment, minimum_installment, dynamic_qr_code, transfer_target_account, due_date)
 		VALUES 
-			('in000001-1111-1111-1111-111111111111', $1, $2, 'Tagihan SPP Mei 2026', 600000, 'UNPAID', false, 0, 'QR-SPP-MEI-2026', 'VA-88880012345678', '2026-05-10'),
-			('in000002-1111-1111-1111-111111111111', $1, $2, 'Tagihan SPP April 2026', 600000, 'PAID', false, 0, 'QR-SPP-APR-2026', 'VA-88880012345678', '2026-04-10'),
-			('in000003-1111-1111-1111-111111111111', $1, $2, 'Tagihan SPP Maret 2026', 600000, 'PAID', false, 0, 'QR-SPP-MAR-2026', 'VA-88880012345678', '2026-03-10')
-		ON CONFLICT (id) DO NOTHING;
+			('in000001-1111-1111-1111-111111111111', $1, $2, 'Tagihan SPP November 2026', 600000, 0, 'UNPAID', false, 0, 'QR-SPP-NOV-2026', 'VA-88880012345678', '2026-11-30'),
+			('in000002-1111-1111-1111-111111111111', $1, $2, 'Tagihan SPP Oktober 2026', 600000, 600000, 'PAID', false, 0, 'QR-SPP-OKT-2026', 'VA-88880012345678', '2026-10-10'),
+			('in000003-1111-1111-1111-111111111111', $1, $2, 'Tagihan SPP September 2026', 600000, 600000, 'PAID', false, 0, 'QR-SPP-SEP-2026', 'VA-88880012345678', '2026-09-10')
+		ON CONFLICT (id) DO UPDATE SET 
+			invoice_name = EXCLUDED.invoice_name,
+			total_amount = EXCLUDED.total_amount,
+			paid_amount = EXCLUDED.paid_amount,
+			status = EXCLUDED.status,
+			due_date = EXCLUDED.due_date,
+			dynamic_qr_code = EXCLUDED.dynamic_qr_code;
 	`, tenantID, studentID)
 
 	// 16. UKS Health Checkups & Medical History
