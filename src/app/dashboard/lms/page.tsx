@@ -7,7 +7,7 @@ export default function Page() {
   return (
     <DataTableTemplate 
       moduleName="E-Learning (LMS)"
-      endpoint="/lms"
+      endpoint="/academic/courses"
     />
   )
 }

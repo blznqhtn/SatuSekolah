@@ -7,7 +7,7 @@ export default function Page() {
   return (
     <DataTableTemplate 
       moduleName="Perpustakaan Digital"
-      endpoint="/library"
+      endpoint="/library/books"
     />
   )
 }

@@ -7,7 +7,7 @@ export default function Page() {
   return (
     <DataTableTemplate 
       moduleName="Penerimaan Siswa (PPDB)"
-      endpoint="/spmb"
+      endpoint="/spmb/batches"
     />
   )
 }

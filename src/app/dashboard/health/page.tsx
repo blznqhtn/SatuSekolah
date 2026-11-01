@@ -7,7 +7,7 @@ export default function Page() {
   return (
     <DataTableTemplate 
       moduleName="Kesehatan (UKS)"
-      endpoint="/health"
+      endpoint="/health/records"
     />
   )
 }

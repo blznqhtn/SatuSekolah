@@ -7,7 +7,7 @@ export default function Page() {
   return (
     <DataTableTemplate 
       moduleName="Poin & Pelanggaran"
-      endpoint="/violations"
+      endpoint="/violations/history"
     />
   )
 }

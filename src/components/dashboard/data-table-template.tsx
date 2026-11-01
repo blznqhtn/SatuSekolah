@@ -53,7 +53,14 @@ export function DataTableTemplate({
       const items = Array.isArray(res.data) ? res.data : Array.isArray(res) ? res : []
       setData(items)
     } catch (err: any) {
-      setError(err.message || "Gagal memuat data dari server.")
+      const msg = String(err?.message || "")
+      // Jika endpoint belum diimplementasi (404/Cannot GET) atau belum ada data, tampilkan empty state dengan rapi
+      if (msg.includes("Cannot GET") || msg.includes("404") || msg.includes("500") || msg.includes("400")) {
+        setData([])
+        setError(null)
+      } else {
+        setError(msg || "Gagal memuat data dari server.")
+      }
     } finally {
       setIsLoading(false)
     }

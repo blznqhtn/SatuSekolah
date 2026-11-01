@@ -7,7 +7,7 @@ export default function Page() {
   return (
     <DataTableTemplate 
       moduleName="Prakerin & PKL"
-      endpoint="/performance"
+      endpoint="/performance/records"
     />
   )
 }

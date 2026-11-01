@@ -7,7 +7,7 @@ export default function Page() {
   return (
     <DataTableTemplate 
       moduleName="Jadwal & Kelas"
-      endpoint="/academic"
+      endpoint="/academic/courses"
     />
   )
 }

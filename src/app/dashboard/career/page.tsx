@@ -7,7 +7,7 @@ export default function Page() {
   return (
     <DataTableTemplate 
       moduleName="Bursa Kerja (BKK)"
-      endpoint="/career"
+      endpoint="/career/vacancies/local"
     />
   )
 }

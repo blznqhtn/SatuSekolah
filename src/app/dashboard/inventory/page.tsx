@@ -7,7 +7,7 @@ export default function Page() {
   return (
     <DataTableTemplate 
       moduleName="Inventaris & Aset"
-      endpoint="/inventory"
+      endpoint="/inventory/items"
     />
   )
 }

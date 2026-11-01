@@ -7,7 +7,7 @@ export default function Page() {
   return (
     <DataTableTemplate 
       moduleName="Penilaian Kinerja"
-      endpoint="/pkg"
+      endpoint="/pkg/submissions"
     />
   )
 }

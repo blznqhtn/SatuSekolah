@@ -7,7 +7,7 @@ export default function Page() {
   return (
     <DataTableTemplate 
       moduleName="Ujian Komputer (CBA)"
-      endpoint="/cba"
+      endpoint="/cba/folders"
     />
   )
 }
